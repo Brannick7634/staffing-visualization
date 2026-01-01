@@ -145,10 +145,8 @@ const calculateTopStates = (firmsData) => {
 
       // Check if cache is still valid (less than 10 minutes old)
       if (now - timestamp < CACHE_DURATION) {
-        console.log('✅ Using cached data (age:', Math.floor((now - timestamp) / 1000), 'seconds)')
         return data
       } else {
-        console.log('⏰ Cache expired, fetching fresh data')
         localStorage.removeItem(CACHE_KEY)
         return null
       }
@@ -166,7 +164,6 @@ const calculateTopStates = (firmsData) => {
         timestamp: Date.now()
       }
       localStorage.setItem(CACHE_KEY, JSON.stringify(cacheObject))
-      console.log('💾 Data cached successfully')
     } catch (error) {
       console.error('Error writing to cache:', error)
     }

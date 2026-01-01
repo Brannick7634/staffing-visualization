@@ -62,7 +62,8 @@ export const AuthProvider = ({ children }) => {
           firstName: result.user.firstName,
           employeeBandSize: result.user.employeeBandSize,
           hqState: result.user.hqState,
-          primarySegment: result.user.primarySegment
+          primarySegment: result.user.primarySegment,
+          internalHeadcountGrowth: result.user.internalHeadcountGrowth
         }
 
         // Store token and user data

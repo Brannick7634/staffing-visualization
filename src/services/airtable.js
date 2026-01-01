@@ -183,6 +183,7 @@ export async function submitLeadRequest(formData) {
           'Employee Band Size': formData.employeeBandSize,
           'HQ State': formData.hqState,
           'Primary Segment': formData.primarySegment,
+          'Internal Employee Headcount Growth': formData.internalHeadcountGrowth,
         },
       },
     ])
@@ -222,7 +223,8 @@ export async function verifyCredentials(email, password) {
           email: user.get('Email'),
           employeeBandSize: user.get('Employee Band Size'),
           hqState: user.get('HQ State'),
-          primarySegment: user.get('Primary Segment')
+          primarySegment: user.get('Primary Segment'),
+          internalHeadcountGrowth: user.get('Internal Employee Headcount Growth')
         }
       }
     } else {

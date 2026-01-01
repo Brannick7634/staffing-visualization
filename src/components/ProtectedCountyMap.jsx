@@ -2149,6 +2149,7 @@ const ProtectedCountyMap = ({ firms, userState }) => {
   const chartDiv = useRef(null)
   const chartRoot = useRef(null)
   const polygonSeries = useRef(null)
+  const [mapReady, setMapReady] = useState(false)
   
   const [filters, setFilters] = useState({
     timeframe: '1Y Growth',
@@ -2166,9 +2167,13 @@ const ProtectedCountyMap = ({ firms, userState }) => {
       // Convert to uppercase for comparison with data
       const stateAbbr = stateLower.toUpperCase()
       
-      
       filtered = filtered.filter(r => {
-        const match = r.hqStateAbbr === stateAbbr
+        // Try multiple matching strategies
+        const match = 
+          r.hqStateAbbr === stateAbbr || // Exact match (CO === CO)
+          r.hqStateAbbr === stateLower || // Lowercase match (co === co)
+          r.hqStateAbbr?.toUpperCase() === stateAbbr || // Case insensitive match
+          r.hqLocation === userState // Full state name match (Colorado === Colorado)
         return match
       })
       
@@ -2194,7 +2199,11 @@ const ProtectedCountyMap = ({ firms, userState }) => {
     const cityData = {}
     
     records.forEach(r => {
-      const city = r.companyCity
+      // Handle both string and array formats for city
+      let city = r.companyCity
+      if (Array.isArray(city)) {
+        city = city[0] // Take first element if array
+      }
       if (!city) return
       
       if (!cityData[city]) {
@@ -2257,6 +2266,9 @@ const ProtectedCountyMap = ({ firms, userState }) => {
     if (!chartDiv.current) {
       return
     }
+
+    setMapReady(false) // Reset FIRST before initializing new chart
+    polygonSeries.current = null // Reset polygon series immediately
 
 
     // Initialize chart
@@ -2378,6 +2390,11 @@ const ProtectedCountyMap = ({ firms, userState }) => {
         // Wait for series to finish loading
         series.events.once("datavalidated", () => {
           polygonSeries.current = series
+          // Force a state change by setting to false first if already true
+          setMapReady(false)
+          setTimeout(() => {
+            setMapReady(true) // Signal that map is ready for data updates
+          }, 0)
         })
         
       } catch (error) {
@@ -2395,10 +2412,9 @@ const ProtectedCountyMap = ({ firms, userState }) => {
 
   useEffect(() => {
     
-    if (!polygonSeries.current) {
+    if (!polygonSeries.current || !mapReady) {
       return
     }
-
 
     const filtered = filterRecords(firms)
     
@@ -2533,7 +2549,7 @@ const ProtectedCountyMap = ({ firms, userState }) => {
       })
       
     }
-  }, [firms, filters, userState])
+  }, [firms, filters, userState, mapReady])
 
   return (
     <>

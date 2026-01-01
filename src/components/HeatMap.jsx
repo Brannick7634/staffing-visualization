@@ -301,7 +301,7 @@ function HeatMap({ firms, filters, setFilters }) {
 }
 
 // Component to display rankings based on HeatMap filters
-function HeatMapWithRankings({ firms }) {
+function HeatMapWithRankings({ firms, hideRankings = false }) {
   const [filters, setFilters] = useState({
     segment: 'All segments',
     timeframe: '1Y Growth',
@@ -441,6 +441,10 @@ function HeatMapWithRankings({ firms }) {
 
   const topStates = getTopStates()
   const topSegments = getTopSegments()
+
+  if (hideRankings) {
+    return <HeatMap firms={firms} filters={filters} setFilters={setFilters} />
+  }
 
   return (
     <div className="two-column">

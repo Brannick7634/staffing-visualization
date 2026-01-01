@@ -508,7 +508,7 @@ tbody tr:hover {
     radial-gradient(circle at top left, rgba(255, 62, 138, 0.25), transparent 55%),
     linear-gradient(145deg, #050a1f, #0b122b);
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 0.8fr 1.2fr;
   gap: 40px;
   align-items: center;
 }

@@ -15,6 +15,7 @@ function Signup() {
     employeeBand: '',
     hqState: '',
     primarySegment: '',
+    internalHeadcountGrowth: '',
   })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -90,7 +91,8 @@ function Signup() {
         password: pendingFormData.password,
         employeeBandSize: pendingFormData.employeeBand,
         hqState: pendingFormData.hqState,
-        primarySegment: pendingFormData.primarySegment
+        primarySegment: pendingFormData.primarySegment,
+        internalHeadcountGrowth: pendingFormData.internalHeadcountGrowth
       })
       
       // Redirect to login page after successful signup
@@ -257,9 +259,9 @@ function Signup() {
             </div>
           </div>
 
-          <div className="cta-form-row">
+          <div className="cta-form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
             <div>
-              <div className="form-label">Internal Employee band size</div>
+              <div className="form-label">Employee Band Size</div>
               <select
                 className="form-select"
                 value={formData.employeeBand}
@@ -288,30 +290,46 @@ function Signup() {
                 <option value="">Select state</option>
                 {US_STATES.map((state) => (
                   <option key={state.value} value={state.label}>
-                    {state.label}
+                    {state.value}
                   </option>
                 ))}
               </select>
             </div>
+            <div>
+              <div className="form-label">Primary segment*</div>
+              <select
+                className="form-select"
+                value={formData.primarySegment}
+                onChange={(e) => setFormData({ ...formData, primarySegment: e.target.value })}
+                required
+              >
+                <option value="">Select primary segment</option>
+                {SEGMENT_NAMES.sort().map(segment => (
+                  <option key={segment} value={SEGMENT_MAPPING[segment]}>{segment}</option>
+                ))}
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="helper-text" style={{ marginTop: '-8px', marginBottom: '16px' }}>
+            * Primary segment = the staffing segment where your company has the most payroll.
           </div>
 
           <div>
-            <div className="form-label">Primary segment*</div>
+            <div className="form-label">Employee Headcount Growth (%)</div>
             <select
               className="form-select"
-              value={formData.primarySegment}
-              onChange={(e) => setFormData({ ...formData, primarySegment: e.target.value })}
-              required
+              value={formData.internalHeadcountGrowth}
+              onChange={(e) => setFormData({ ...formData, internalHeadcountGrowth: e.target.value })}
             >
-              <option value="">Select primary segment</option>
-              {SEGMENT_NAMES.sort().map(segment => (
-                <option key={segment} value={SEGMENT_MAPPING[segment]}>{segment}</option>
-              ))}
-              <option value="other">Other</option>
+              <option value="">Select growth range</option>
+              <option value="0-5">0-5%</option>
+              <option value="5-10">5-10%</option>
+              <option value="10-20">10-20%</option>
+              <option value="20-50">20-50%</option>
+              <option value="50+">50%+</option>
             </select>
-            <div className="helper-text">
-              * Primary segment = the staffing segment where your company has the most payroll.
-            </div>
           </div>
 
           <button type="submit" className="cta-submit" disabled={submitting}>

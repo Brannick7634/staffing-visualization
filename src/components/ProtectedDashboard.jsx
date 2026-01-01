@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useProtectedData } from '../hooks/useProtectedData'
+import { useAirtableData } from '../hooks/useAirtable'
 import ProtectedCountyMap from './ProtectedCountyMap'
+import HeatMapWithRankings from './HeatMap'
 import { SEGMENT_NAMES, firmHasPrimarySegment, normalizeSegment } from '../constants/segments'
+import { US_STATES } from '../constants/usStates'
 import logo from '../assets/Instagram_Profile_1080_FullLogo.png'
 
 // Protected Header Component
@@ -112,30 +115,24 @@ function PeerPositionPanel({ user, firms }) {
       return sameSegment && sameSize
     })
 
-    // Get user's company growth from the database (find their company in the firms list)
-    // Assuming user.email domain or some identifier matches with firms in database
-    // For now, we'll get the growth of firms in user's state with same segment and size as a proxy
-    const userCompanyFirms = firms.filter(firm => {
-      const sameSegment = user.primarySegment && firmHasPrimarySegment(firm, user.primarySegment)
-      const sameSize = userSizeBuckets.includes(firm.employeeSizeBucket)
-      const sameState = user.hqState && firm.hqStateAbbr === user.hqState.substring(0, 2).toUpperCase()
-      
-      return sameSegment && sameSize && sameState
-    })
-
-    // Calculate user's company growth (average of matching firms in their state)
-    const userGrowthValues = userCompanyFirms
-      .map(firm => {
-        if (firm.growth1YValue !== undefined && firm.growth1YValue !== null) {
-          return Number(firm.growth1YValue)
-        }
-        return 0
-      })
-      .filter(g => !isNaN(g))
-
-    const userGrowth = userGrowthValues.length > 0
-      ? userGrowthValues.reduce((a, b) => a + b, 0) / userGrowthValues.length
-      : 0
+    // Use user's provided internal headcount growth value
+    // Convert from range format (e.g., "5-10") to midpoint percentage
+    let userGrowth = 0
+    
+    if (user.internalHeadcountGrowth) {
+      const growthRange = user.internalHeadcountGrowth
+      if (growthRange === '0-5') {
+        userGrowth = 2.5
+      } else if (growthRange === '5-10') {
+        userGrowth = 7.5
+      } else if (growthRange === '10-20') {
+        userGrowth = 15
+      } else if (growthRange === '20-50') {
+        userGrowth = 35
+      } else if (growthRange === '50+') {
+        userGrowth = 60 // Estimate for 50%+
+      }
+    }
 
     // Calculate median growth for ALL peer firms (same segment + same size across all states)
     const peerGrowthValues = peerFirms
@@ -176,8 +173,7 @@ function PeerPositionPanel({ user, firms }) {
       peerMedianGrowth,
       peerFirmCount: peerFirms.length,
       positionText,
-      gap,
-      userFirmCount: userCompanyFirms.length
+      gap
     }
   }
 
@@ -216,7 +212,7 @@ function PeerPositionPanel({ user, firms }) {
               {peerData.userGrowth > 0 ? '+' : ''}{peerData.userGrowth.toFixed(1)}%
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              {peerData.userFirmCount} firms in {user?.hqState}
+              Your reported growth
             </div>
           </div>
           
@@ -625,6 +621,8 @@ function ProtectedDashboard() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { firms, loading, isConfigured } = useProtectedData(user)
+  const { firms: allFirms } = useAirtableData() // Get all firms data for maps
+  const [selectedState, setSelectedState] = useState('')
 
   const handleLogout = () => {
     logout()
@@ -744,15 +742,39 @@ function ProtectedDashboard() {
           <div className="panel">
             <div className="two-column">
               <div>
-                <div style={{ marginBottom: '12px' }}>
-                  <div className="section-label" style={{ marginBottom: '4px' }}>
-                    {user?.hqState ? `${user.hqState.toUpperCase()} IN THIS VIEW` : 'US STAFFING GROWTH BY SIGNAL'}
+                <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <div className="section-label" style={{ marginBottom: '4px' }}>
+                      {selectedState ? `${selectedState} COUNTY DATA` : 'US STAFFING GROWTH BY SIGNAL'}
+                    </div>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
+                      {selectedState ? 'County-level data for selected state' : 'Heatmap shows all staffing firms data'}
+                    </p>
                   </div>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
-                    Map updates with your current filter
-                  </p>
+                  <div className="filter-group" style={{ margin: 0 }}>
+                    <label className="filter-label" style={{ marginRight: '8px' }}>View State:</label>
+                    <select 
+                      className="filter-select"
+                      value={selectedState}
+                      onChange={(e) => setSelectedState(e.target.value)}
+                      style={{ minWidth: '200px' }}
+                    >
+                      <option value="">All States (Heatmap)</option>
+                      {US_STATES.map((state) => (
+                        <option key={state.value} value={state.label}>
+                          {state.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                {loading ? <ProtectedLoadingSpinner /> : <ProtectedCountyMap firms={firms} userState={user?.hqState} />}
+                {loading ? (
+                  <ProtectedLoadingSpinner />
+                ) : selectedState ? (
+                  <ProtectedCountyMap firms={allFirms} userState={selectedState} />
+                ) : (
+                  <HeatMapWithRankings firms={allFirms} hideRankings={true} />
+                )}
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -807,6 +829,10 @@ function ProtectedDashboard() {
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>PRIMARY SEGMENT</div>
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.primarySegment || 'N/A'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>EMPLOYEE HEADCOUNT GROWTH</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.internalHeadcountGrowth ? `${user.internalHeadcountGrowth}%` : 'Not provided'}</div>
               </div>
             </div>
           </div>
