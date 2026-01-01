@@ -193,11 +193,8 @@ function ProtectedHeatMap({ firms }) {
             <div style="font-size: 14px; margin-bottom: 4px; color: #495057;">
               <strong>Firms in view:</strong> ${firmCount.toLocaleString()}
             </div>
-            <div style="font-size: 14px; margin-bottom: 4px; color: #495057;">
+            <div style="font-size: 14px; color: #495057;">
               <strong>Total headcount (est.):</strong> ${totalHeadcount.toLocaleString()}
-            </div>
-            <div style="font-size: 14px; margin-bottom: 4px; color: #495057;">
-              <strong>Median leader tenure:</strong> ${medianTenure.toFixed(1)} years
             </div>
           </div>
         `

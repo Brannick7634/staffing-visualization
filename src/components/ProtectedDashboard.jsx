@@ -254,13 +254,15 @@ function ProtectedDataTable({ firms }) {
     state: '',
     employeeBand: '',
     growthBand: '',
+    avgHeadcountGrowth: '',
   })
   const recordsPerPage = 30
   
   // Get segment options from constants
   const segmentOptions = SEGMENT_NAMES.sort()
   
-  const stateOptions = [...new Set(firms.map(f => f.hqStateAbbr).filter(Boolean))].sort()
+  // Get state options - use full state names from hqLocation
+  const stateOptions = [...new Set(firms.map(f => f.hqLocation).filter(Boolean))].sort()
   const employeeBandOptions = [...new Set(firms.map(f => f.employeeSizeBucket).filter(Boolean))].sort()
   const growthBandOptions = [
     'Negative',
@@ -270,10 +272,31 @@ function ProtectedDataTable({ firms }) {
     '20%+',
   ]
   
+  const avgHeadcountGrowthOptions = [
+    'Negative',
+    '0-10%',
+    '10-20%',
+    '20-30%',
+    '30%+',
+  ]
+  
+  // Calculate average headcount growth for each firm
+  const calculateAvgHeadcountGrowth = (firm) => {
+    const growth6M = parseFloat(String(firm.growth6M || '0').replace('%', '').replace('+', '').trim())
+    const growth1Y = parseFloat(String(firm.growth1Y || '0').replace('%', '').replace('+', '').trim())
+    const growth2Y = parseFloat(String(firm.growth2Y || '0').replace('%', '').replace('+', '').trim())
+    
+    const validGrowths = [growth6M, growth1Y, growth2Y].filter(g => !isNaN(g))
+    
+    if (validGrowths.length === 0) return 0
+    
+    return validGrowths.reduce((sum, g) => sum + g, 0) / validGrowths.length
+  }
+  
   // Apply filters to data
   const filteredFirms = firms.filter((firm) => {
     if (filters.segment && !firmHasPrimarySegment(firm, filters.segment)) return false
-    if (filters.state && firm.hqStateAbbr !== filters.state) return false
+    if (filters.state && firm.hqLocation !== filters.state) return false
     if (filters.employeeBand && firm.employeeSizeBucket !== filters.employeeBand) return false
     
     if (filters.growthBand) {
@@ -283,6 +306,15 @@ function ProtectedDataTable({ firms }) {
       if (filters.growthBand === '5-10%' && (growth < 5 || growth > 10)) return false
       if (filters.growthBand === '10-20%' && (growth < 10 || growth > 20)) return false
       if (filters.growthBand === '20%+' && growth < 20) return false
+    }
+    
+    if (filters.avgHeadcountGrowth) {
+      const avgGrowth = calculateAvgHeadcountGrowth(firm)
+      if (filters.avgHeadcountGrowth === 'Negative' && avgGrowth >= 0) return false
+      if (filters.avgHeadcountGrowth === '0-10%' && (avgGrowth < 0 || avgGrowth > 10)) return false
+      if (filters.avgHeadcountGrowth === '10-20%' && (avgGrowth < 10 || avgGrowth > 20)) return false
+      if (filters.avgHeadcountGrowth === '20-30%' && (avgGrowth < 20 || avgGrowth > 30)) return false
+      if (filters.avgHeadcountGrowth === '30%+' && avgGrowth < 30) return false
     }
     
     return true
@@ -302,7 +334,7 @@ function ProtectedDataTable({ firms }) {
   
   // Clear all filters
   const clearFilters = () => {
-    setFilters({ segment: '', state: '', employeeBand: '', growthBand: '' })
+    setFilters({ segment: '', state: '', employeeBand: '', growthBand: '', avgHeadcountGrowth: '' })
     setCurrentPage(1)
   }
   
@@ -356,6 +388,20 @@ function ProtectedDataTable({ firms }) {
       {/* Filters */}
       <div className="table-filters">
         <div className="filter-group">
+          <label className="filter-label">Primary Segment:</label>
+          <select 
+            className="filter-select"
+            value={filters.segment}
+            onChange={(e) => handleFilterChange('segment', e.target.value)}
+          >
+            <option value="">All Segments</option>
+            {segmentOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="filter-group">
           <label className="filter-label">HQ State:</label>
           <select 
             className="filter-select"
@@ -397,7 +443,21 @@ function ProtectedDataTable({ firms }) {
           </select>
         </div>
         
-        {(filters.segment || filters.state || filters.employeeBand || filters.growthBand) && (
+        <div className="filter-group">
+          <label className="filter-label">Avg Headcount Growth:</label>
+          <select 
+            className="filter-select"
+            value={filters.avgHeadcountGrowth}
+            onChange={(e) => handleFilterChange('avgHeadcountGrowth', e.target.value)}
+          >
+            <option value="">All Growth</option>
+            {avgHeadcountGrowthOptions.map((option, index) => (
+              <option key={`avg-growth-${index}-${option}`} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+        
+        {(filters.segment || filters.state || filters.employeeBand || filters.growthBand || filters.avgHeadcountGrowth) && (
           <button className="filter-clear-btn" onClick={clearFilters}>
             Clear Filters
           </button>
@@ -408,21 +468,16 @@ function ProtectedDataTable({ firms }) {
         <table style={{ minWidth: '1800px' }}>
           <thead>
             <tr>
-              <th>Company ID</th>
-              <th>Segments</th>
-              <th>HQ State Abbr</th>
+              <th>Primary Segment</th>
               <th>HQ Location</th>
               <th>Company City</th>
-              <th># EE Count</th>
-              <th>Employee Size Bucket</th>
-              <th>Founded</th>
-              <th>Average Tenure</th>
+              <th>Employee Size</th>
+              <th>Avg Tenure</th>
               <th>Tenure Bucket</th>
+              <th>Avg Headcount Growth</th>
               <th>6-Month Growth</th>
               <th>1-Year Growth</th>
               <th>2-Year Growth</th>
-              <th>LinkedIn URL</th>
-              <th>Postal Code</th>
             </tr>
           </thead>
           <tbody>
@@ -458,25 +513,30 @@ function ProtectedDataTable({ firms }) {
                 return ''
               }
               
+              // Calculate and format average headcount growth
+              const avgGrowth = calculateAvgHeadcountGrowth(row)
+              const formattedAvgGrowth = avgGrowth !== 0 
+                ? (avgGrowth > 0 ? `+${avgGrowth.toFixed(1)}%` : `${avgGrowth.toFixed(1)}%`)
+                : '0%'
+              
               return (
                 <tr key={row.id || index}>
-                  <td>{row.companyId || '-'}</td>
-                  <td>{row.segments || '-'}</td>
-                  <td>{row.hqStateAbbr || '-'}</td>
+                  <td>{row.primarySegment || '-'}</td>
                   <td>{row.hqLocation || '-'}</td>
                   <td>{row.companyCity || '-'}</td>
-                  <td>{row.eeCount ? row.eeCount.toLocaleString() : '-'}</td>
                   <td>
                     {row.employeeSizeBucket ? (
                       <span className="chip">{row.employeeSizeBucket}</span>
                     ) : '-'}
                   </td>
-                  <td>{row.founded || '-'}</td>
                   <td>{row.averageTenure ? `${row.averageTenure} yrs` : '-'}</td>
                   <td>
                     {row.tenureBucket ? (
                       <span className="chip">{row.tenureBucket}</span>
                     ) : '-'}
+                  </td>
+                  <td className={getGrowthClass(formattedAvgGrowth)}>
+                    {formattedAvgGrowth}
                   </td>
                   <td className={getGrowthClass(row.growth6M)}>
                     {formatGrowthValue(row.growth6M)}
@@ -487,14 +547,6 @@ function ProtectedDataTable({ firms }) {
                   <td className={getGrowthClass(row.growth2Y)}>
                     {formatGrowthValue(row.growth2Y)}
                   </td>
-                  <td>
-                    {row.linkedinUrl ? (
-                      <a href={row.linkedinUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-teal)' }}>
-                        View
-                      </a>
-                    ) : '-'}
-                  </td>
-                  <td>{row.postalCode || '-'}</td>
                 </tr>
               )
             })}

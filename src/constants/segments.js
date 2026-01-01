@@ -2,7 +2,6 @@
 export const SEGMENT_MAPPING = {
   'Admin': 'admin',
   'Agriculture': 'agriculture',
-  'Auto': 'auto',
   'Construction': 'construction',
   'Energy': 'energy',
   'EOR': 'EOR',
@@ -16,8 +15,7 @@ export const SEGMENT_MAPPING = {
   'Skilled': 'skilled',
   'Technical': 'technical',
   'Transportation': 'transportation',
-  'USLH': 'USLH',
-  'SK': 'sk'
+  'USLH': 'USLH'
 }
 
 // Reverse mapping: Airtable value -> UI display name

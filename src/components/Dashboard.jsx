@@ -125,8 +125,69 @@ function MiniPanel({ topStates, topSegments }) {
     const [currentPage, setCurrentPage] = useState(1)
     const recordsPerPage = 30
 
-    // All filtering is done in the parent component, so we just use the firms passed in
-    const filteredFirms = firms
+    // Filter to show only unique state-segment combinations (pick first occurrence)
+    // Sort by state and limit to 1 segment per state
+    const getUniqueStateSegmentFirms = (firmsList) => {
+      const stateSegmentMap = new Map()
+      
+      // Group firms by state and collect unique segments
+      firmsList.forEach(firm => {
+        const state = String(firm.hqLocation || firm.hqStateAbbr || '').trim()
+        const segment = normalizeSegment(firm.primarySegment || '')
+        
+        if (!state || !segment) return
+        
+        if (!stateSegmentMap.has(state)) {
+          stateSegmentMap.set(state, new Map())
+        }
+        
+        const segmentsForState = stateSegmentMap.get(state)
+        
+        // Only add if we haven't seen this segment for this state and haven't reached 1 segment
+        if (!segmentsForState.has(segment) && segmentsForState.size < 1) {
+          segmentsForState.set(segment, firm)
+        }
+      })
+      
+      // Convert back to array and sort by state
+      const result = []
+      const sortedStates = Array.from(stateSegmentMap.keys()).sort()
+      
+      sortedStates.forEach(state => {
+        const segmentsForState = stateSegmentMap.get(state)
+        segmentsForState.forEach(firm => {
+          result.push(firm)
+        })
+      })
+      
+      return result
+    }
+
+    // Apply table filters first
+    const tableFilteredFirms = firms.filter((firm) => {
+      // Apply segment filter
+      if (currentFilters.segment && !firmHasPrimarySegment(firm, currentFilters.segment)) {
+        return false
+      }
+      
+      // Apply employee size filter
+      if (currentFilters.employeeSize && firm.employeeSizeBucket !== currentFilters.employeeSize) {
+        return false
+      }
+      
+      // Apply state filter
+      if (currentFilters.state) {
+        const hqLocation = String(firm.hqLocation || '')
+        if (!hqLocation.toLowerCase().includes(currentFilters.state.toLowerCase())) {
+          return false
+        }
+      }
+      
+      return true
+    })
+
+    // Then get unique state-segment combinations from filtered data
+    const filteredFirms = getUniqueStateSegmentFirms(tableFilteredFirms)
 
     // Filter options - use segment mapping
   const segmentOptions = SEGMENT_NAMES.sort()
@@ -796,33 +857,6 @@ function Dashboard() {
   const segmentStats = getSegmentStats()
   const segmentFilteredFirms = getFilteredFirmsBySegment()
 
-  // Apply table filters to segment-filtered firms
-  const getTableFilteredFirms = () => {
-    return segmentFilteredFirms.filter((firm) => {
-      // Apply table-specific segment filter (if different from tab)
-      if (tableFilters.segment && !firmHasPrimarySegment(firm, tableFilters.segment)) {
-        return false
-      }
-      
-      // Apply employee size filter
-      if (tableFilters.employeeSize && firm.employeeSizeBucket !== tableFilters.employeeSize) {
-        return false
-      }
-      
-      // Apply state filter
-      if (tableFilters.state) {
-        const hqLocation = String(firm.hqLocation || '')
-        if (!hqLocation.toLowerCase().includes(tableFilters.state.toLowerCase())) {
-          return false
-        }
-      }
-      
-      return true
-    })
-  }
-
-  const tableFilteredFirms = getTableFilteredFirms()
-
   const mapFilters = [
     { label: 'All segments', active: true },
     { label: 'Size band: 50–500 FTE', active: false },
@@ -910,7 +944,7 @@ function Dashboard() {
     <div className="panel" style={{ paddingTop: '16px' }}>
       {loading ? <LoadingSpinner /> : (
         <DataTable
-          firms={tableFilteredFirms}
+          firms={firms}
           onFiltersChange={setTableFilters}
           currentFilters={tableFilters}
         />
