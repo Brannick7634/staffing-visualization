@@ -132,7 +132,7 @@ const calculateTopStates = (firmsData) => {
 
   // Cache configuration
   const CACHE_KEY = 'airtable_homepage_data'
-  const CACHE_DURATION = 60 * 60 * 1000 // 10 minutes in milliseconds
+  const CACHE_DURATION = 60 * 60 * 1000 // 60 minutes (1 hour) in milliseconds
 
   // Helper to get cached data
   const getCachedData = () => {
@@ -143,8 +143,13 @@ const calculateTopStates = (firmsData) => {
       const { data, timestamp } = JSON.parse(cached)
       const now = Date.now()
 
-      // Check if cache is still valid (less than 10 minutes old)
+      // Check if cache is still valid (less than 60 minutes old)
       if (now - timestamp < CACHE_DURATION) {
+        // Validate that cached data has actual firms
+        if (!data || !data.firms || data.firms.length === 0) {
+          localStorage.removeItem(CACHE_KEY)
+          return null
+        }
         return data
       } else {
         localStorage.removeItem(CACHE_KEY)
@@ -152,6 +157,7 @@ const calculateTopStates = (firmsData) => {
       }
     } catch (error) {
       console.error('Error reading cache:', error)
+      localStorage.removeItem(CACHE_KEY)
       return null
     }
   }

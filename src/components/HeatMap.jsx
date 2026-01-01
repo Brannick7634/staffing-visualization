@@ -25,6 +25,7 @@ function HeatMap({ firms, filters, setFilters }) {
   const chartDiv = useRef(null)
   const chartRoot = useRef(null)
   const polygonSeries = useRef(null)
+  const [mapReady, setMapReady] = useState(false)
 
   const getColorForGrowth = (growth) => {
     if (growth <= -25) return am5.color(0x7F1D1D) // deep red
@@ -232,14 +233,18 @@ function HeatMap({ firms, filters, setFilters }) {
 
     chartRoot.current = root
     polygonSeries.current = series
+    
+    // Set map as ready after initialization
+    setMapReady(true)
 
     return () => {
       root.dispose()
+      setMapReady(false)
     }
   }, [])
 
   useEffect(() => {
-    if (!polygonSeries.current) return
+    if (!polygonSeries.current || !mapReady) return
 
     const filtered = filterRecords(firms)
     const stateAggregates = aggregateByState(filtered)
@@ -250,7 +255,7 @@ function HeatMap({ firms, filters, setFilters }) {
     }))
     
     polygonSeries.current.data.setAll(mapData)
-  }, [firms, filters])
+  }, [firms, filters, mapReady])
 
   return (
     <div>
