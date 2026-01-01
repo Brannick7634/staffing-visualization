@@ -460,6 +460,13 @@ function ProtectedDataTable({ firms }) {
         )}
       </div>
       
+      <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span>💡</span>
+          <span>Scroll horizontally to view all columns →</span>
+        </div>
+      </div>
+      
       <div className="table-wrapper" style={{ overflowX: 'auto' }}>
         <table style={{ minWidth: '1800px' }}>
           <thead>
