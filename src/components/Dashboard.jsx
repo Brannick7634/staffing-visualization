@@ -522,10 +522,8 @@ function CTAForm() {
         internalHeadcountGrowth: pendingFormData.internalHeadcountGrowth
       })
       
-      // Redirect to login page after successful submission
       navigate('/login')
     } catch (error) {
-      console.error('Error submitting request:', error)
       setError('Failed to submit. Please try again.')
     } finally {
       setSubmitting(false)

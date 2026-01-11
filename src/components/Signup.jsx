@@ -82,10 +82,11 @@ function Signup() {
 
     setShowDisclaimerModal(false)
     setSubmitting(true)
+    setError('') // Clear any previous errors
     
     try {
       // Submit to Airtable Staffing Signal Staffing Signal Leads Table (Test) with password
-      await submitLeadRequest({
+      const result = await submitLeadRequest({
         firstName: pendingFormData.firstName,
         email: pendingFormData.email,
         password: pendingFormData.password,
@@ -95,10 +96,12 @@ function Signup() {
         internalHeadcountGrowth: pendingFormData.internalHeadcountGrowth
       })
       
-      // Redirect to login page after successful signup
-      navigate('/login')
+      if (result.success) {
+        navigate('/login')
+      } else {
+        setError(result.error || 'Failed to submit. Please try again.')
+      }
     } catch (err) {
-      console.error('Signup error:', err)
       setError('Failed to submit. Please try again.')
     } finally {
       setSubmitting(false)

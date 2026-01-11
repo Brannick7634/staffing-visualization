@@ -2299,11 +2299,9 @@ const ProtectedCountyMap = ({ firms, userState }) => {
         // Convert state name to lowercase code
         const stateCode = STATE_NAME_TO_ABBR[userState] || userState.toLowerCase()
         
-        // Get geodata from static imports
         const geodata = COUNTY_GEODATA_MAP[stateCode]
         
         if (!geodata) {
-          console.error(`❌ No county geodata available for state: ${stateCode}`)
           return
         }
         
@@ -2398,7 +2396,6 @@ const ProtectedCountyMap = ({ firms, userState }) => {
         })
         
       } catch (error) {
-        console.error('❌ Error loading county map:', error)
       }
     }
 

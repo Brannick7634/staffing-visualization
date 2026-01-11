@@ -628,7 +628,7 @@ function ProtectedDashboard() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { firms, loading, isConfigured } = useProtectedData(user)
-  const { firms: allFirms } = useAirtableData() // Get all firms data for maps
+  const { firms: allFirms, loading: allFirmsLoading } = useAirtableData() // Get all firms data for maps
   const [selectedState, setSelectedState] = useState('')
 
   const handleLogout = () => {
@@ -775,7 +775,7 @@ function ProtectedDashboard() {
                     </select>
                   </div>
                 </div>
-                {loading ? (
+                {loading || allFirmsLoading ? (
                   <ProtectedLoadingSpinner />
                 ) : selectedState ? (
                   <ProtectedCountyMap firms={allFirms} userState={selectedState} />
