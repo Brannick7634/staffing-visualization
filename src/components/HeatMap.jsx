@@ -90,19 +90,19 @@ function HeatMap({ firms, filters, setFilters }) {
       // Get growth based on selected timeframe
       let growth = 0
       if (filters.timeframe === '1Y Growth') {
-        // growth1Y is a decimal (-0.1 = -10%)
-        if (r.growth1Y !== undefined && r.growth1Y !== null && typeof r.growth1Y === 'number') {
-          growth = r.growth1Y * 100 // Convert to percentage
+        // growth1YValue is a number representing percentage (-10 = -10%)
+        if (r.growth1YValue !== undefined && r.growth1YValue !== null) {
+          growth = Number(r.growth1YValue)
         }
       } else if (filters.timeframe === '6M Growth') {
-        // growth6M is a decimal
-        if (r.growth6M !== undefined && r.growth6M !== null && typeof r.growth6M === 'number') {
-          growth = r.growth6M * 100 // Convert to percentage
+        // growth6MValue is a number representing percentage (-10 = -10%)
+        if (r.growth6MValue !== undefined && r.growth6MValue !== null) {
+          growth = Number(r.growth6MValue)
         }
       } else if (filters.timeframe === '2Y Growth') {
-        // growth2Y is a decimal
-        if (r.growth2Y !== undefined && r.growth2Y !== null && typeof r.growth2Y === 'number') {
-          growth = r.growth2Y * 100 // Convert to percentage
+        // growth2YValue is a number representing percentage (-10 = -10%)
+        if (r.growth2YValue !== undefined && r.growth2YValue !== null) {
+          growth = Number(r.growth2YValue)
         }
       }
       
@@ -358,13 +358,9 @@ function HeatMapWithRankings({ firms, hideRankings = false }) {
       const state = firm.hqStateAbbr
       if (!state) return
       
-      // growth1Y is a decimal (-0.1 = -10%), growth1YValue is a number (-10 = -10%)
+      // growth1YValue is a number representing percentage (-10 = -10%)
       let growthPercent = 0
-      if (firm.growth1Y !== undefined && firm.growth1Y !== null && typeof firm.growth1Y === 'number') {
-        // If growth1Y is a number, it's already in decimal format (-0.1 = -10%)
-        growthPercent = firm.growth1Y * 100 // Convert to percentage
-      } else if (firm.growth1YValue !== undefined && firm.growth1YValue !== null) {
-        // growth1YValue is a number representing percentage (-10 = -10%)
+      if (firm.growth1YValue !== undefined && firm.growth1YValue !== null) {
         growthPercent = Number(firm.growth1YValue)
       }
       
@@ -409,7 +405,7 @@ function HeatMapWithRankings({ firms, hideRankings = false }) {
         segmentList = segments.map(s => String(s).trim())
       }
       
-      const growthStr = String(firm.growth1Y || firm.growth1YValue || '0%')
+      const growthStr = String(firm.growth1YValue || '0')
         .replace('%', '')
         .replace('+', '')
         .trim()

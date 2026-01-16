@@ -2222,17 +2222,16 @@ const ProtectedCountyMap = ({ firms, userState }) => {
       if (tenure > 0) cityData[city].tenures.push(tenure)
       
       // Get growth based on selected timeframe
-      let growthValue = '0%'
+      let growthValue = 0
       if (filters.timeframe === '1Y Growth') {
-        growthValue = r.growth1Y || '0%'
+        growthValue = r.growth1YValue || 0
       } else if (filters.timeframe === '6M Growth') {
-        growthValue = r.growth6M || '0%'
+        growthValue = r.growth6MValue || 0
       } else if (filters.timeframe === '2Y Growth') {
-        growthValue = r.growth2Y || '0%'
+        growthValue = r.growth2YValue || 0
       }
       
-      const growthStr = String(growthValue).replace("%", "").trim()
-      const growth = parseFloat(growthStr)
+      const growth = Number(growthValue)
       
       if (!isNaN(growth)) {
         cityData[city].growths.push(growth)

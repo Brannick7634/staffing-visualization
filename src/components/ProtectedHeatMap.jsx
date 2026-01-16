@@ -84,19 +84,18 @@ function ProtectedHeatMap({ firms }) {
       const tenure = Number(r.averageTenure) || 0
       if (tenure > 0) stateData[state].tenures.push(tenure)
       
-      // Get growth based on selected timeframe - FIXED: using correct property names with capital letters
-      let growthValue = '0%'
+      // Get growth based on selected timeframe
+      let growthValue = 0
       if (filters.timeframe === '1Y Growth') {
-        growthValue = r.growth1Y || '0%'  // Capital Y
+        growthValue = r.growth1YValue || 0
       } else if (filters.timeframe === '6M Growth') {
-        growthValue = r.growth6M || '0%'  // Capital M
+        growthValue = r.growth6MValue || 0
       } else if (filters.timeframe === '2Y Growth') {
-        growthValue = r.growth2Y || '0%'  // Capital Y
+        growthValue = r.growth2YValue || 0
       }
       
-      // Parse percentage string (e.g., "5%" -> 5, "-12%" -> -12)
-      const growthStr = String(growthValue).replace("%", "").trim()
-      const growth = parseFloat(growthStr)
+      // growth*Value fields are already numbers representing percentages
+      const growth = Number(growthValue)
       
       if (!isNaN(growth)) {
         stateData[state].growths.push(growth)
