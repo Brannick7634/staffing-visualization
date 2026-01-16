@@ -362,10 +362,12 @@ function MiniPanel({ topStates, topSegments }) {
               }
               
               const formatGrowth = (value) => {
-                if (!value || value === '-') return '-'
-                const numValue = parseFloat(String(value).replace('%', '').replace('+', '').trim())
+                if (value === null || value === undefined || value === '-') return '-'
+                // Value is a decimal (0.03 = 3%, -0.1 = -10%)
+                const numValue = Number(value)
                 if (isNaN(numValue)) return '-'
-                return numValue > 0 ? `+${numValue.toFixed(1)}%` : `${numValue.toFixed(1)}%`
+                const percentage = numValue * 100
+                return percentage > 0 ? `+${percentage.toFixed(1)}%` : `${percentage.toFixed(1)}%`
               }
               
               return (
@@ -378,8 +380,8 @@ function MiniPanel({ topStates, topSegments }) {
                       <span className="chip">{row.employeeSizeBucket}</span>
                     ) : '-'}
                   </td>
-                  <td className={getGrowthClass(row.growth1YValue)}>
-                    {formatGrowth(row.growth1YValue)}
+                  <td className={getGrowthClass(row.growth1Y)}>
+                    {formatGrowth(row.growth1Y)}
                   </td>
                 </tr>
               )
@@ -823,15 +825,8 @@ function Dashboard() {
       if (state) {
         const currentEmployees = Number(firm.eeCount) || 0
         
-        // growth1Y is a decimal (-0.1 = -10%), growth1YValue is a number (-10 = -10%)
-        let growthDecimal = 0
-        if (firm.growth1Y !== undefined && firm.growth1Y !== null && typeof firm.growth1Y === 'number') {
-          // If growth1Y is a number, it's already in decimal format (-0.1 = -10%)
-          growthDecimal = firm.growth1Y // Use directly as decimal
-        } else if (firm.growth1YValue !== undefined && firm.growth1YValue !== null) {
-          // growth1YValue is a number representing percentage (-10 = -10%)
-          growthDecimal = Number(firm.growth1YValue) / 100 // Convert percentage to decimal
-        }
+        // growth1Y is already a decimal (0.03 = 3%, -0.1 = -10%)
+        const growthDecimal = Number(firm.growth1Y) || 0
         
         if (!isNaN(growthDecimal) && currentEmployees > 0) {
           // Calculate absolute headcount growth: current_employees * growth_decimal
@@ -849,13 +844,9 @@ function Dashboard() {
     // Average 1-year growth (as percentage for display)
     const growthValues = filteredFirms
       .map(firm => {
-        // growth1Y is a decimal (-0.1 = -10%), growth1YValue is a number (-10 = -10%)
-        if (firm.growth1Y !== undefined && firm.growth1Y !== null && typeof firm.growth1Y === 'number') {
-          return firm.growth1Y * 100 // Convert decimal to percentage (-0.1 → -10)
-        } else if (firm.growth1YValue !== undefined && firm.growth1YValue !== null) {
-          return Number(firm.growth1YValue) // Already a percentage (-10 = -10%)
-        }
-        return 0
+        // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%), convert to percentage
+        const growthDecimal = Number(firm.growth1Y) || 0
+        return growthDecimal * 100
       })
       .filter(g => !isNaN(g))
     

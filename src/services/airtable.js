@@ -20,19 +20,16 @@ export async function fetchFirms() {
         'Tenure Bucket',
         '6M Growth',
         '1Y Growth',
-        '2Y Growth',
-        'Growth_1Y_Value',
-        'Growth_6M_Value',
-        'Growth_2Y_Value'
+        '2Y Growth'
     ],
     filterByFormula: `AND(
       {Primary Segment} != "",
       {HQ location} != "",
       {company City} != "",
       {Employee Size Bucket} != "",
-      {Growth_1Y_Value} <= 10000,
-      {Growth_6M_Value} <= 10000,
-      {Growth_2Y_Value} <= 10000
+      {1Y Growth} <= 1000,
+      {6M Growth} <= 1000,
+      {2Y Growth} <= 1000
     )`
   }).all()
   const allFirms = records.map((record) => ({
@@ -45,12 +42,9 @@ export async function fetchFirms() {
       employeeSizeBucket: record.get('Employee Size Bucket') || '',
       averageTenure: record.get('Average Tenure') || 0,
       tenureBucket: record.get('Tenure Bucket') || '',
-      growth6M: record.get('6M Growth') || '0%',
-      growth1Y: record.get('1Y Growth') || '0%',
-      growth2Y: record.get('2Y Growth') || '0%',
-      growth1YValue: record.get('Growth_1Y_Value') || 0,
-      growth6MValue: record.get('Growth_6M_Value') || 0,
-      growth2YValue: record.get('Growth_2Y_Value') || 0,
+      growth6M: record.get('6M Growth') || 0,
+      growth1Y: record.get('1Y Growth') || 0,
+      growth2Y: record.get('2Y Growth') || 0,
     }))
     return allFirms
   } catch (error) {
@@ -64,9 +58,9 @@ export async function fetchProtectedFirms(user) {
       '{HQ location} != ""',
       '{company City} != ""',
       '{Employee Size Bucket} != ""',
-      '{Growth_1Y_Value} <= 10000',
-      '{Growth_6M_Value} <= 10000',
-      '{Growth_2Y_Value} <= 10000'
+      '{1Y Growth} <= 1000',
+      '{6M Growth} <= 1000',
+      '{2Y Growth} <= 1000'
     ]
     if (user?.primarySegment) {
       const cleanSegment = String(user.primarySegment).trim()
@@ -86,10 +80,7 @@ export async function fetchProtectedFirms(user) {
         'Tenure Bucket',
         '6M Growth',
         '1Y Growth',
-        '2Y Growth',
-        'Growth_1Y_Value',
-        'Growth_6M_Value',
-        'Growth_2Y_Value'
+        '2Y Growth'
       ],
       filterByFormula: filterFormula
     }).all()
@@ -103,12 +94,9 @@ export async function fetchProtectedFirms(user) {
       employeeSizeBucket: record.get('Employee Size Bucket') || '',
       averageTenure: record.get('Average Tenure') || 0,
       tenureBucket: record.get('Tenure Bucket') || '',
-      growth6M: record.get('6M Growth') || '0%',
-      growth1Y: record.get('1Y Growth') || '0%',
-      growth2Y: record.get('2Y Growth') || '0%',
-      growth1YValue: record.get('Growth_1Y_Value') || 0,
-      growth6MValue: record.get('Growth_6M_Value') || 0,
-      growth2YValue: record.get('Growth_2Y_Value') || 0,
+      growth6M: record.get('6M Growth') || 0,
+      growth1Y: record.get('1Y Growth') || 0,
+      growth2Y: record.get('2Y Growth') || 0,
     }))
     return firms
   } catch (error) {

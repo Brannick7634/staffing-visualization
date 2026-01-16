@@ -85,21 +85,22 @@ function ProtectedHeatMap({ firms }) {
       if (tenure > 0) stateData[state].tenures.push(tenure)
       
       // Get growth based on selected timeframe
-      let growthValue = 0
+      // Growth values are decimals (0.03 = 3%, -0.1 = -10%)
+      let growthDecimal = 0
       if (filters.timeframe === '1Y Growth') {
-        growthValue = r.growth1YValue || 0
+        growthDecimal = Number(r.growth1Y) || 0
       } else if (filters.timeframe === '6M Growth') {
-        growthValue = r.growth6MValue || 0
+        growthDecimal = Number(r.growth6M) || 0
       } else if (filters.timeframe === '2Y Growth') {
-        growthValue = r.growth2YValue || 0
+        growthDecimal = Number(r.growth2Y) || 0
       }
       
-      // growth*Value fields are already numbers representing percentages
-      const growth = Number(growthValue)
+      // Convert decimal to percentage (0.03 -> 3)
+      const growth = growthDecimal * 100
       
-      if (!isNaN(growth)) {
-        stateData[state].growths.push(growth)
-      }
+      if (isNaN(growth)) return
+      
+      stateData[state].growths.push(growth)
     })
     
     const aggregated = Object.entries(stateData).map(([state, data]) => {

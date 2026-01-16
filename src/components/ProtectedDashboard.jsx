@@ -137,10 +137,9 @@ function PeerPositionPanel({ user, firms }) {
     // Calculate median growth for ALL peer firms (same segment + same size across all states)
     const peerGrowthValues = peerFirms
       .map(firm => {
-        if (firm.growth1YValue !== undefined && firm.growth1YValue !== null) {
-          return Number(firm.growth1YValue)
-        }
-        return 0
+        // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%), convert to percentage
+        const growthDecimal = Number(firm.growth1Y) || 0
+        return growthDecimal * 100
       })
       .filter(g => !isNaN(g))
       .sort((a, b) => a - b)
@@ -278,9 +277,10 @@ function ProtectedDataTable({ firms }) {
   
   // Calculate average headcount growth for each firm
   const calculateAvgHeadcountGrowth = (firm) => {
-    const growth6M = parseFloat(String(firm.growth6M || '0').replace('%', '').replace('+', '').trim())
-    const growth1Y = parseFloat(String(firm.growth1Y || '0').replace('%', '').replace('+', '').trim())
-    const growth2Y = parseFloat(String(firm.growth2Y || '0').replace('%', '').replace('+', '').trim())
+    // Growth values are decimals (0.03 = 3%, -0.1 = -10%), convert to percentages
+    const growth6M = (Number(firm.growth6M) || 0) * 100
+    const growth1Y = (Number(firm.growth1Y) || 0) * 100
+    const growth2Y = (Number(firm.growth2Y) || 0) * 100
     
     const validGrowths = [growth6M, growth1Y, growth2Y].filter(g => !isNaN(g))
     
@@ -296,7 +296,9 @@ function ProtectedDataTable({ firms }) {
     if (filters.employeeBand && firm.employeeSizeBucket !== filters.employeeBand) return false
     
     if (filters.growthBand) {
-      const growth = parseFloat(String(firm.growth1Y || '0%').replace('%', ''))
+      // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%), convert to percentage
+      const growthDecimal = Number(firm.growth1Y) || 0
+      const growth = growthDecimal * 100
       if (filters.growthBand === 'Negative' && growth >= 0) return false
       if (filters.growthBand === '0-5%' && (growth < 0 || growth > 5)) return false
       if (filters.growthBand === '5-10%' && (growth < 5 || growth > 10)) return false
@@ -486,31 +488,30 @@ function ProtectedDataTable({ firms }) {
           <tbody>
             {currentRecords.map((row, index) => {
               const formatGrowthValue = (value) => {
-                if (!value || value === '-' || value === null || value === undefined) return '-'
+                if (value === null || value === undefined || value === '-') return '-'
                 
-                // Convert to string and check if it already has a % sign
-                const strValue = String(value).trim()
-                if (strValue === '0' || strValue === '0%') return '0%'
-                
-                // Parse the numeric value
-                let numValue = parseFloat(strValue.replace('%', ''))
-                
-                // If the original value was a decimal (like 0.05 or -0.1) without %, 
-                // it likely represents a percentage already (5% or -10%)
-                if (!strValue.includes('%') && Math.abs(numValue) < 1) {
-                  numValue = numValue * 100
-                }
-                
+                // Value is a decimal (0.03 = 3%, -0.1 = -10%)
+                const numValue = Number(value)
                 if (isNaN(numValue)) return '-'
                 
+                const percentage = numValue * 100
+                if (percentage === 0) return '0%'
+                
                 // Format with sign and percentage
-                const sign = numValue > 0 ? '+' : ''
-                return `${sign}${numValue.toFixed(1)}%`
+                const sign = percentage > 0 ? '+' : ''
+                return `${sign}${percentage.toFixed(1)}%`
               }
               
               const getGrowthClass = (value) => {
-                if (!value || value === '-') return ''
-                const numValue = parseFloat(String(value).replace('%', ''))
+                if (value === null || value === undefined || value === '-') return ''
+                // Handle both decimal values (0.03) and formatted strings ("+3%")
+                let numValue
+                if (typeof value === 'string') {
+                  numValue = parseFloat(value.replace('%', '').replace('+', ''))
+                } else {
+                  numValue = Number(value)
+                }
+                if (isNaN(numValue)) return ''
                 if (numValue > 0) return 'text-positive'
                 if (numValue < 0) return 'text-negative'
                 return ''
@@ -648,13 +649,9 @@ function ProtectedDashboard() {
     // 2. Median 1-year growth
     const growthValues = firms
       .map(firm => {
-        // growth1Y is a decimal (-0.1 = -10%), growth1YValue is a number (-10 = -10%)
-        if (firm.growth1Y !== undefined && firm.growth1Y !== null && typeof firm.growth1Y === 'number') {
-          return firm.growth1Y * 100 // Convert decimal to percentage (-0.1 → -10)
-        } else if (firm.growth1YValue !== undefined && firm.growth1YValue !== null) {
-          return Number(firm.growth1YValue) // Already a percentage (-10 = -10%)
-        }
-        return 0
+        // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%), convert to percentage
+        const growthDecimal = Number(firm.growth1Y) || 0
+        return growthDecimal * 100
       })
       .filter(g => !isNaN(g))
       .sort((a, b) => a - b)

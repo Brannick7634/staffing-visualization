@@ -88,23 +88,18 @@ function HeatMap({ firms, filters, setFilters }) {
       if (tenure > 0) stateData[state].tenures.push(tenure)
       
       // Get growth based on selected timeframe
-      let growth = 0
+      // Growth values are decimals (0.03 = 3%, -0.1 = -10%)
+      let growthDecimal = 0
       if (filters.timeframe === '1Y Growth') {
-        // growth1YValue is a number representing percentage (-10 = -10%)
-        if (r.growth1YValue !== undefined && r.growth1YValue !== null) {
-          growth = Number(r.growth1YValue)
-        }
+        growthDecimal = Number(r.growth1Y) || 0
       } else if (filters.timeframe === '6M Growth') {
-        // growth6MValue is a number representing percentage (-10 = -10%)
-        if (r.growth6MValue !== undefined && r.growth6MValue !== null) {
-          growth = Number(r.growth6MValue)
-        }
+        growthDecimal = Number(r.growth6M) || 0
       } else if (filters.timeframe === '2Y Growth') {
-        // growth2YValue is a number representing percentage (-10 = -10%)
-        if (r.growth2YValue !== undefined && r.growth2YValue !== null) {
-          growth = Number(r.growth2YValue)
-        }
+        growthDecimal = Number(r.growth2Y) || 0
       }
+      
+      // Convert decimal to percentage (0.03 -> 3)
+      const growth = growthDecimal * 100
       
       if (!isNaN(growth)) {
         stateData[state].growths.push(growth)
@@ -358,11 +353,9 @@ function HeatMapWithRankings({ firms, hideRankings = false }) {
       const state = firm.hqStateAbbr
       if (!state) return
       
-      // growth1YValue is a number representing percentage (-10 = -10%)
-      let growthPercent = 0
-      if (firm.growth1YValue !== undefined && firm.growth1YValue !== null) {
-        growthPercent = Number(firm.growth1YValue)
-      }
+      // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%)
+      const growthDecimal = Number(firm.growth1Y) || 0
+      const growthPercent = growthDecimal * 100
       
       if (!isNaN(growthPercent)) {
         if (!stateGrowth[state]) {
@@ -405,11 +398,9 @@ function HeatMapWithRankings({ firms, hideRankings = false }) {
         segmentList = segments.map(s => String(s).trim())
       }
       
-      const growthStr = String(firm.growth1YValue || '0')
-        .replace('%', '')
-        .replace('+', '')
-        .trim()
-      const growthValue = parseFloat(growthStr)
+      // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%)
+      const growthDecimal = Number(firm.growth1Y) || 0
+      const growthValue = growthDecimal * 100
       
       if (!isNaN(growthValue)) {
         segmentList.forEach(segment => {

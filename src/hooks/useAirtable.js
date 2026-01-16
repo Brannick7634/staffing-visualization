@@ -11,12 +11,10 @@ const calculateTopSegments = (firmsData) => {
     if (!primarySegment) return
     const normalizedSegment = normalizeSegment(String(primarySegment).trim())
     if (!normalizedSegment) return
-    let growthValue = 0
-    if (firm.growth1Y !== undefined && firm.growth1Y !== null && typeof firm.growth1Y === 'number') {
-      growthValue = firm.growth1Y * 100
-    } else if (firm.growth1YValue !== undefined && firm.growth1YValue !== null) {
-      growthValue = Number(firm.growth1YValue)
-    }
+    // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%)
+    const growthDecimal = Number(firm.growth1Y) || 0
+    const growthValue = growthDecimal * 100
+    
     if (!isNaN(growthValue)) {
       if (!segmentGrowth[normalizedSegment]) {
         segmentGrowth[normalizedSegment] = { total: 0, count: 0 }
@@ -62,11 +60,9 @@ const calculateTopStates = (firmsData) => {
     const state = firm.hqStateAbbr
     if (!state) return
     const currentEmployees = Number(firm.eeCount) || 0
-    const growthStr = String(firm.growth1Y || firm.growth1YValue || '0%')
-      .replace('%', '')
-      .replace('+', '')
-      .trim()
-    const growthPercent = parseFloat(growthStr)
+    // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%)
+    const growthDecimal = Number(firm.growth1Y) || 0
+    const growthPercent = growthDecimal * 100
     if (!isNaN(growthPercent) && currentEmployees > 0) {
       const absoluteGrowth = currentEmployees * (growthPercent / 100)
       if (!stateGrowth[state]) {
@@ -93,7 +89,7 @@ const calculateTopStates = (firmsData) => {
   return stateAverages.length > 0 ? stateAverages : []
 }
 const CACHE_KEY = 'airtable_homepage_data'
-const CACHE_DURATION = 60 * 60 * 1000
+const CACHE_DURATION = 1000
 const getCachedData = () => {
   try {
     const cached = localStorage.getItem(CACHE_KEY)

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchProtectedFirms } from '../services/airtable'
 const CACHE_KEY_PREFIX = 'airtable_protected_data'
-const CACHE_DURATION = 60 * 60 * 1000
+const CACHE_DURATION = 1000
 const getCacheKey = (user) => {
   if (!user) return null
   const segment = user.primarySegment || 'no-segment'
