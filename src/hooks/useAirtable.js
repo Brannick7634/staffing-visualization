@@ -4,41 +4,22 @@ import {
   isAirtableConfigured,
 } from '../services/airtable'
 import { normalizeSegment } from '../constants/segments'
+import { 
+  calculateTopSegmentsByGrowth,
+  formatGrowthPercentage,
+  formatNumber,
+  findTopStateForSegment,
+  convertDecimalToPercentage
+} from '../utils/formulas'
+// Formula 10: Calculate top segments by growth
 const calculateTopSegments = (firmsData) => {
-  const segmentGrowth = {}
-  firmsData.forEach(firm => {
-    const primarySegment = firm.primarySegment
-    if (!primarySegment) return
-    const normalizedSegment = normalizeSegment(String(primarySegment).trim())
-    if (!normalizedSegment) return
-    // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%)
-    const growthDecimal = Number(firm.growth1Y) || 0
-    const growthValue = growthDecimal * 100
-    
-    if (!isNaN(growthValue)) {
-      if (!segmentGrowth[normalizedSegment]) {
-        segmentGrowth[normalizedSegment] = { total: 0, count: 0 }
-      }
-      segmentGrowth[normalizedSegment].total += growthValue
-      segmentGrowth[normalizedSegment].count += 1
-    }
-  })
-  const segmentAverages = Object.entries(segmentGrowth)
-    .map(([segment, data]) => ({
-      name: segment,
-      avgGrowth: data.total / data.count,
-      firmCount: data.count
-    }))
-    .sort((a, b) => b.avgGrowth - a.avgGrowth)
-    .slice(0, 3)
-    .map((item) => ({
-      name: item.name,
-      growth: item.avgGrowth > 0 
-        ? `+${item.avgGrowth.toFixed(1)}%` 
-        : `${item.avgGrowth.toFixed(1)}%`
-    }))
-  return segmentAverages.length > 0 ? segmentAverages : []
+  const topSegmentsData = calculateTopSegmentsByGrowth(firmsData, 3)
+  return topSegmentsData.map(item => ({
+    name: item.name,
+    growth: formatGrowthPercentage(item.avgGrowth)
+  }))
 }
+// Formula 2 variation: Top states by absolute headcount growth
 const calculateTopStates = (firmsData) => {
   const stateNames = {
     'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
@@ -55,41 +36,42 @@ const calculateTopStates = (firmsData) => {
     'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
     'WI': 'Wisconsin', 'WY': 'Wyoming'
   }
+  
   const stateGrowth = {}
   firmsData.forEach(firm => {
     const state = firm.hqStateAbbr
     if (!state) return
+    
     const currentEmployees = Number(firm.eeCount) || 0
-    // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%)
     const growthDecimal = Number(firm.growth1Y) || 0
-    const growthPercent = growthDecimal * 100
-    if (!isNaN(growthPercent) && currentEmployees > 0) {
-      const absoluteGrowth = currentEmployees * (growthPercent / 100)
-      if (!stateGrowth[state]) {
-        stateGrowth[state] = 0
-      }
-      stateGrowth[state] += absoluteGrowth
+    
+    if (currentEmployees > 0) {
+      // Calculate absolute headcount growth (number of employees added)
+      const absoluteGrowth = currentEmployees * growthDecimal
+      stateGrowth[state] = (stateGrowth[state] || 0) + absoluteGrowth
     }
   })
-  const stateAverages = Object.entries(stateGrowth)
+  
+  return Object.entries(stateGrowth)
     .map(([stateAbbr, totalGrowth]) => ({
-      state: stateAbbr,
+      rank: 0, // Will be set after sorting
       name: stateNames[stateAbbr] || stateAbbr,
-      totalGrowth: totalGrowth
+      growth: formatNumber(Math.round(totalGrowth))
     }))
-    .sort((a, b) => b.totalGrowth - a.totalGrowth)
+    .sort((a, b) => {
+      const aNum = parseInt(a.growth.replace(/,/g, ''))
+      const bNum = parseInt(b.growth.replace(/,/g, ''))
+      return bNum - aNum
+    })
     .slice(0, 5)
     .map((item, index) => ({
+      ...item,
       rank: index + 1,
-      name: item.name,
-      growth: item.totalGrowth >= 0 
-        ? `+${item.totalGrowth.toLocaleString(undefined, {maximumFractionDigits: 0})}` 
-        : `${item.totalGrowth.toLocaleString(undefined, {maximumFractionDigits: 0})}`
+      growth: item.growth >= 0 ? `+${item.growth}` : item.growth
     }))
-  return stateAverages.length > 0 ? stateAverages : []
 }
 const CACHE_KEY = 'airtable_homepage_data'
-const CACHE_DURATION = 1000
+const CACHE_DURATION = 60 * 60 * 1000
 const getCachedData = () => {
   try {
     const cached = localStorage.getItem(CACHE_KEY)

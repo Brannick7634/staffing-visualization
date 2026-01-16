@@ -8,6 +8,19 @@ import HeatMapWithRankings from './HeatMap'
 import { SEGMENT_NAMES, firmHasPrimarySegment, normalizeSegment } from '../constants/segments'
 import { US_STATES } from '../constants/usStates'
 import logo from '../assets/Instagram_Profile_1080_FullLogo.png'
+import {
+  countFirmsInView,
+  calculateMedianGrowth,
+  calculateTopSegmentsByGrowth,
+  findTopCity,
+  getUserAverageGrowth,
+  calculatePeerMedianGrowth,
+  calculateGrowthGap,
+  calculateAverageHeadcountGrowth,
+  formatGrowthPercentage,
+  formatNumber,
+  convertDecimalToPercentage
+} from '../utils/formulas'
 
 // Protected Header Component
 function ProtectedHeader({ user, onLogout }) {
@@ -115,41 +128,27 @@ function PeerPositionPanel({ user, firms }) {
       return sameSegment && sameSize
     })
 
-    // Use user's provided internal headcount growth value
-    // Convert from range format (e.g., "5-10") to midpoint percentage
+    // Formula 16: Get user's average growth from input
     let userGrowth = 0
-    
     if (user.internalHeadcountGrowth) {
       const growthRange = user.internalHeadcountGrowth
-      if (growthRange === '0-5') {
-        userGrowth = 2.5
-      } else if (growthRange === '5-10') {
-        userGrowth = 7.5
-      } else if (growthRange === '10-20') {
-        userGrowth = 15
-      } else if (growthRange === '20-50') {
-        userGrowth = 35
-      } else if (growthRange === '50+') {
-        userGrowth = 60 // Estimate for 50%+
-      }
+      // Convert range to midpoint
+      if (growthRange === '0-5') userGrowth = 2.5
+      else if (growthRange === '5-10') userGrowth = 7.5
+      else if (growthRange === '10-20') userGrowth = 15
+      else if (growthRange === '20-50') userGrowth = 35
+      else if (growthRange === '50+') userGrowth = 60
     }
 
-    // Calculate median growth for ALL peer firms (same segment + same size across all states)
-    const peerGrowthValues = peerFirms
-      .map(firm => {
-        // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%), convert to percentage
-        const growthDecimal = Number(firm.growth1Y) || 0
-        return growthDecimal * 100
-      })
-      .filter(g => !isNaN(g))
-      .sort((a, b) => a - b)
+    // Formula 17: Calculate peer median growth
+    const peerMedianGrowth = calculatePeerMedianGrowth(
+      firms, 
+      user.primarySegment, 
+      userSizeBuckets[0] // Use first bucket for matching
+    )
 
-    const peerMedianGrowth = peerGrowthValues.length > 0
-      ? peerGrowthValues[Math.floor(peerGrowthValues.length / 2)]
-      : 0
-
-    // Calculate gap
-    const gap = userGrowth - peerMedianGrowth
+    // Formula 18: Calculate growth gap
+    const gap = calculateGrowthGap(userGrowth, peerMedianGrowth)
 
     // Determine position
     let position = ''
@@ -275,18 +274,9 @@ function ProtectedDataTable({ firms }) {
     '30%+',
   ]
   
-  // Calculate average headcount growth for each firm
+  // Formula 19: Calculate average headcount growth across timeframes
   const calculateAvgHeadcountGrowth = (firm) => {
-    // Growth values are decimals (0.03 = 3%, -0.1 = -10%), convert to percentages
-    const growth6M = (Number(firm.growth6M) || 0) * 100
-    const growth1Y = (Number(firm.growth1Y) || 0) * 100
-    const growth2Y = (Number(firm.growth2Y) || 0) * 100
-    
-    const validGrowths = [growth6M, growth1Y, growth2Y].filter(g => !isNaN(g))
-    
-    if (validGrowths.length === 0) return 0
-    
-    return validGrowths.reduce((sum, g) => sum + g, 0) / validGrowths.length
+    return calculateAverageHeadcountGrowth(firm)
   }
   
   // Apply filters to data
@@ -489,17 +479,9 @@ function ProtectedDataTable({ firms }) {
             {currentRecords.map((row, index) => {
               const formatGrowthValue = (value) => {
                 if (value === null || value === undefined || value === '-') return '-'
-                
                 // Value is a decimal (0.03 = 3%, -0.1 = -10%)
-                const numValue = Number(value)
-                if (isNaN(numValue)) return '-'
-                
-                const percentage = numValue * 100
-                if (percentage === 0) return '0%'
-                
-                // Format with sign and percentage
-                const sign = percentage > 0 ? '+' : ''
-                return `${sign}${percentage.toFixed(1)}%`
+                const percentage = convertDecimalToPercentage(value)
+                return formatGrowthPercentage(percentage)
               }
               
               const getGrowthClass = (value) => {
@@ -519,9 +501,7 @@ function ProtectedDataTable({ firms }) {
               
               // Calculate and format average headcount growth
               const avgGrowth = calculateAvgHeadcountGrowth(row)
-              const formattedAvgGrowth = avgGrowth !== 0 
-                ? (avgGrowth > 0 ? `+${avgGrowth.toFixed(1)}%` : `${avgGrowth.toFixed(1)}%`)
-                : '0%'
+              const formattedAvgGrowth = formatGrowthPercentage(avgGrowth)
               
               return (
                 <tr key={row.id || index}>
@@ -641,53 +621,37 @@ function ProtectedDashboard() {
   
   // Calculate KPIs based on user's filtered data
   const getUserKPIs = () => {
-    // Data is already filtered by API, just use firms directly
+    // Using formulas from src/utils/formulas.js
     
-    // 1. Firms in this view
-    const totalFirms = firms.length
+    // Formula 8: Count firms in view
+    const totalFirms = countFirmsInView(firms)
     
-    // 2. Median 1-year growth
-    const growthValues = firms
-      .map(firm => {
-        // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%), convert to percentage
-        const growthDecimal = Number(firm.growth1Y) || 0
-        return growthDecimal * 100
-      })
-      .filter(g => !isNaN(g))
-      .sort((a, b) => a - b)
+    // Formula 9: Calculate median 1-year growth
+    const medianGrowth = calculateMedianGrowth(firms)
     
-    const medianGrowth = growthValues.length > 0
-      ? growthValues[Math.floor(growthValues.length / 2)]
-      : 0
+    // Formula 10: Calculate top segments by growth
+    const topSegmentsData = calculateTopSegmentsByGrowth(firms, 3)
+    const topSegment = topSegmentsData[0]?.name || 'N/A'
+    const otherSegments = topSegmentsData.slice(1).map(s => s.name).join(', ') || 'None'
     
-    // 3. Top Segments in this view
-    const segmentCounts = {}
-    firms.forEach(firm => {
-      const segment = firm.primarySegment || 'Unknown'
-      segmentCounts[segment] = (segmentCounts[segment] || 0) + 1
-    })
-    const sortedSegments = Object.entries(segmentCounts)
-      .sort(([,a], [,b]) => b - a)
-    const topSegment = sortedSegments[0]?.[0] || 'N/A'
-    const otherSegments = sortedSegments.slice(1, 3).map(([seg]) => seg).join(', ') || 'None'
+    // Formula 11: Find top city in view
+    const topCityName = findTopCity(firms)
     
-    // 4. Top City in this view
+    // Also find 2nd and 3rd cities for "Also strong" helper text
     const cityCounts = {}
     firms.forEach(firm => {
-      const city = firm.companyCity || 'Unknown'
-      cityCounts[city] = (cityCounts[city] || 0) + 1
+      const city = firm.companyCity
+      if (city) cityCounts[city] = (cityCounts[city] || 0) + 1
     })
-    const sortedCities = Object.entries(cityCounts)
-      .sort(([,a], [,b]) => b - a)
-    const topCity = sortedCities[0]?.[0] || 'N/A'
+    const sortedCities = Object.entries(cityCounts).sort(([,a], [,b]) => b - a)
     const otherCities = sortedCities.slice(1, 3).map(([city]) => city).join(', ') || 'None'
     
     return {
-      totalFirms: totalFirms.toLocaleString(),
-      medianGrowth: medianGrowth > 0 ? `+${medianGrowth.toFixed(1)}%` : `${medianGrowth.toFixed(1)}%`,
+      totalFirms: formatNumber(totalFirms),
+      medianGrowth: formatGrowthPercentage(medianGrowth),
       topSegment,
       otherSegments,
-      topCity,
+      topCity: topCityName,
       otherCities
     }
   }

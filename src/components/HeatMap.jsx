@@ -4,6 +4,16 @@ import * as am5map from '@amcharts/amcharts5/map'
 import am5geodata_usaLow from '@amcharts/amcharts5-geodata/usaLow'
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated'
 import { SEGMENT_NAMES, firmHasPrimarySegment, normalizeSegment } from '../constants/segments'
+import {
+  calculateStateAverageGrowth,
+  countFirmsInState,
+  calculateStateTotalHeadcount,
+  calculateTopStatesByGrowth,
+  calculateTopSegmentsByGrowth,
+  formatGrowthPercentage,
+  formatNumber,
+  convertDecimalToPercentage
+} from '../utils/formulas'
 
 const STATE_NAMES = {
   'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
@@ -328,107 +338,28 @@ function HeatMapWithRankings({ firms, hideRankings = false }) {
     return filtered
   }
 
-  // Calculate top 5 states based on filtered firms - average percentage growth
+  // Formula 7: Calculate top 5 states by average growth
   const getTopStates = () => {
     const filteredFirms = filterRecords(firms)
-    const stateNames = {
-      'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
-      'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware',
-      'FL': 'Florida', 'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho',
-      'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas',
-      'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
-      'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
-      'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada',
-      'NH': 'New Hampshire', 'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York',
-      'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma',
-      'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
-      'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah',
-      'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
-      'WI': 'Wisconsin', 'WY': 'Wyoming'
-    }
-
-    const stateGrowth = {}
+    const stateNames = STATE_NAMES
     
-    filteredFirms.forEach(firm => {
-      const state = firm.hqStateAbbr
-      if (!state) return
-      
-      // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%)
-      const growthDecimal = Number(firm.growth1Y) || 0
-      const growthPercent = growthDecimal * 100
-      
-      if (!isNaN(growthPercent)) {
-        if (!stateGrowth[state]) {
-          stateGrowth[state] = { total: 0, count: 0 }
-        }
-        stateGrowth[state].total += growthPercent
-        stateGrowth[state].count += 1
-      }
-    })
-
-    return Object.entries(stateGrowth)
-      .map(([stateAbbr, data]) => ({
-        state: stateAbbr,
-        name: stateNames[stateAbbr] || stateAbbr,
-        avgGrowth: data.total / data.count
-      }))
-      .sort((a, b) => b.avgGrowth - a.avgGrowth)
-      .slice(0, 5)
-      .map((item, index) => ({
-        rank: index + 1,
-        name: item.name,
-        growth: item.avgGrowth >= 0 
-          ? `+${item.avgGrowth.toFixed(1)}%` 
-          : `${item.avgGrowth.toFixed(1)}%`
-      }))
+    const topStatesData = calculateTopStatesByGrowth(filteredFirms, 5)
+    
+    return topStatesData.map((item, index) => ({
+      rank: index + 1,
+      name: stateNames[item.state] || item.state,
+      growth: formatGrowthPercentage(item.avgGrowth)
+    }))
   }
 
-  // Calculate top 3 segments based on ALL firms (not filtered)
+  // Formula 10: Calculate top 3 segments by growth (using primarySegment)
   const getTopSegments = () => {
-    const segmentGrowth = {}
+    const topSegmentsData = calculateTopSegmentsByGrowth(firms, 3)
     
-    firms.forEach(firm => {
-      const segments = firm.segments
-      if (!segments) return
-      
-      let segmentList = []
-      if (typeof segments === 'string') {
-        segmentList = segments.split(',').map(s => s.trim())
-      } else if (Array.isArray(segments)) {
-        segmentList = segments.map(s => String(s).trim())
-      }
-      
-      // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%)
-      const growthDecimal = Number(firm.growth1Y) || 0
-      const growthValue = growthDecimal * 100
-      
-      if (!isNaN(growthValue)) {
-        segmentList.forEach(segment => {
-          const normalizedSegment = normalizeSegment(segment)
-          
-          if (!segmentGrowth[normalizedSegment]) {
-            segmentGrowth[normalizedSegment] = { total: 0, count: 0 }
-          }
-          segmentGrowth[normalizedSegment].total += growthValue
-          segmentGrowth[normalizedSegment].count += 1
-        })
-      }
-    })
-
-    return Object.entries(segmentGrowth)
-      .map(([segment, data]) => ({
-        name: segment,
-        avgGrowth: data.total / data.count,
-        firmCount: data.count
-      }))
-      .sort((a, b) => b.avgGrowth - a.avgGrowth)
-      .slice(0, 3)
-      .map((item) => ({
-        name: item.name,
-        growth: item.avgGrowth > 0 
-          ? `+${item.avgGrowth.toFixed(1)}%` 
-          : `${item.avgGrowth.toFixed(1)}%`
-      }))
+    return topSegmentsData.map((item) => ({
+      name: item.name,
+      growth: formatGrowthPercentage(item.avgGrowth)
+    }))
   }
 
   const topStates = getTopStates()

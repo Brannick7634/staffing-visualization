@@ -7,6 +7,14 @@ import HeatMapWithRankings from './HeatMap'
 import { US_STATES } from '../constants/usStates'
 import { SEGMENT_NAMES, firmHasPrimarySegment, normalizeSegment, SEGMENT_MAPPING } from '../constants/segments'
 import logo from '../assets/Instagram_Profile_1080_FullLogo.png'
+import { 
+  countFirmsInSegment, 
+  findTopStateForSegment, 
+  calculateSegmentGrowth,
+  formatGrowthPercentage,
+  formatNumber,
+  convertDecimalToPercentage
+} from '../utils/formulas'
 
 // Header Component
 function Header({ user, onLogin, onSignup, onGotoDashboard }) {
@@ -364,10 +372,8 @@ function MiniPanel({ topStates, topSegments }) {
               const formatGrowth = (value) => {
                 if (value === null || value === undefined || value === '-') return '-'
                 // Value is a decimal (0.03 = 3%, -0.1 = -10%)
-                const numValue = Number(value)
-                if (isNaN(numValue)) return '-'
-                const percentage = numValue * 100
-                return percentage > 0 ? `+${percentage.toFixed(1)}%` : `${percentage.toFixed(1)}%`
+                const percentage = convertDecimalToPercentage(value)
+                return formatGrowthPercentage(percentage)
               }
               
               return (
@@ -812,52 +818,27 @@ function Dashboard() {
   }
 
   // Calculate stats based on filtered firms
+  // Using formulas from src/utils/formulas.js
   const getSegmentStats = () => {
     const filteredFirms = getFilteredFirmsBySegment()
+    const selectedSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
     
-    // Total firms
-    const totalFirms = filteredFirms.length
+    // Formula 1: Count firms in segment
+    const totalFirms = countFirmsInSegment(filteredFirms, selectedSegment)
     
-    // Top state by total headcount growth (absolute new employees added)
-    const stateHeadcountGrowth = {}
-    filteredFirms.forEach(firm => {
-      const state = firm.hqStateAbbr
-      if (state) {
-        const currentEmployees = Number(firm.eeCount) || 0
-        
-        // growth1Y is already a decimal (0.03 = 3%, -0.1 = -10%)
-        const growthDecimal = Number(firm.growth1Y) || 0
-        
-        if (!isNaN(growthDecimal) && currentEmployees > 0) {
-          // Calculate absolute headcount growth: current_employees * growth_decimal
-          const absoluteGrowth = currentEmployees * growthDecimal
-          stateHeadcountGrowth[state] = (stateHeadcountGrowth[state] || 0) + absoluteGrowth
-        }
-      }
-    })
-    const topState = Object.entries(stateHeadcountGrowth)
-      .sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A'
-    const topStateName = topState !== 'N/A' 
-      ? (US_STATES.find(s => s.value === topState)?.label || topState)
+    // Formula 2: Find top state for segment
+    const topStateCode = findTopStateForSegment(filteredFirms, selectedSegment)
+    const topStateName = topStateCode !== 'N/A' 
+      ? (US_STATES.find(s => s.value === topStateCode)?.label || topStateCode)
       : 'N/A'
     
-    // Average 1-year growth (as percentage for display)
-    const growthValues = filteredFirms
-      .map(firm => {
-        // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%), convert to percentage
-        const growthDecimal = Number(firm.growth1Y) || 0
-        return growthDecimal * 100
-      })
-      .filter(g => !isNaN(g))
-    
-    const avgGrowth = growthValues.length > 0
-      ? growthValues.reduce((a, b) => a + b, 0) / growthValues.length
-      : 0
+    // Formula 3: Calculate 1-year growth for segment
+    const avgGrowth = calculateSegmentGrowth(filteredFirms, selectedSegment)
     
     return {
-      totalFirms: totalFirms.toLocaleString(),
+      totalFirms: formatNumber(totalFirms),
       topState: topStateName,
-      yearGrowth: avgGrowth > 0 ? `+${avgGrowth.toFixed(1)}%` : `${avgGrowth.toFixed(1)}%`,
+      yearGrowth: formatGrowthPercentage(avgGrowth),
     }
   }
 
