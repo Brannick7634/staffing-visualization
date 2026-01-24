@@ -15,6 +15,7 @@ import {
   formatNumber,
   convertDecimalToPercentage
 } from '../utils/formulas'
+import { getFirmStateName, statesMatch } from '../utils/stateNormalization'
 
 // Header Component
 function Header({ user, onLogin, onSignup, onGotoDashboard }) {
@@ -183,10 +184,10 @@ function MiniPanel({ topStates, topSegments }) {
         return false
       }
       
-      // Apply state filter
+      // Apply state filter with fuzzy matching
       if (currentFilters.state) {
-        const hqLocation = String(firm.hqLocation || '')
-        if (!hqLocation.toLowerCase().includes(currentFilters.state.toLowerCase())) {
+        const firmState = getFirmStateName(firm)
+        if (!statesMatch(firmState, currentFilters.state)) {
           return false
         }
       }
@@ -379,7 +380,7 @@ function MiniPanel({ topStates, topSegments }) {
               return (
                 <tr key={row.id || index}>
                   <td>{row.primarySegment || '-'}</td>
-                  <td className="col-hq-location">{row.hqLocation || '-'}</td>
+                  <td className="col-hq-location">{getFirmStateName(row) || row.hqLocation || '-'}</td>
                   <td>{row.companyCity || '-'}</td>
                   <td className="col-employee-size">
                     {row.employeeSizeBucket ? (

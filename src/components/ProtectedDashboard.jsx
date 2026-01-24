@@ -15,12 +15,14 @@ import {
   findTopCity,
   getUserAverageGrowth,
   calculatePeerMedianGrowth,
+  calculatePeerIQRGrowth,
   calculateGrowthGap,
   calculateAverageHeadcountGrowth,
   formatGrowthPercentage,
   formatNumber,
   convertDecimalToPercentage
 } from '../utils/formulas'
+import { getUniqueValidStates, statesMatch, getFirmStateName } from '../utils/stateNormalization'
 
 // Protected Header Component
 function ProtectedHeader({ user, onLogout }) {
@@ -127,6 +129,31 @@ function PeerPositionPanel({ user, firms }) {
       
       return sameSegment && sameSize
     })
+    
+    // Debug logging for peer firms
+    console.log('=== PEER FIRMS CALCULATION ===')
+    console.log('User Info:', {
+      segment: user.primarySegment,
+      sizeBuckets: userSizeBuckets,
+      originalSize: user.employeeBandSize
+    })
+    console.log('Total firms in database:', firms.length)
+    console.log('Peer firms found:', peerFirms.length)
+    console.log('Peer firms:', peerFirms.map(f => ({
+      name: f.id,
+      segment: f.primarySegment,
+      sizeBucket: f.employeeSizeBucket,
+      growth1Y: f.growth1Y,
+      growthPercent: (Number(f.growth1Y) || 0) * 100
+    })))
+    
+    // Get growth values for median calculation
+    const peerGrowthValues = peerFirms
+      .map(firm => (Number(firm.growth1Y) || 0) * 100)
+      .filter(g => !isNaN(g))
+    
+    console.log('Peer growth values (%):', peerGrowthValues.sort((a, b) => a - b))
+    console.log('Number of valid growth values:', peerGrowthValues.length)
 
     // Formula 16: Get user's average growth from input
     let userGrowth = 0
@@ -140,15 +167,20 @@ function PeerPositionPanel({ user, firms }) {
       else if (growthRange === '50+') userGrowth = 60
     }
 
-    // Formula 17: Calculate peer median growth
-    const peerMedianGrowth = calculatePeerMedianGrowth(
-      firms, 
-      user.primarySegment, 
-      userSizeBuckets[0] // Use first bucket for matching
-    )
+    // Formula 17: Calculate peer median growth using the already filtered peer firms
+    const peerMedianGrowth = calculateMedianGrowth(peerFirms)
+    
+    // Calculate IQR growth (outliers removed)
+    const iqrData = calculatePeerIQRGrowth(peerFirms)
+    
+    console.log('Calculated peer median growth:', peerMedianGrowth.toFixed(2) + '%')
+    console.log('Calculated IQR median growth:', iqrData.iqrMedian.toFixed(2) + '%')
+    console.log('Outliers eliminated:', iqrData.outliersFree)
+    console.log('===========================\n')
 
     // Formula 18: Calculate growth gap
     const gap = calculateGrowthGap(userGrowth, peerMedianGrowth)
+    const iqrGap = calculateGrowthGap(userGrowth, iqrData.iqrMedian)
 
     // Determine position
     let position = ''
@@ -171,7 +203,12 @@ function PeerPositionPanel({ user, firms }) {
       peerMedianGrowth,
       peerFirmCount: peerFirms.length,
       positionText,
-      gap
+      gap,
+      iqrMedian: iqrData.iqrMedian,
+      iqrQ1: iqrData.q1,
+      iqrQ3: iqrData.q3,
+      iqrGap: iqrGap,
+      outliersEliminated: iqrData.outliersFree
     }
   }
 
@@ -198,7 +235,7 @@ function PeerPositionPanel({ user, firms }) {
 
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: '1fr 1fr', 
+          gridTemplateColumns: '1fr 1fr 1fr', 
           gap: '12px',
           marginTop: '16px',
           paddingTop: '16px',
@@ -223,6 +260,16 @@ function PeerPositionPanel({ user, firms }) {
               {peerData.peerFirmCount} peer firms
             </div>
           </div>
+
+          <div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>INDUSTRY RANGE (IQR)</div>
+            <div style={{ fontSize: '20px', fontWeight: '700', color: peerData.iqrMedian > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
+              {peerData.iqrMedian > 0 ? '+' : ''}{peerData.iqrMedian.toFixed(1)}%
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Outliers eliminated ({peerData.outliersEliminated})
+            </div>
+          </div>
         </div>
 
         <div style={{ 
@@ -234,6 +281,23 @@ function PeerPositionPanel({ user, firms }) {
           color: 'var(--text-muted)'
         }}>
           <strong>Peer criteria:</strong> Same segment ({user?.primarySegment}), same size ({user?.employeeBandSize}), all states
+        </div>
+
+        <div style={{ 
+          marginTop: '12px',
+          padding: '8px 12px',
+          background: 'rgba(16, 217, 205, 0.1)',
+          border: '1px solid rgba(16, 217, 205, 0.3)',
+          borderRadius: '6px',
+          fontSize: '11px',
+          color: 'var(--text-muted)'
+        }}>
+          <div style={{ marginBottom: '4px', color: 'var(--accent-teal)', fontWeight: '600' }}>
+            💡 Industry Range (IQR) Explained
+          </div>
+          The IQR shows the middle 50% of peer growth rates, removing extreme outliers. 
+          This gives you a more accurate benchmark by focusing on typical industry performance 
+          rather than being skewed by unusually high or low performers.
         </div>
       </div>
     </div>
@@ -255,8 +319,9 @@ function ProtectedDataTable({ firms }) {
   // Get segment options from constants
   const segmentOptions = SEGMENT_NAMES.sort()
   
-  // Get state options - use full state names from hqLocation
-  const stateOptions = [...new Set(firms.map(f => f.hqLocation).filter(Boolean))].sort()
+  // Get state options - use normalized unique valid states
+  const stateOptions = getUniqueValidStates(firms)
+  
   const employeeBandOptions = [...new Set(firms.map(f => f.employeeSizeBucket).filter(Boolean))].sort()
   const growthBandOptions = [
     'Negative',
@@ -282,7 +347,13 @@ function ProtectedDataTable({ firms }) {
   // Apply filters to data
   const filteredFirms = firms.filter((firm) => {
     if (filters.segment && !firmHasPrimarySegment(firm, filters.segment)) return false
-    if (filters.state && firm.hqLocation !== filters.state) return false
+    
+    // Handle state filter with fuzzy matching
+    if (filters.state) {
+      const firmState = getFirmStateName(firm)
+      if (!statesMatch(firmState, filters.state)) return false
+    }
+    
     if (filters.employeeBand && firm.employeeSizeBucket !== filters.employeeBand) return false
     
     if (filters.growthBand) {
@@ -506,7 +577,7 @@ function ProtectedDataTable({ firms }) {
               return (
                 <tr key={row.id || index}>
                   <td>{row.primarySegment || '-'}</td>
-                  <td>{row.hqLocation || '-'}</td>
+                  <td>{getFirmStateName(row) || row.hqLocation || '-'}</td>
                   <td>{row.companyCity || '-'}</td>
                   <td>
                     {row.employeeSizeBucket ? (
@@ -619,44 +690,30 @@ function ProtectedDashboard() {
 
   // Data is already filtered by API based on user's segment/state
   
-  // Calculate KPIs based on user's filtered data
-  const getUserKPIs = () => {
-    // Using formulas from src/utils/formulas.js
-    
-    // Formula 8: Count firms in view
-    const totalFirms = countFirmsInView(firms)
-    
-    // Formula 9: Calculate median 1-year growth
-    const medianGrowth = calculateMedianGrowth(firms)
-    
-    // Formula 10: Calculate top segments by growth
-    const topSegmentsData = calculateTopSegmentsByGrowth(firms, 3)
-    const topSegment = topSegmentsData[0]?.name || 'N/A'
-    const otherSegments = topSegmentsData.slice(1).map(s => s.name).join(', ') || 'None'
-    
-    // Formula 11: Find top city in view
-    const topCityName = findTopCity(firms)
-    
-    // Also find 2nd and 3rd cities for "Also strong" helper text
-    const cityCounts = {}
-    firms.forEach(firm => {
-      const city = firm.companyCity
-      if (city) cityCounts[city] = (cityCounts[city] || 0) + 1
-    })
-    const sortedCities = Object.entries(cityCounts).sort(([,a], [,b]) => b - a)
-    const otherCities = sortedCities.slice(1, 3).map(([city]) => city).join(', ') || 'None'
-    
-    return {
-      totalFirms: formatNumber(totalFirms),
-      medianGrowth: formatGrowthPercentage(medianGrowth),
-      topSegment,
-      otherSegments,
-      topCity: topCityName,
-      otherCities
-    }
+  // Calculate KPIs based on user's data (from API, already filtered by segment)
+  const totalFirms = countFirmsInView(firms)
+  const medianGrowth = calculateMedianGrowth(firms)
+  const topSegmentsData = calculateTopSegmentsByGrowth(firms, 3)
+  const topSegment = topSegmentsData[0]?.name || 'N/A'
+  const otherSegments = topSegmentsData.slice(1).map(s => s.name).join(', ') || 'None'
+  const topCityName = findTopCity(firms)
+  
+  const cityCounts = {}
+  firms.forEach(firm => {
+    const city = firm.companyCity
+    if (city) cityCounts[city] = (cityCounts[city] || 0) + 1
+  })
+  const sortedCities = Object.entries(cityCounts).sort(([,a], [,b]) => b - a)
+  const otherCities = sortedCities.slice(1, 3).map(([city]) => city).join(', ') || 'None'
+  
+  const userKPIs = {
+    totalFirms: formatNumber(totalFirms),
+    medianGrowth: formatGrowthPercentage(medianGrowth),
+    topSegment,
+    otherSegments,
+    topCity: topCityName,
+    otherCities
   }
-
-  const userKPIs = getUserKPIs()
 
   return (
     <div className="page-wrapper">
@@ -682,7 +739,7 @@ function ProtectedDashboard() {
                 <ProtectedKpiCard
                   label="Firms in this view"
                   value={userKPIs.totalFirms}
-                  helper="After your current filters are applied"
+                  helper="All firms in your segment"
                 />
                 <ProtectedKpiCard
                   label="Median 1-yr growth"

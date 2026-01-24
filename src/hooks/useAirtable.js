@@ -11,6 +11,7 @@ import {
   findTopStateForSegment,
   convertDecimalToPercentage
 } from '../utils/formulas'
+import { getFirmStateAbbr } from '../utils/stateNormalization'
 // Formula 10: Calculate top segments by growth
 const calculateTopSegments = (firmsData) => {
   const topSegmentsData = calculateTopSegmentsByGrowth(firmsData, 3)
@@ -34,12 +35,12 @@ const calculateTopStates = (firmsData) => {
     'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
     'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah',
     'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
-    'WI': 'Wisconsin', 'WY': 'Wyoming'
+    'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia'
   }
   
   const stateGrowth = {}
   firmsData.forEach(firm => {
-    const state = firm.hqStateAbbr
+    const state = getFirmStateAbbr(firm)
     if (!state) return
     
     const currentEmployees = Number(firm.eeCount) || 0

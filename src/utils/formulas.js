@@ -5,6 +5,8 @@
  * Each formula includes a human-readable description explaining what it calculates and how.
  */
 
+import { getFirmStateAbbr, normalizeStateAbbr } from './stateNormalization'
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -67,6 +69,94 @@ export function calculateAverage(numbers) {
   return sum / numbers.length
 }
 
+/**
+ * Calculate Interquartile Range (IQR) - removes outliers
+ * 
+ * Description:
+ * The IQR represents the middle 50% of the data, eliminating extreme outliers.
+ * This gives a more accurate picture by focusing on the typical range.
+ * 
+ * Steps:
+ * 1. Sort all values
+ * 2. Find Q1 (25th percentile) - value at 25% position
+ * 3. Find Q3 (75th percentile) - value at 75% position
+ * 4. IQR = Q3 - Q1 (the range of the middle 50%)
+ * 
+ * Returns: { q1, q3, iqr, median }
+ * - q1: First quartile (25th percentile)
+ * - q3: Third quartile (75th percentile)  
+ * - iqr: Interquartile range (Q3 - Q1)
+ * - median: Median of values within IQR (Q1 to Q3)
+ * 
+ * Example: [1, 2, 3, 4, 5, 6, 7, 8, 9, 100]
+ * Without IQR: median = 5.5, but 100 is an outlier
+ * With IQR: Q1 = 2.75, Q3 = 7.25, median of middle 50% = 5
+ */
+export function calculateIQR(numbers) {
+  if (!numbers || numbers.length === 0) {
+    return { q1: 0, q3: 0, iqr: 0, median: 0 }
+  }
+  
+  if (numbers.length < 4) {
+    // Not enough data for meaningful IQR, return simple median
+    const med = calculateMedian(numbers)
+    return { q1: med, q3: med, iqr: 0, median: med }
+  }
+  
+  const sorted = [...numbers].sort((a, b) => a - b)
+  
+  // Calculate Q1 (25th percentile)
+  const q1Index = Math.floor(sorted.length * 0.25)
+  const q1 = sorted[q1Index]
+  
+  // Calculate Q3 (75th percentile)
+  const q3Index = Math.floor(sorted.length * 0.75)
+  const q3 = sorted[q3Index]
+  
+  // Calculate IQR
+  const iqr = q3 - q1
+  
+  // Get values within the IQR range
+  const iqrValues = sorted.filter(val => val >= q1 && val <= q3)
+  
+  // Calculate median of IQR values (more robust than overall median)
+  const iqrMedian = calculateMedian(iqrValues)
+  
+  return { q1, q3, iqr, median: iqrMedian }
+}
+
+/**
+ * Calculate IQR growth for peer firms
+ * Removes outliers and returns the interquartile range median
+ * 
+ * @param {Array} firms - Array of firm objects
+ * @returns {Object} - { iqrMedian, q1, q3, count, outliersFree }
+ */
+export function calculatePeerIQRGrowth(firms) {
+  if (!firms || firms.length === 0) {
+    return { iqrMedian: 0, q1: 0, q3: 0, count: 0, outliersFree: 0 }
+  }
+  
+  const growthValues = firms
+    .map(firm => convertDecimalToPercentage(firm.growth1Y))
+    .filter(g => !isNaN(g))
+  
+  const iqrData = calculateIQR(growthValues)
+  
+  // Count how many outliers were eliminated
+  const outliersEliminated = growthValues.length - growthValues.filter(
+    val => val >= iqrData.q1 && val <= iqrData.q3
+  ).length
+  
+  return {
+    iqrMedian: iqrData.median,
+    q1: iqrData.q1,
+    q3: iqrData.q3,
+    count: growthValues.length,
+    outliersFree: outliersEliminated
+  }
+}
+
 // ============================================================================
 // PUBLIC PAGE FORMULAS - SECTION 1: KPIs
 // ============================================================================
@@ -121,7 +211,7 @@ export function findTopStateForSegment(firms, segment) {
   const stateHeadcountGrowth = {}
   
   firms.forEach(firm => {
-    const state = firm.hqStateAbbr
+    const state = getFirmStateAbbr(firm)
     if (!state) return
     
     const currentEmployees = Number(firm.eeCount) || 0
@@ -184,7 +274,11 @@ export function calculateSegmentGrowth(firms, segment) {
  * Example: California has 100 firms with average 5% growth → returns 5
  */
 export function calculateStateAverageGrowth(firms, stateCode, timeframe) {
-  const stateFirms = firms.filter(f => f.hqStateAbbr === stateCode)
+  const normalizedStateCode = normalizeStateAbbr(stateCode)
+  const stateFirms = firms.filter(f => {
+    const firmState = getFirmStateAbbr(f)
+    return firmState === normalizedStateCode
+  })
   if (stateFirms.length === 0) return 0
   
   const growthField = timeframe === '1Y Growth' ? 'growth1Y' 
@@ -211,7 +305,11 @@ export function calculateStateAverageGrowth(firms, stateCode, timeframe) {
  * Example: 150 firms are headquartered in California → returns 150
  */
 export function countFirmsInState(firms, stateCode) {
-  return firms.filter(f => f.hqStateAbbr === stateCode).length
+  const normalizedStateCode = normalizeStateAbbr(stateCode)
+  return firms.filter(f => {
+    const firmState = getFirmStateAbbr(f)
+    return firmState === normalizedStateCode
+  }).length
 }
 
 /**
@@ -227,7 +325,11 @@ export function countFirmsInState(firms, stateCode) {
  * Example: 3 firms with 100, 200, and 300 employees → total is 600
  */
 export function calculateStateTotalHeadcount(firms, stateCode) {
-  const stateFirms = firms.filter(f => f.hqStateAbbr === stateCode)
+  const normalizedStateCode = normalizeStateAbbr(stateCode)
+  const stateFirms = firms.filter(f => {
+    const firmState = getFirmStateAbbr(f)
+    return firmState === normalizedStateCode
+  })
   return stateFirms.reduce((total, firm) => total + (Number(firm.eeCount) || 0), 0)
 }
 
@@ -252,7 +354,7 @@ export function calculateTopStatesByGrowth(firms, topCount = 5) {
   const stateGrowth = {}
   
   firms.forEach(firm => {
-    const state = firm.hqStateAbbr
+    const state = getFirmStateAbbr(firm)
     if (!state) return
     
     const growthPercent = convertDecimalToPercentage(firm.growth1Y)
