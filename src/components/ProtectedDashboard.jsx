@@ -174,8 +174,9 @@ function PeerPositionPanel({ user, firms }) {
     const iqrData = calculatePeerIQRGrowth(peerFirms)
     
     console.log('Calculated peer median growth:', peerMedianGrowth.toFixed(2) + '%')
-    console.log('Calculated IQR median growth:', iqrData.iqrMedian.toFixed(2) + '%')
-    console.log('Outliers eliminated:', iqrData.outliersFree)
+    console.log('Calculated IQR (Q3 - Q1):', iqrData.iqr.toFixed(2) + '%')
+    console.log('Calculated IQR-filtered median:', iqrData.iqrMedian.toFixed(2) + '%')
+    console.log('Outliers eliminated:', iqrData.outliersEliminated)
     console.log('===========================\n')
 
     // Formula 18: Calculate growth gap
@@ -204,11 +205,12 @@ function PeerPositionPanel({ user, firms }) {
       peerFirmCount: peerFirms.length,
       positionText,
       gap,
-      iqrMedian: iqrData.iqrMedian,
+      iqr: iqrData.iqr,                       // Actual IQR (Q3 - Q1)
+      iqrMedian: iqrData.iqrMedian,           // Median of IQR-filtered values
       iqrQ1: iqrData.q1,
       iqrQ3: iqrData.q3,
       iqrGap: iqrGap,
-      outliersEliminated: iqrData.outliersFree
+      outliersEliminated: iqrData.outliersEliminated
     }
   }
 
@@ -262,12 +264,12 @@ function PeerPositionPanel({ user, firms }) {
           </div>
 
           <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>INDUSTRY RANGE (IQR)</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>MEDIAN (IQR-FILTERED)</div>
             <div style={{ fontSize: '20px', fontWeight: '700', color: peerData.iqrMedian > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
               {peerData.iqrMedian > 0 ? '+' : ''}{peerData.iqrMedian.toFixed(1)}%
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Outliers eliminated ({peerData.outliersEliminated})
+              Outliers removed ({peerData.outliersEliminated})
             </div>
           </div>
         </div>
@@ -293,11 +295,12 @@ function PeerPositionPanel({ user, firms }) {
           color: 'var(--text-muted)'
         }}>
           <div style={{ marginBottom: '4px', color: 'var(--accent-teal)', fontWeight: '600' }}>
-            💡 Industry Range (IQR) Explained
+            💡 IQR-Filtered Median Explained
           </div>
-          The IQR shows the middle 50% of peer growth rates, removing extreme outliers. 
-          This gives you a more accurate benchmark by focusing on typical industry performance 
-          rather than being skewed by unusually high or low performers.
+          This shows the median of the middle 50% of peer firms (between Q1 and Q3), 
+          excluding extreme outliers. The actual IQR is {peerData.iqr?.toFixed(1)}% 
+          (the range from {peerData.iqrQ1?.toFixed(1)}% to {peerData.iqrQ3?.toFixed(1)}%). 
+          This filtered median gives you a stable benchmark focused on typical industry performance.
         </div>
       </div>
     </div>

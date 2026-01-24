@@ -70,90 +70,138 @@ export function calculateAverage(numbers) {
 }
 
 /**
- * Calculate Interquartile Range (IQR) - removes outliers
+ * Calculate Interquartile Range (IQR) using median-of-halves method
  * 
  * Description:
- * The IQR represents the middle 50% of the data, eliminating extreme outliers.
- * This gives a more accurate picture by focusing on the typical range.
+ * The IQR is the range between Q1 (25th percentile) and Q3 (75th percentile).
+ * It represents the spread of the middle 50% of the data.
  * 
- * Steps:
+ * Method (Median-of-halves - most statistically standard):
  * 1. Sort all values
- * 2. Find Q1 (25th percentile) - value at 25% position
- * 3. Find Q3 (75th percentile) - value at 75% position
- * 4. IQR = Q3 - Q1 (the range of the middle 50%)
+ * 2. Find the median of the dataset
+ * 3. Q1 = median of the lower half (excluding overall median if odd count)
+ * 4. Q3 = median of the upper half (excluding overall median if odd count)
+ * 5. IQR = Q3 - Q1
  * 
- * Returns: { q1, q3, iqr, median }
+ * Returns: { q1, q3, iqr, dataMedian, iqrMedian }
  * - q1: First quartile (25th percentile)
  * - q3: Third quartile (75th percentile)  
- * - iqr: Interquartile range (Q3 - Q1)
- * - median: Median of values within IQR (Q1 to Q3)
+ * - iqr: Interquartile range (Q3 - Q1) - THIS IS THE ACTUAL IQR
+ * - dataMedian: Overall median of all data
+ * - iqrMedian: Median of values within [Q1, Q3] range (different metric)
  * 
- * Example: [1, 2, 3, 4, 5, 6, 7, 8, 9, 100]
- * Without IQR: median = 5.5, but 100 is an outlier
- * With IQR: Q1 = 2.75, Q3 = 7.25, median of middle 50% = 5
+ * Example: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+ * Median = 6.5, Lower half = [1,2,3,4,5,6], Upper half = [7,8,9,10,11,12]
+ * Q1 = 3.5, Q3 = 9.5, IQR = 6.0
  */
 export function calculateIQR(numbers) {
   if (!numbers || numbers.length === 0) {
-    return { q1: 0, q3: 0, iqr: 0, median: 0 }
+    return { q1: 0, q3: 0, iqr: 0, dataMedian: 0, iqrMedian: 0 }
   }
   
   if (numbers.length < 4) {
-    // Not enough data for meaningful IQR, return simple median
+    // Not enough data for meaningful IQR
     const med = calculateMedian(numbers)
-    return { q1: med, q3: med, iqr: 0, median: med }
+    return { q1: med, q3: med, iqr: 0, dataMedian: med, iqrMedian: med }
   }
   
   const sorted = [...numbers].sort((a, b) => a - b)
+  const n = sorted.length
   
-  // Calculate Q1 (25th percentile)
-  const q1Index = Math.floor(sorted.length * 0.25)
-  const q1 = sorted[q1Index]
+  // Calculate overall median
+  const dataMedian = calculateMedian(sorted)
   
-  // Calculate Q3 (75th percentile)
-  const q3Index = Math.floor(sorted.length * 0.75)
-  const q3 = sorted[q3Index]
+  // Split into lower and upper halves using median-of-halves method
+  let lowerHalf, upperHalf
   
-  // Calculate IQR
+  if (n % 2 === 0) {
+    // Even count: split exactly in half
+    lowerHalf = sorted.slice(0, n / 2)
+    upperHalf = sorted.slice(n / 2)
+  } else {
+    // Odd count: exclude the median from both halves
+    const medianIndex = Math.floor(n / 2)
+    lowerHalf = sorted.slice(0, medianIndex)
+    upperHalf = sorted.slice(medianIndex + 1)
+  }
+  
+  // Q1 = median of lower half
+  const q1 = calculateMedian(lowerHalf)
+  
+  // Q3 = median of upper half
+  const q3 = calculateMedian(upperHalf)
+  
+  // IQR = Q3 - Q1 (this is the actual interquartile range)
   const iqr = q3 - q1
   
-  // Get values within the IQR range
+  // Also calculate median of values within IQR range (different metric)
   const iqrValues = sorted.filter(val => val >= q1 && val <= q3)
-  
-  // Calculate median of IQR values (more robust than overall median)
   const iqrMedian = calculateMedian(iqrValues)
   
-  return { q1, q3, iqr, median: iqrMedian }
+  return { q1, q3, iqr, dataMedian, iqrMedian }
 }
 
 /**
  * Calculate IQR growth for peer firms
- * Removes outliers and returns the interquartile range median
+ * Returns both the actual IQR and the median of IQR-filtered values
  * 
  * @param {Array} firms - Array of firm objects
- * @returns {Object} - { iqrMedian, q1, q3, count, outliersFree }
+ * @returns {Object} - { iqr, q1, q3, iqrMedian, dataMedian, count, outliersEliminated }
  */
 export function calculatePeerIQRGrowth(firms) {
+  console.log('=== IQR CALCULATION START ===')
+  
   if (!firms || firms.length === 0) {
-    return { iqrMedian: 0, q1: 0, q3: 0, count: 0, outliersFree: 0 }
+    console.log('No firms provided for IQR calculation')
+    console.log('=== IQR CALCULATION END ===\n')
+    return { iqr: 0, q1: 0, q3: 0, iqrMedian: 0, dataMedian: 0, count: 0, outliersEliminated: 0 }
   }
+  
+  console.log('Total peer firms:', firms.length)
   
   const growthValues = firms
     .map(firm => convertDecimalToPercentage(firm.growth1Y))
     .filter(g => !isNaN(g))
   
+  console.log('Valid growth values:', growthValues.length)
+  // Create a copy for display so we don't mutate the original
+  console.log('Growth rates (%):', [...growthValues].sort((a, b) => a - b))
+  
   const iqrData = calculateIQR(growthValues)
   
+  console.log('\nIQR Calculation (Median-of-Halves Method):')
+  console.log('  Overall Data Median:', iqrData.dataMedian.toFixed(2) + '%')
+  console.log('  Q1 (25th percentile):', iqrData.q1.toFixed(2) + '%')
+  console.log('  Q3 (75th percentile):', iqrData.q3.toFixed(2) + '%')
+  console.log('  IQR (Q3 - Q1):', iqrData.iqr.toFixed(2) + '% ← THIS IS THE ACTUAL IQR')
+  
   // Count how many outliers were eliminated
-  const outliersEliminated = growthValues.length - growthValues.filter(
-    val => val >= iqrData.q1 && val <= iqrData.q3
-  ).length
+  const valuesInRange = growthValues.filter(val => val >= iqrData.q1 && val <= iqrData.q3)
+  const outliersEliminated = growthValues.length - valuesInRange.length
+  
+  console.log('\nOutlier Analysis:')
+  console.log('  Values in range [Q1, Q3]:', valuesInRange)
+  console.log('  Firms in IQR range:', valuesInRange.length, 'of', growthValues.length)
+  console.log('  Outliers eliminated:', outliersEliminated)
+  console.log('  Median of IQR-filtered values:', iqrData.iqrMedian.toFixed(2) + '% (NOT the IQR itself)')
+  
+  if (outliersEliminated > 0) {
+    const outliersBelow = growthValues.filter(val => val < iqrData.q1)
+    const outliersAbove = growthValues.filter(val => val > iqrData.q3)
+    console.log('    Below Q1:', outliersBelow.length, 'firms', outliersBelow.length > 0 ? outliersBelow : '')
+    console.log('    Above Q3:', outliersAbove.length, 'firms', outliersAbove.length > 0 ? outliersAbove : '')
+  }
+  
+  console.log('=== IQR CALCULATION END ===\n')
   
   return {
-    iqrMedian: iqrData.median,
+    iqr: iqrData.iqr,           // The actual IQR (Q3 - Q1)
     q1: iqrData.q1,
     q3: iqrData.q3,
+    iqrMedian: iqrData.iqrMedian, // Median of IQR-filtered values (different metric)
+    dataMedian: iqrData.dataMedian, // Overall median
     count: growthValues.length,
-    outliersFree: outliersEliminated
+    outliersEliminated: outliersEliminated
   }
 }
 
