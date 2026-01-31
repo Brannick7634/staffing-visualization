@@ -537,7 +537,7 @@ const ProtectedCountyMap = ({ firms, userState }) => {
     <>
       <div className="heatmap-filters">
         <div className="filter-group">
-          <label className="filter-label">Timeframe:</label>
+          <label className="filter-label">Growth timeframe:</label>
           <select 
             className="filter-select"
             value={filters.timeframe}
@@ -550,7 +550,7 @@ const ProtectedCountyMap = ({ firms, userState }) => {
         </div>
         
         <div className="filter-group">
-          <label className="filter-label">Size:</label>
+          <label className="filter-label">Internal headcount:</label>
           <select 
             className="filter-select"
             value={filters.size}

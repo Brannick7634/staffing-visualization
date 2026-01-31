@@ -40,7 +40,7 @@ function Header({ user, onLogin, onSignup, onGotoDashboard }) {
               Hi, {user.firstName}
             </span>
             <button className="pill-btn" onClick={onGotoDashboard}>
-              Goto Dashboard
+              Go to Dashboard
             </button>
           </>
         ) : (
@@ -115,14 +115,23 @@ function MiniPanel({ topStates, topSegments }) {
       </div>
 
       <div style={{ marginTop: '14px' }}>
-        <div className="mini-title">Top 3 Segments by 1-Y growth</div>
+        <div className="mini-title">Top 3 Segments in the U.S by 1-Y Growth</div>
         <div className="mini-list">
-          {topSegments.map((segment, index) => (
-            <div key={index} className="mini-row">
-              <span>{segment.name}</span>
-              <span className="text-positive">{segment.growth}</span>
-            </div>
-          ))}
+          {topSegments.map((segment, index) => {
+            // Format segment name: keep USLH, EOR, PEO, IT, MGF as-is, capitalize first letter for others
+            const formatSegmentName = (name) => {
+              const upperCaseSegments = ['USLH', 'EOR', 'PEO', 'IT', 'MGF']
+              if (upperCaseSegments.includes(name)) return name
+              return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+            }
+            
+            return (
+              <div key={index} className="mini-row">
+                <span>{formatSegmentName(segment.name)}</span>
+                <span className="text-positive">{segment.growth}</span>
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -132,7 +141,7 @@ function MiniPanel({ topStates, topSegments }) {
   // Data Table Component
   function DataTable({ firms, onFiltersChange, currentFilters }) {
     const [currentPage, setCurrentPage] = useState(1)
-    const recordsPerPage = 30
+    const recordsPerPage = 5  // Limit to 5 records per page
 
     // Filter to show only unique state-segment combinations (pick first occurrence)
     // Sort by state and limit to 1 segment per state
@@ -158,11 +167,15 @@ function MiniPanel({ topStates, topSegments }) {
         }
       })
       
-      // Convert back to array and sort by state
+      // Convert back to array and get all states
       const result = []
-      const sortedStates = Array.from(stateSegmentMap.keys()).sort()
+      const allStates = Array.from(stateSegmentMap.keys())
       
-      sortedStates.forEach(state => {
+      // Shuffle the states to get random order
+      const shuffledStates = allStates.sort(() => Math.random() - 0.5)
+      
+      // Take only first 5 states
+      shuffledStates.slice(0, 5).forEach(state => {
         const segmentsForState = stateSegmentMap.get(state)
         segmentsForState.forEach(firm => {
           result.push(firm)
@@ -226,14 +239,13 @@ function MiniPanel({ topStates, topSegments }) {
       'West Virginia', 'Wisconsin', 'Wyoming',
     ]
 
-    // Calculate pagination based on filtered data - limit to 5 pages maximum
-  const maxPages = 5
-  const totalPages = Math.min(Math.ceil(filteredFirms.length / recordsPerPage), maxPages)
-  const maxRecords = maxPages * recordsPerPage
+    // Calculate pagination based on filtered data - limit to just 1 page with 5 records
+  const totalPages = 1  // Only show 1 page
+  const maxRecords = 5  // Show maximum 5 records
   const limitedFirms = filteredFirms.slice(0, maxRecords)
-  const startIndex = (currentPage - 1) * recordsPerPage
-  const endIndex = startIndex + recordsPerPage
-  const currentRecords = limitedFirms.slice(startIndex, endIndex)
+  const startIndex = 0
+  const endIndex = limitedFirms.length
+  const currentRecords = limitedFirms
   
   // Reset to page 1 when filters change
   const handleFilterChange = (filterName, value) => {
@@ -314,7 +326,7 @@ function MiniPanel({ topStates, topSegments }) {
         </div>
         
         <div className="filter-group">
-          <label className="filter-label">Employee Size:</label>
+          <label className="filter-label">Internal Employees Headcount:</label>
           <select 
             className="filter-select"
             value={currentFilters.employeeSize}
@@ -355,7 +367,7 @@ function MiniPanel({ topStates, topSegments }) {
               <th>Primary Segment</th>
               <th className="col-hq-location">HQ Location</th>
               <th>Company City</th>
-              <th className="col-employee-size">Employee Size<br />Bucket</th>
+              <th className="col-employee-size">Employee Size Bucket</th>
               <th>Growth 1Y %</th>
             </tr>
           </thead>
@@ -377,9 +389,17 @@ function MiniPanel({ topStates, topSegments }) {
                 return formatGrowthPercentage(percentage)
               }
               
+              // Format segment name: keep USLH, EOR, PEO, IT, MGF as-is, capitalize first letter for others
+              const formatSegmentName = (name) => {
+                if (!name) return '-'
+                const upperCaseSegments = ['USLH', 'EOR', 'PEO', 'IT', 'MGF']
+                if (upperCaseSegments.includes(name)) return name
+                return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+              }
+              
               return (
                 <tr key={row.id || index}>
-                  <td>{row.primarySegment || '-'}</td>
+                  <td>{formatSegmentName(row.primarySegment)}</td>
                   <td className="col-hq-location">{getFirmStateName(row) || row.hqLocation || '-'}</td>
                   <td>{row.companyCity || '-'}</td>
                   <td className="col-employee-size">
@@ -432,10 +452,6 @@ function MiniPanel({ topStates, topSegments }) {
           </button>
         </div>
       )}
-      
-      <div className={`pagination-info ${totalPages <= 1 ? 'pagination-info-no-pages' : ''}`}>
-        Showing {filteredFirms.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, filteredFirms.length)} of {filteredFirms.length} records
-      </div>
     </>
   )
 }
@@ -487,6 +503,17 @@ function CTAForm() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    
+    // Validate required fields
+    if (!formData.employeeBand) {
+      setError('Employee band size is required')
+      return
+    }
+    
+    if (!formData.internalHeadcountGrowth) {
+      setError('Internal headcount growth is required')
+      return
+    }
     
     const passwordError = validatePassword(formData.password)
     if (passwordError) {

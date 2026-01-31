@@ -175,6 +175,14 @@ function ProtectedHeatMap({ firms }) {
       const stateCode = polygonId.replace('US-', '')
       const stateName = STATE_NAMES[stateCode] || stateCode
       
+      // Get timeframe label based on current filter
+      const getTimeframeLabel = () => {
+        if (filters.timeframe === '6M Growth') return 'last 6 months'
+        if (filters.timeframe === '1Y Growth') return 'last 12 months'
+        if (filters.timeframe === '2Y Growth') return 'last 24 months'
+        return 'last 12 months'
+      }
+      
       if (dataItem && dataItem.dataContext && dataItem.dataContext.firmCount > 0) {
         const d = dataItem.dataContext
         const growth = d.growth || 0
@@ -188,14 +196,14 @@ function ProtectedHeatMap({ firms }) {
               ${stateName} – ${getGrowthLabel(growth)}
             </div>
             <div style="font-size: 14px; margin-bottom: 4px; color: #495057;">
-              <strong>Headcount growth:</strong> ${growth > 0 ? '+' : ''}${growth.toFixed(1)}% (last 12 months)
+              <strong>Internal employee Headcount:</strong> ${growth > 0 ? '+' : ''}${growth.toFixed(1)}% (${getTimeframeLabel()})
             </div>
             <div style="font-size: 14px; margin-bottom: 4px; color: #495057;">
               <strong>Firms in view:</strong> ${firmCount.toLocaleString()}
             </div>
-            <div style="font-size: 14px; color: #495057;">
+            <!--<div style="font-size: 14px; color: #495057;">
               <strong>Total headcount (est.):</strong> ${totalHeadcount.toLocaleString()}
-            </div>
+            </div>-->
           </div>
         `
       } else {
@@ -247,7 +255,7 @@ function ProtectedHeatMap({ firms }) {
     <>
       <div className="heatmap-filters">
         <div className="filter-group">
-          <label className="filter-label">Timeframe:</label>
+          <label className="filter-label">Growth timeframe:</label>
           <select 
             className="filter-select"
             value={filters.timeframe}
@@ -260,7 +268,7 @@ function ProtectedHeatMap({ firms }) {
         </div>
         
         <div className="filter-group">
-          <label className="filter-label">Size:</label>
+          <label className="filter-label">Internal headcount:</label>
           <select 
             className="filter-select"
             value={filters.size}

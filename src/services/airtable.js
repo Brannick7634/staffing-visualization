@@ -166,6 +166,34 @@ export async function verifyCredentials(email, password) {
     return { success: false, error: 'Authentication failed' }
   }
 }
+
+export async function updateUserProfile(userId, updates) {
+  try {
+    const record = await base('Staffing Signal Leads Table (Test)').update(userId, {
+      'First Name': updates.firstName,
+      'Employee Band Size': updates.employeeBandSize,
+      'HQ State': updates.hqState,
+      'Primary Segment': updates.primarySegment,
+      'Internal Employee Headcount Growth': updates.internalHeadcountGrowth,
+    })
+    
+    return {
+      success: true,
+      user: {
+        id: record.id,
+        firstName: record.get('First Name'),
+        email: record.get('Email'),
+        employeeBandSize: record.get('Employee Band Size'),
+        hqState: record.get('HQ State'),
+        primarySegment: record.get('Primary Segment'),
+        internalHeadcountGrowth: record.get('Internal Employee Headcount Growth')
+      }
+    }
+  } catch (error) {
+    return { success: false, error: 'Failed to update profile. Please try again.' }
+  }
+}
+
 export function isAirtableConfigured() {
   return !!(
     import.meta.env.VITE_AIRTABLE_API_KEY &&

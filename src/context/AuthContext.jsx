@@ -58,6 +58,7 @@ export const AuthProvider = ({ children }) => {
         const expiryTime = Date.now() + TOKEN_EXPIRY_MS
         
         const userSession = {
+          id: result.user.id,
           email: result.user.email,
           firstName: result.user.firstName,
           employeeBandSize: result.user.employeeBandSize,
@@ -88,6 +89,22 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('tokenExpiry')
   }
 
+  const updateUser = (updatedUserData) => {
+    const userSession = {
+      id: updatedUserData.id,
+      email: updatedUserData.email,
+      firstName: updatedUserData.firstName,
+      employeeBandSize: updatedUserData.employeeBandSize,
+      hqState: updatedUserData.hqState,
+      primarySegment: updatedUserData.primarySegment,
+      internalHeadcountGrowth: updatedUserData.internalHeadcountGrowth
+    }
+    
+    // Update state and localStorage
+    setUser(userSession)
+    localStorage.setItem('user', JSON.stringify(userSession))
+  }
+
   // Check if user is authenticated
   const isAuthenticated = () => {
     const token = localStorage.getItem('authToken')
@@ -104,7 +121,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   )

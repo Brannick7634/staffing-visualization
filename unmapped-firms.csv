@@ -1,0 +1,186 @@
+State,City,Issue
+Georgia,Forsyth County,County Name Only
+Illinois,Chicagoland Area,Unknown City
+Texas,Houston and Dallas ,Unknown City
+California,Louisville,Wrong State (Should be Alabama)
+Iowa,Mexico City,Foreign City
+Maryland,Remote,Wrong State (Should be Oregon)
+Virginia,Mercer Island,Wrong State (Should be Washington)
+California,Silicon Valley,Unknown City
+Nevada,Honolulu,Wrong State (Should be Hawaii)
+Texas,Wilmington,Wrong State (Should be California)
+California,San Franciso Bay Area,Unknown City
+Virginia,Appleton,Wrong State (Should be Arkansas)
+Florida,London,Foreign City
+Maryland,Hillsborough,Wrong State (Should be California)
+North Carolina,Appleton,Wrong State (Should be Arkansas)
+Tennessee,United States,Unknown City
+California,Larnaca,Unknown City
+Massachusetts,Boston Cambridge,Unknown City
+Missouri,Dallas ,Wrong State (Should be Arkansas)
+Virginia,Addlestone,Unknown City
+California,North Hollywood, CA 91606
+Massachusetts,Miami,Wrong State (Should be Arizona)
+Texas,Palm City,Wrong State (Should be Florida)
+Delaware,New Jersey,Unknown City
+New Jersey,Philadelphia,Wrong State (Should be Missouri)
+New York,Global,Unknown City
+Pennsylvania,Leeds,Wrong State (Should be Alabama)
+California,Goose Creek,Wrong State (Should be Kentucky)
+Connecticut,Asheville,Wrong State (Should be North Carolina)
+Tennessee,Nashville-Davidson,Unknown City
+Alabama,Alpharetta,Wrong State (Should be Georgia)
+California,Dallas,Wrong State (Should be Arkansas)
+Illinois,Ahmedabad,Unknown City
+Kansas,Kansas City Area,Unknown City
+Pennsylvania,Alpharetta,Wrong State (Should be Georgia)
+Virginia,Sumner,Wrong State (Should be Georgia)
+Arizona,Centennial,Wrong State (Should be Colorado)
+California,Melbourne Beach,Wrong State (Should be Florida)
+Maryland,Wichita,Wrong State (Should be Kansas)
+New York,London,Foreign City
+Pennsylvania,Apache Junction,Wrong State (Should be Arizona)
+Virginia,Enumclaw,Wrong State (Should be Washington)
+Delaware,Hamilton,Wrong State (Should be Alabama)
+Illinois,Westlake,Wrong State (Should be Florida)
+New Jersey,New Jersey,Unknown City
+North Carolina,Baltimore,Wrong State (Should be Maryland)
+Virginia,Cheapeake,Unknown City
+Georgia,Worldwide,Unknown City
+Illinois,La Grange, IL
+Maryland,United States,Unknown City
+Massachusetts,Rochelle Park,Wrong State (Should be New Jersey)
+Michigan,United States,Unknown City
+Missouri,Springdale,Wrong State (Should be Arkansas)
+New Jersey,Woodbridge Township,Unknown City
+Virginia,Tacoma,Wrong State (Should be Washington)
+Wisconsin,Winnipeg,Unknown City
+Arizona,California City,Wrong State (Should be California)
+California,Bay Area, Los Angeles
+California, Work from Anywhere,Unknown City
+Illinois,Tampa,Wrong State (Should be Florida)
+Illinois,Schaumburg,
+Massachusetts,Ardmore,Wrong State (Should be Alabama)
+Ohio,Cleveland/Akron Area,Unknown City
+Oregon,United States,Unknown City
+Oregon,State of Oregon,Unknown City
+Pennsylvania,Melville,Wrong State (Should be Louisiana)
+South Carolina,Nashville,Wrong State (Should be Arkansas)
+Wyoming,Mohali ,Unknown City
+Alabama,Toronto,Foreign City
+Connecticut,Topeka,Wrong State (Should be Illinois)
+Iowa,Dubuque, IA - Office
+Nebraska,Omaha.,Unknown City
+New Jersey,Bridgewater Township,Unknown City
+New York,New York Metro,Unknown City
+Tennessee,ORLANDO,Wrong State (Should be Arkansas)
+Tennessee,Tampa ,Wrong State (Should be Florida)
+Texas,Phoenix Dallas & Houston,Unknown City
+Virginia,Appleton,Wrong State (Should be Arkansas)
+Virginia,Crawley,Wrong State (Should be West Virginia)
+Arizona,Little Rock,Wrong State (Should be Arkansas)
+Arizona,Castle Hill,Wrong State (Should be California)
+Arkansas,Poplar Bluff,Wrong State (Should be Missouri)
+California,San Francisco Bay Area ,Unknown City
+California,United States,Unknown City
+California,San Francisco Bay Area,Unknown City
+California,Jacksonville,Wrong State (Should be Alabama)
+California,Zurich,Wrong State (Should be Kansas)
+California,Orem,Wrong State (Should be Utah)
+California,.,Unknown City
+California,Baltimore, MD
+California,San Francisco Bay Area,Unknown City
+Colorado,Fox Field ,Unknown City
+Florida,North Richland Hills,Wrong State (Should be Texas)
+Florida,Tampa Bay,Unknown City
+Florida,Across the U.S.,Invalid/Generic Name
+Georgia,Singapore,Foreign City
+Georgia,Valodsta,Unknown City
+Illinois,Healthcare Executive Search,Unknown City
+Illinois,Maidenhead,
+Illinois,Nationwide,Invalid/Generic Name
+Iowa,Masssena,Unknown City
+Kentucky,Southfield,Wrong State (Should be Louisiana)
+Maryland,Tampa,Wrong State (Should be Florida)
+Maryland,Jette,Wrong State (Should be Montana)
+Maryland,Nationwide,Invalid/Generic Name
+Massachusetts,United States,Unknown City
+Massachusetts,New Bedford,
+Massachusetts,Greater Boston Area,Unknown City
+Massachusetts,MA,Unknown City
+Michigan,Buffalo,Wrong State (Should be Iowa)
+Minnesota,Greater Minneapolis/St. Paul Area,Unknown City
+Mississippi,Parsippany,Wrong State (Should be New Jersey)
+Missouri,Naperville,Wrong State (Should be Illinois)
+New Hampshire,London,Foreign City
+New Hampshire,Sarasota,Wrong State (Should be Florida)
+New Jersey,Brooklyn,Wrong State (Should be Alabama)
+New Jersey,Plainsboro, United States
+New Jersey,Marton,Unknown City
+New York,Tehran,Unknown City
+New York,Los Angeles,Wrong State (Should be California)
+New York,London,Foreign City
+New York,Zurich,Wrong State (Should be Kansas)
+New York,Ronkonkoms,Unknown City
+New York,New York City Metropolitan Area,Unknown City
+North Carolina,Barceloneta,Wrong State (Should be PR)
+Ohio,Greenwood Village,Wrong State (Should be Colorado)
+Ohio,CLAMART,Unknown City
+Oklahoma,Addison,Wrong State (Should be Alabama)
+Oregon,Tulsa,Wrong State (Should be Oklahoma)
+Pennsylvania,West Hartford,Wrong State (Should be Connecticut)
+Pennsylvania,Edison,Wrong State (Should be California)
+Pennsylvania,King of Prussa,Unknown City
+South Carolina,Bossier City,Wrong State (Should be Louisiana)
+Tennessee,Sheridan,Wrong State (Should be Arkansas)
+Texas,Marina Del Rey,Wrong State (Should be California)
+Texas,East Rockaway,Wrong State (Should be New York)
+Texas,Hartford,Wrong State (Should be Alabama)
+Texas,Whiteley,Unknown City
+Virginia,Bridgeport,Wrong State (Should be Alabama)
+Virginia,Gaithersburg,Wrong State (Should be Maryland)
+Virginia,Appleton,Wrong State (Should be Arkansas)
+Virginia,Burlington,Wrong State (Should be Colorado)
+Washington,National Coverage,Unknown City
+Wisconsin,Iowa City,Wrong State (Should be Iowa)
+Wisconsin,Sebring,Wrong State (Should be Florida)
+Wisconsin,Elgin,Wrong State (Should be Arizona)
+Wisconsin,South Bend,Wrong State (Should be Indiana)
+Colorado,Alpharetta,Wrong State (Should be Georgia)
+Florida,Jacksonville Bch,Unknown City
+Illinois,West Chicago,
+Massachusetts,Greater Boston,Unknown City
+Nebraska,Menlo Park,Wrong State (Should be California)
+New York,Southport,Wrong State (Should be Connecticut)
+California,Reading,Wrong State (Should be Illinois)
+Florida,London,Foreign City
+New York,New Hartford,
+Texas,Sugarland,Unknown City
+Virginia,Wauwatosa,Wrong State (Should be Wisconsin)
+Georgia,United States,Unknown City
+Illinois,Greater Chicago Area,Unknown City
+Maryland,Las Vegas,Wrong State (Should be New Mexico)
+Minnesota,Minneapolis/St. Paul,Unknown City
+California,Redwood Shores,Unknown City
+Colorado,Lebanon,Wrong State (Should be Connecticut)
+Illinois,Freemont,Unknown City
+Massachusetts,Montrose,Wrong State (Should be Alabama)
+Virginia,Olympia,Wrong State (Should be Kentucky)
+Virginia,Longview,Wrong State (Should be Illinois)
+Colorado,Colorado Front Range (Fort Collins to Colorado Springs),Unknown City
+Kansas,Grove City,Wrong State (Should be Florida)
+Pennsylvania,Skaneateles,Wrong State (Should be New York)
+Texas,Dallas - Fort Worth ,Unknown City
+Virginia,Federal Way,Wrong State (Should be Washington)
+Florida,Chennai,Foreign City
+Hawaii,HonoIulu,Unknown City
+Oklahoma,Oklahoma Ciy,Unknown City
+Texas,Jakarta,Unknown City
+Texas,Schiphol,Unknown City
+Illinois,Chicacoland,Unknown City
+Kentucky,Lenexa,Wrong State (Should be Kansas)
+Alabama,McCalla,Unknown City
+North Carolina,Houston, TX
+Texas,Texas,Unknown City
+Virginia,Southern California,Unknown City
+Virginia,Washington DC Metro,Unknown City

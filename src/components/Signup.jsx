@@ -52,6 +52,17 @@ function Signup() {
     e.preventDefault()
     setError('')
     
+    // Validate required fields
+    if (!formData.employeeBand) {
+      setError('Employee band size is required')
+      return
+    }
+    
+    if (!formData.internalHeadcountGrowth) {
+      setError('Internal headcount growth is required')
+      return
+    }
+    
     const passwordError = validatePassword(formData.password)
     if (passwordError) {
       setError(passwordError)
@@ -293,7 +304,7 @@ function Signup() {
                 <option value="">Select state</option>
                 {US_STATES.map((state) => (
                   <option key={state.value} value={state.label}>
-                    {state.value}
+                    {state.label}
                   </option>
                 ))}
               </select>
