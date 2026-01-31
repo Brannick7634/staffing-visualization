@@ -36,6 +36,7 @@ function HeatMap({ firms, filters, setFilters }) {
   const chartRoot = useRef(null)
   const polygonSeries = useRef(null)
   const [mapReady, setMapReady] = useState(false)
+  const filtersRef = useRef(filters)
 
   const getColorForGrowth = (growth) => {
     if (growth <= -25) return am5.color(0x7F1D1D) // deep red
@@ -54,6 +55,11 @@ function HeatMap({ firms, filters, setFilters }) {
     if (growth <= 25) return "Growing strongly"
     return "Growing significantly"
   }
+
+  // Keep filters ref up to date
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
 
   const filterRecords = (records) => {
     let filtered = records.filter(r => r.hqStateAbbr)
@@ -192,9 +198,9 @@ function HeatMap({ firms, filters, setFilters }) {
       
       // Get timeframe label based on current filter
       const getTimeframeLabel = () => {
-        if (filters.timeframe === '6M Growth') return 'last 6 months'
-        if (filters.timeframe === '1Y Growth') return 'last 12 months'
-        if (filters.timeframe === '2Y Growth') return 'last 24 months'
+        if (filtersRef.current.timeframe === '6M Growth') return 'last 6 months'
+        if (filtersRef.current.timeframe === '1Y Growth') return 'last 12 months'
+        if (filtersRef.current.timeframe === '2Y Growth') return 'last 24 months'
         return 'last 12 months'
       }
       

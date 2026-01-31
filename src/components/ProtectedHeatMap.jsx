@@ -22,6 +22,7 @@ function ProtectedHeatMap({ firms }) {
   const chartDiv = useRef(null)
   const chartRoot = useRef(null)
   const polygonSeries = useRef(null)
+  const filtersRef = useRef({ timeframe: '2Y Growth', size: 'all' })
   
   const [filters, setFilters] = useState({
     timeframe: '2Y Growth',
@@ -45,6 +46,11 @@ function ProtectedHeatMap({ firms }) {
     if (growth <= 25) return "Growing strongly"
     return "Growing significantly"
   }
+
+  // Keep filters ref up to date
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
 
   const filterRecords = (records) => {
     let filtered = records.filter(r => r.hqStateAbbr)
@@ -177,9 +183,9 @@ function ProtectedHeatMap({ firms }) {
       
       // Get timeframe label based on current filter
       const getTimeframeLabel = () => {
-        if (filters.timeframe === '6M Growth') return 'last 6 months'
-        if (filters.timeframe === '1Y Growth') return 'last 12 months'
-        if (filters.timeframe === '2Y Growth') return 'last 24 months'
+        if (filtersRef.current.timeframe === '6M Growth') return 'last 6 months'
+        if (filtersRef.current.timeframe === '1Y Growth') return 'last 12 months'
+        if (filtersRef.current.timeframe === '2Y Growth') return 'last 24 months'
         return 'last 12 months'
       }
       
