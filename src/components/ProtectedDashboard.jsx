@@ -218,9 +218,9 @@ function PeerPositionPanel({ user, firms }) {
   const peerData = calculatePeerPosition()
 
   return (
-    <div className="mini-panel" style={{ background: 'linear-gradient(135deg, rgba(16, 217, 205, 0.1) 0%, rgba(253, 18, 123, 0.1) 100%)' }}>
+    <div className="panel" style={{ background: 'linear-gradient(135deg, rgba(16, 217, 205, 0.1) 0%, rgba(253, 18, 123, 0.1) 100%)' }}>
       <div>
-        <div className="mini-title" style={{ fontSize: '14px', marginBottom: '8px' }}>
+        <div className="section-label" style={{ marginBottom: '8px' }}>
           My Position vs Market
         </div>
         <div style={{ 
@@ -238,70 +238,79 @@ function PeerPositionPanel({ user, firms }) {
 
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: '1fr 1fr 1fr', 
-          gap: '12px',
+          gridTemplateColumns: 'repeat(4, 1fr)', 
+          gap: '16px',
           marginTop: '16px',
           paddingTop: '16px',
           borderTop: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>YOUR AVG GROWTH</div>
-            <div style={{ fontSize: '20px', fontWeight: '700', color: peerData.userGrowth > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.userGrowth > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
               {peerData.userGrowth > 0 ? '+' : ''}{(peerData.userGrowth || 0).toFixed(1)}%
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
               Your reported growth
             </div>
           </div>
           
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>PEER MEDIAN GROWTH</div>
-            <div style={{ fontSize: '20px', fontWeight: '700', color: peerData.peerMedianGrowth > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.peerMedianGrowth > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
               {peerData.peerMedianGrowth > 0 ? '+' : ''}{(peerData.peerMedianGrowth || 0).toFixed(1)}%
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
               {peerData.peerFirmCount} peer firms
             </div>
           </div>
 
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>MEDIAN (IQR-FILTERED)</div>
-            <div style={{ fontSize: '20px', fontWeight: '700', color: peerData.iqrMedian > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.iqrMedian > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
               {peerData.iqrMedian > 0 ? '+' : ''}{(peerData.iqrMedian || 0).toFixed(1)}%
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
               Outliers removed ({peerData.outliersEliminated || 0})
             </div>
           </div>
-        </div>
 
-        <div style={{ 
-          marginTop: '16px',
-          padding: '8px 12px',
-          background: 'rgba(0, 0, 0, 0.2)',
-          borderRadius: '6px',
-          fontSize: '11px',
-          color: 'var(--text-muted)'
-        }}>
-          <strong>Peer criteria:</strong> Same segment ({user?.primarySegment}), same size ({user?.employeeBandSize}), all states
-        </div>
-
-        <div style={{ 
-          marginTop: '12px',
-          padding: '8px 12px',
-          background: 'rgba(16, 217, 205, 0.1)',
-          border: '1px solid rgba(16, 217, 205, 0.3)',
-          borderRadius: '6px',
-          fontSize: '11px',
-          color: 'var(--text-muted)'
-        }}>
-          <div style={{ marginBottom: '4px', color: 'var(--accent-teal)', fontWeight: '600' }}>
-            💡 IQR-Filtered Median Explained
+          <div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>INTERQUARTILE RANGE</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)' }}>
+              {(peerData.iqr || 0).toFixed(1)}%
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Q1: {(peerData.iqrQ1 || 0).toFixed(1)}% to Q3: {(peerData.iqrQ3 || 0).toFixed(1)}%
+            </div>
           </div>
-          This shows the median of the middle 50% of peer firms (between Q1 and Q3), 
-          excluding extreme outliers. The actual IQR is {(peerData.iqr || 0).toFixed(1)}% 
-          (the range from {(peerData.iqrQ1 || 0).toFixed(1)}% to {(peerData.iqrQ3 || 0).toFixed(1)}%). 
-          This filtered median gives you a stable benchmark focused on typical industry performance.
+        </div>
+
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '12px',
+          marginTop: '16px'
+        }}>
+          <div style={{ 
+            padding: '10px 14px',
+            background: 'rgba(0, 0, 0, 0.2)',
+            borderRadius: '8px',
+            fontSize: '11px',
+            color: 'var(--text-muted)'
+          }}>
+            <strong>Peer criteria:</strong> Same segment ({user?.primarySegment}), same size ({user?.employeeBandSize}), all states
+          </div>
+
+          <div style={{ 
+            padding: '10px 14px',
+            background: 'rgba(16, 217, 205, 0.1)',
+            border: '1px solid rgba(16, 217, 205, 0.3)',
+            borderRadius: '8px',
+            fontSize: '11px',
+            color: 'var(--text-muted)'
+          }}>
+            <span style={{ color: 'var(--accent-teal)', fontWeight: '600' }}>💡 IQR-Filtered Median:</span> Median of middle 50% of peer firms (Q1 to Q3), excluding extreme outliers for stable benchmark.
+          </div>
         </div>
       </div>
     </div>
@@ -1027,49 +1036,43 @@ function ProtectedDashboard() {
 
         {/* Section 2: Map + Side Panel */}
         <section className="section-block">
-          <div className="panel">
-            <div className="two-column">
+          {/* Peer Position Panel - Now on top */}
+          {!loading && <PeerPositionPanel user={user} firms={firms} />}
+
+          <div className="panel" style={{ marginTop: '20px' }}>
+            <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                  <div>
-                    <div className="section-label" style={{ marginBottom: '4px' }}>
-                      {selectedState ? `${selectedState} COUNTY DATA` : 'US STAFFING GROWTH BY SIGNAL'}
-                    </div>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
-                      {selectedState ? 'County-level data for selected state' : 'Heatmap shows all staffing firms data'}
-                    </p>
-                  </div>
-                  <div className="filter-group" style={{ margin: 0 }}>
-                    <label className="filter-label" style={{ marginRight: '8px' }}>See your segment in a detailed view per State:</label>
-                    <select 
-                      className="filter-select"
-                      value={selectedState}
-                      onChange={(e) => setSelectedState(e.target.value)}
-                      style={{ minWidth: '200px' }}
-                    >
-                      <option value="">All States (Heatmap)</option>
-                      {US_STATES.map((state) => (
-                        <option key={state.value} value={state.label}>
-                          {state.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="section-label" style={{ marginBottom: '4px' }}>
+                  {selectedState ? `${selectedState} COUNTY DATA` : 'US STAFFING GROWTH BY SIGNAL'}
                 </div>
-                {loading || allFirmsLoading ? (
-                  <ProtectedLoadingSpinner />
-                ) : selectedState ? (
-                  <ProtectedCountyMap firms={allFirms} userState={selectedState} />
-                ) : (
-                  <HeatMapWithRankings firms={allFirms} hideRankings={true} />
-                )}
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
+                  {selectedState ? 'County-level data for selected state' : 'Heatmap shows all staffing firms data'}
+                </p>
               </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Peer Position Panel */}
-                {!loading && <PeerPositionPanel user={user} firms={firms} />}
+              <div className="filter-group" style={{ margin: 0 }}>
+                <label className="filter-label" style={{ marginRight: '8px' }}>See your segment in a detailed view per State:</label>
+                <select 
+                  className="filter-select"
+                  value={selectedState}
+                  onChange={(e) => setSelectedState(e.target.value)}
+                  style={{ minWidth: '200px' }}
+                >
+                  <option value="">All States (Heatmap)</option>
+                  {US_STATES.map((state) => (
+                    <option key={state.value} value={state.label}>
+                      {state.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+            {loading || allFirmsLoading ? (
+              <ProtectedLoadingSpinner />
+            ) : selectedState ? (
+              <ProtectedCountyMap firms={allFirms} userState={selectedState} />
+            ) : (
+              <HeatMapWithRankings firms={allFirms} hideRankings={true} />
+            )}
           </div>
         </section>
 
