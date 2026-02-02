@@ -384,7 +384,7 @@ const ProtectedCountyMap = ({ firms, userState }) => {
                   ${countyName} – ${getGrowthLabel(growth)}
                 </div>
                 <div style="font-size: 14px; margin-bottom: 4px; color: #495057;">
-                  <strong>Headcount growth:</strong> ${growth > 0 ? '+' : ''}${growth.toFixed(1)}% (last 12 months)
+                  <strong>Internal employee Headcount:</strong> ${growth > 0 ? '+' : ''}${growth.toFixed(1)}% (last 12 months)
                 </div>
                 <div style="font-size: 14px; margin-bottom: 4px; color: #495057;">
                   <strong>Firms in county:</strong> ${firmCount.toLocaleString()}

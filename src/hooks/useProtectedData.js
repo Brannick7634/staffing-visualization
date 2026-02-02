@@ -6,7 +6,9 @@ const getCacheKey = (user) => {
   if (!user) return null
   const segment = user.primarySegment || 'no-segment'
   const state = user.hqState || 'no-state'
-  return `${CACHE_KEY_PREFIX}_${segment}_${state}`
+  const size = user.employeeBandSize || 'no-size'
+  const growth = user.internalHeadcountGrowth || 'no-growth'
+  return `${CACHE_KEY_PREFIX}_${segment}_${state}_${size}_${growth}`
 }
 const getCachedData = (user) => {
   try {
@@ -76,6 +78,6 @@ export function useProtectedData(user) {
       setLoading(false)
     }
     loadData()
-  }, [user?.primarySegment, user?.hqState])
+  }, [user?.primarySegment, user?.hqState, user?.employeeBandSize, user?.internalHeadcountGrowth])
   return { firms, loading, isConfigured }
 }

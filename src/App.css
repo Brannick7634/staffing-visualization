@@ -205,8 +205,8 @@ body {
 }
 
 .tab-pill.active {
-  border-color: var(--accent-pink);
-  background: radial-gradient(circle at top left, rgba(255, 62, 138, 0.32), rgba(6, 11, 35, 0.98));
+  border-color: var(--accent-teal);
+  background: radial-gradient(circle at top left, rgba(0, 208, 197, 0.32), rgba(6, 11, 35, 0.98));
   color: #ffffff;
 }
 
@@ -288,7 +288,7 @@ body {
 }
 
 .pill-filter.active {
-  border-color: var(--accent-pink);
+  border-color: var(--accent-teal);
   color: var(--accent-teal);
 }
 
@@ -944,8 +944,8 @@ tbody tr:hover {
 }
 
 .segment-pill-heatmap.active {
-  border-color: var(--accent-pink);
-  background: radial-gradient(circle at top left, rgba(255, 62, 138, 0.32), rgba(6, 11, 35, 0.98));
+  border-color: var(--accent-teal);
+  background: radial-gradient(circle at top left, rgba(0, 208, 197, 0.32), rgba(6, 11, 35, 0.98));
   color: #ffffff;
 }
 
