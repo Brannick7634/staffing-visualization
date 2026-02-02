@@ -172,8 +172,45 @@ const ProtectedCountyMap = ({ firms, userState }) => {
   
   const [filters, setFilters] = useState({
     timeframe: '1Y Growth',
-    size: 'all'
+    size: 'all',
+    county: '' // Add county filter
   })
+
+  // Calculate available counties with data
+  const availableCounties = useMemo(() => {
+    if (!userState || !firms || firms.length === 0) return []
+    
+    const stateCode = STATE_NAME_TO_ABBR[userState] || userState.toLowerCase()
+    const upperStateCode = stateCode.toUpperCase()
+    const cityToCountyMap = CITY_TO_COUNTY_BY_STATE[upperStateCode] || {}
+    
+    const filtered = firms.filter(r => {
+      const firmState = getFirmStateAbbr(r)
+      return firmState === normalizeStateAbbr(userState)
+    })
+    
+    const countiesWithData = new Set()
+    
+    filtered.forEach(firm => {
+      let city = firm.companyCity
+      if (Array.isArray(city)) city = city[0]
+      if (!city) return
+      
+      const cityName = normalizeCityName(city.trim())
+      const countyName = cityToCountyMap[cityName]
+      
+      if (countyName) {
+        countiesWithData.add(countyName)
+      }
+    })
+    
+    return Array.from(countiesWithData).sort()
+  }, [firms, userState])
+
+  // Reset county filter when state changes
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, county: '' }))
+  }, [userState])
 
   const filterRecords = (records) => {
     
@@ -517,15 +554,24 @@ const ProtectedCountyMap = ({ firms, userState }) => {
               cities: data.cities
             }
             
-            // Force the polygon to update its fill color
-            const fillColor = getColorForGrowth(avgGrowth)
-            polygon.set("fill", fillColor)
+            // Apply county filter - hide/show counties based on selection
+            if (filters.county && filters.county !== cleanName) {
+              // Hide this county by making it mostly transparent
+              polygon.set("fill", am5.color(0x1f2950))
+              polygon.set("fillOpacity", 0.2)
+            } else {
+              // Force the polygon to update its fill color
+              const fillColor = getColorForGrowth(avgGrowth)
+              polygon.set("fill", fillColor)
+              polygon.set("fillOpacity", 1)
+            }
             
             matchedCount++
           } else {
             unmatchedCounties.push(cleanName)
             // Set default color for counties with no data
             polygon.set("fill", am5.color(0x1f2950))
+            polygon.set("fillOpacity", filters.county ? 0.1 : 0.5)
           }
         }
       })
@@ -560,6 +606,22 @@ const ProtectedCountyMap = ({ firms, userState }) => {
             <option value="small">Small (&lt; 50)</option>
             <option value="medium">Medium (50-500)</option>
             <option value="large">Large (&gt; 500)</option>
+          </select>
+        </div>
+        
+        <div className="filter-group">
+          <label className="filter-label">County:</label>
+          <select 
+            className="filter-select"
+            value={filters.county}
+            onChange={(e) => setFilters({...filters, county: e.target.value})}
+          >
+            <option value="">All counties</option>
+            {availableCounties.map((county) => (
+              <option key={county} value={county}>
+                {county.charAt(0).toUpperCase() + county.slice(1)} County
+              </option>
+            ))}
           </select>
         </div>
       </div>
