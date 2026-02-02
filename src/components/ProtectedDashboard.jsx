@@ -699,7 +699,7 @@ function UserEditForm({ user, onCancel }) {
       return 'HQ State is required'
     }
     if (!formData.primarySegment) {
-      return 'Primary segment is required'
+      return 'Segment is required'
     }
     if (!formData.internalHeadcountGrowth) {
       return 'Employee headcount growth is required'

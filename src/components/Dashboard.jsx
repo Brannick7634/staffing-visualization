@@ -364,7 +364,7 @@ function MiniPanel({ topStates, topSegments }) {
         <table>
           <thead>
             <tr>
-              <th>Primary Segment</th>
+              <th>Segment</th>
               <th className="col-hq-location">HQ Location</th>
               <th>Company City</th>
               <th className="col-employee-size">Employee Size Bucket</th>
@@ -745,14 +745,14 @@ function CTAForm() {
           </select>
         </div>
         <div>
-          <div className="form-label">Primary segment*</div>
+          <div className="form-label">Segment*</div>
           <select
             className="form-select"
             value={formData.primarySegment}
             onChange={(e) => setFormData({ ...formData, primarySegment: e.target.value })}
             required
           >
-            <option value="">Select primary segment</option>
+            <option value="">Select segment</option>
             {Object.entries(SEGMENT_MAPPING).sort(([a], [b]) => a.localeCompare(b)).map(([displayName, airtableValue]) => (
               <option key={airtableValue} value={airtableValue}>{displayName}</option>
             ))}
@@ -762,7 +762,7 @@ function CTAForm() {
       </div>
 
       <div className="helper-text" style={{ marginTop: '-8px', marginBottom: '16px' }}>
-        * Primary segment = the staffing segment where your company has the most payroll.
+        * Segment = the staffing segment where your company has the most payroll.
       </div>
 
       <div>
@@ -882,7 +882,7 @@ function Dashboard() {
   ]
 
   const staticTableFilters = [
-    { label: 'Primary segment: Industrial, Healthcare, IT', active: true },
+    { label: 'Segment: Industrial, Healthcare, IT', active: true },
     { label: 'Location: All states', active: false },
     { label: 'Headcount growth band: 0–20% 1-year', active: false },
     { label: 'Size band: 50–500 internal FTE', active: false },
