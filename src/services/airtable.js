@@ -10,7 +10,7 @@ export async function fetchFirms() {
     const records = await base(COMPANY_TABLE).select({
       view: COMPANY_VIEW_ID,
       fields: [
-        'Segment',
+        'Primary Segment',
         'HQ State Abbr',
         'HQ location',
         'company City',
@@ -23,7 +23,7 @@ export async function fetchFirms() {
         '2Y Growth'
     ],
     filterByFormula: `AND(
-      {Segment} != "",
+      {Primary Segment} != "",
       {HQ location} != "",
       {company City} != "",
       {Employee Size Bucket} != "",
@@ -34,7 +34,7 @@ export async function fetchFirms() {
   }).all()
   const allFirms = records.map((record) => ({
       id: record.id,
-      primarySegment: record.get('Segment') || '',
+      primarySegment: record.get('Primary Segment') || '',
       hqStateAbbr: record.get('HQ State Abbr') || '',
       hqLocation: record.get('HQ location') || '',
       companyCity: record.get('company City') || '',
@@ -54,7 +54,7 @@ export async function fetchFirms() {
 export async function fetchProtectedFirms(user) {
   try {
     let baseConditions = [
-      '{Segment} != ""',
+      '{Primary Segment} != ""',
       '{HQ location} != ""',
       '{company City} != ""',
       '{Employee Size Bucket} != ""',
@@ -64,13 +64,13 @@ export async function fetchProtectedFirms(user) {
     ]
     if (user?.primarySegment) {
       const cleanSegment = String(user.primarySegment).trim()
-      baseConditions.push(`{Segment} = "${cleanSegment}"`)
+      baseConditions.push(`{Primary Segment} = "${cleanSegment}"`)
     }
     const filterFormula = `AND(${baseConditions.join(', ')})`
     const records = await base(COMPANY_TABLE).select({
       view: COMPANY_VIEW_ID,
       fields: [
-        'Segment',
+        'Primary Segment',
         'HQ State Abbr',
         'HQ location',
         'company City',
@@ -86,7 +86,7 @@ export async function fetchProtectedFirms(user) {
     }).all()
     const firms = records.map((record) => ({
       id: record.id,
-      primarySegment: record.get('Segment') || '',
+      primarySegment: record.get('Primary Segment') || '',
       hqStateAbbr: record.get('HQ State Abbr') || '',
       hqLocation: record.get('HQ location') || '',
       companyCity: record.get('company City') || '',
@@ -124,7 +124,7 @@ export async function submitLeadRequest(formData) {
           'Password': hashedPassword,
           'Employee Band Size': formData.employeeBandSize,
           'HQ State': formData.hqState,
-          'Segment': formData.primarySegment,
+          'Primary Segment': formData.primarySegment,
           'Internal Employee Headcount Growth': formData.internalHeadcountGrowth,
         },
       },
@@ -155,7 +155,7 @@ export async function verifyCredentials(email, password) {
           email: user.get('Email'),
           employeeBandSize: user.get('Employee Band Size'),
           hqState: user.get('HQ State'),
-          primarySegment: user.get('Segment'),
+          primarySegment: user.get('Primary Segment'),
           internalHeadcountGrowth: user.get('Internal Employee Headcount Growth')
         }
       }
@@ -173,7 +173,7 @@ export async function updateUserProfile(userId, updates) {
       'First Name': updates.firstName,
       'Employee Band Size': updates.employeeBandSize,
       'HQ State': updates.hqState,
-      'Segment': updates.primarySegment,
+      'Primary Segment': updates.primarySegment,
       'Internal Employee Headcount Growth': updates.internalHeadcountGrowth,
     })
     
@@ -185,7 +185,7 @@ export async function updateUserProfile(userId, updates) {
         email: record.get('Email'),
         employeeBandSize: record.get('Employee Band Size'),
         hqState: record.get('HQ State'),
-        primarySegment: record.get('Segment'),
+        primarySegment: record.get('Primary Segment'),
         internalHeadcountGrowth: record.get('Internal Employee Headcount Growth')
       }
     }
