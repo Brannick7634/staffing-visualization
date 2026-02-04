@@ -89,6 +89,23 @@ function ProtectedMiniPanel({ topStates }) {
   )
 }
 
+// TabPills Component
+function TabPills({ tabs, activeTab, onTabClick }) {
+  return (
+    <div className="tabs-row">
+      {tabs.map((tab, index) => (
+        <div
+          key={index}
+          className={`tab-pill ${activeTab === index ? 'active' : ''}`}
+          onClick={() => onTabClick(index)}
+        >
+          {tab}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Peer Position Panel Component
 function PeerPositionPanel({ user, firms }) {
   // Calculate peer group comparison
@@ -305,7 +322,6 @@ function PeerPositionPanel({ user, firms }) {
 function ProtectedDataTable({ firms }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [filters, setFilters] = useState({
-    segment: '',
     state: '',
     employeeBand: '',
     growthBand: '',
@@ -334,8 +350,6 @@ function ProtectedDataTable({ firms }) {
   
   // Apply filters to data
   const filteredFirms = firms.filter((firm) => {
-    if (filters.segment && !firmHasPrimarySegment(firm, filters.segment)) return false
-    
     // Handle state filter with fuzzy matching
     if (filters.state) {
       const firmState = getFirmStateName(firm)
@@ -372,7 +386,7 @@ function ProtectedDataTable({ firms }) {
   
   // Clear all filters
   const clearFilters = () => {
-    setFilters({ segment: '', state: '', employeeBand: '', growthBand: '' })
+    setFilters({ state: '', employeeBand: '', growthBand: '' })
     setCurrentPage(1)
   }
   
@@ -426,20 +440,6 @@ function ProtectedDataTable({ firms }) {
       {/* Filters */}
       <div className="table-filters">
         <div className="filter-group">
-          <label className="filter-label">Segment:</label>
-          <select 
-            className="filter-select"
-            value={filters.segment}
-            onChange={(e) => handleFilterChange('segment', e.target.value)}
-          >
-            <option value="">All Segments</option>
-            {segmentOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="filter-group">
           <label className="filter-label">HQ State:</label>
           <select 
             className="filter-select"
@@ -481,7 +481,7 @@ function ProtectedDataTable({ firms }) {
           </select>
         </div>
         
-        {(filters.segment || filters.state || filters.employeeBand || filters.growthBand) && (
+        {(filters.state || filters.employeeBand || filters.growthBand) && (
           <button className="filter-clear-btn" onClick={clearFilters}>
             Clear Filters
           </button>
@@ -930,14 +930,51 @@ function UserEditForm({ user, onCancel }) {
 function ProtectedDashboard() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  
+  // Initialize activeTab from sessionStorage or default to 0
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = sessionStorage.getItem('selectedSegmentTab')
+    return saved ? parseInt(saved, 10) : 0
+  })
+  
   const { firms, loading, isConfigured } = useProtectedData(user)
   const { firms: allFirms, loading: allFirmsLoading } = useAirtableData() // Get all firms data for maps
   const [selectedState, setSelectedState] = useState('')
+  
+  const segments = ['All segments', ...SEGMENT_NAMES.sort()]
+
+  // Save activeTab to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem('selectedSegmentTab', activeTab.toString())
+  }, [activeTab])
 
   const handleLogout = () => {
     logout()
     navigate('/')
   }
+  
+  // Filter firms by selected segment
+  const getFilteredFirmsBySegment = () => {
+    if (activeTab === 0 || segments[activeTab] === 'All segments') {
+      return firms
+    }
+    
+    const selectedSegment = segments[activeTab]
+    return firms.filter(firm => firmHasPrimarySegment(firm, selectedSegment))
+  }
+  
+  // Filter allFirms (for HeatMap) by selected segment
+  const getFilteredAllFirmsBySegment = () => {
+    if (activeTab === 0 || segments[activeTab] === 'All segments') {
+      return allFirms
+    }
+    
+    const selectedSegment = segments[activeTab]
+    return allFirms.filter(firm => firmHasPrimarySegment(firm, selectedSegment))
+  }
+  
+  // Get filtered firms for all calculations
+  const segmentFilteredFirms = getFilteredFirmsBySegment()
 
   // Data is already filtered by API based on user's segment/state
   
@@ -1019,7 +1056,10 @@ function ProtectedDashboard() {
           {!loading && <PeerPositionPanel user={user} firms={firms} />}
 
           <div className="panel" style={{ marginTop: '20px' }}>
-            <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            {/* Segment filter tabs for HeatMap */}
+            <TabPills tabs={segments} activeTab={activeTab} onTabClick={setActiveTab} />
+            
+            <div style={{ marginBottom: '12px', marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <div className="section-label" style={{ marginBottom: '4px' }}>
                   {selectedState ? `${selectedState} COUNTY DATA` : 'US STAFFING GROWTH BY SIGNAL'}
@@ -1050,7 +1090,7 @@ function ProtectedDashboard() {
             ) : selectedState ? (
               <ProtectedCountyMap firms={allFirms} userState={selectedState} />
             ) : (
-              <HeatMapWithRankings firms={allFirms} hideRankings={true} />
+              <HeatMapWithRankings key={`heatmap-${activeTab}`} firms={getFilteredAllFirmsBySegment()} hideRankings={true} />
             )}
           </div>
         </section>

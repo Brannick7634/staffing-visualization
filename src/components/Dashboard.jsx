@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useAirtableData } from '../hooks/useAirtable'
@@ -186,13 +186,8 @@ function MiniPanel({ topStates, topSegments }) {
       return result
     }
 
-    // Apply table filters first
+    // Apply table filters first (segment filter removed - controlled by top-level TabPills)
     const tableFilteredFirms = firms.filter((firm) => {
-      // Apply segment filter
-      if (currentFilters.segment && !firmHasPrimarySegment(firm, currentFilters.segment)) {
-        return false
-      }
-      
       // Apply employee size filter
       if (currentFilters.employeeSize && firm.employeeSizeBucket !== currentFilters.employeeSize) {
         return false
@@ -303,20 +298,6 @@ function MiniPanel({ topStates, topSegments }) {
       {/* Filters */}
       <div className="table-filters">
         <div className="filter-group">
-          <label className="filter-label">Segment:</label>
-          <select 
-            className="filter-select"
-            value={currentFilters.segment}
-            onChange={(e) => handleFilterChange('segment', e.target.value)}
-          >
-            <option value="">All Segments</option>
-            {segmentOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="filter-group">
           <label className="filter-label">Internal Employees Headcount:</label>
           <select 
             className="filter-select"
@@ -344,7 +325,7 @@ function MiniPanel({ topStates, topSegments }) {
           </select>
         </div>
         
-        {(currentFilters.segment || currentFilters.employeeSize || currentFilters.state) && (
+        {(currentFilters.employeeSize || currentFilters.state) && (
           <button className="filter-clear-btn" onClick={clearFilters}>
             Clear Filters
           </button>
@@ -797,7 +778,13 @@ function LoadingSpinner() {
 function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState(0)
+  
+  // Initialize activeTab from sessionStorage or default to 0
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = sessionStorage.getItem('selectedSegmentTab')
+    return saved ? parseInt(saved, 10) : 0
+  })
+  
   const [tableFilters, setTableFilters] = useState({
     segment: '',
     employeeSize: '',
@@ -805,6 +792,11 @@ function Dashboard() {
   })
 
   const segments = ['All segments', ...SEGMENT_NAMES.sort()]
+
+  // Save activeTab to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem('selectedSegmentTab', activeTab.toString())
+  }, [activeTab])
 
   // Fetch ALL data once - no server-side filtering
   const { firms, topStates, topSegments, loading, isConfigured } = useAirtableData()
@@ -929,7 +921,7 @@ function Dashboard() {
           </h2>
 
           <div className="panel">
-            {loading ? <LoadingSpinner /> : <HeatMapWithRankings firms={firms} />}
+            {loading ? <LoadingSpinner /> : <HeatMapWithRankings key={`heatmap-${activeTab}`} firms={segmentFilteredFirms} />}
           </div>
         </section>
 
@@ -946,7 +938,7 @@ function Dashboard() {
     <div className="panel" style={{ paddingTop: '16px' }}>
       {loading ? <LoadingSpinner /> : (
         <DataTable
-          firms={firms}
+          firms={segmentFilteredFirms}
           onFiltersChange={setTableFilters}
           currentFilters={tableFilters}
         />

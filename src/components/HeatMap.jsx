@@ -29,8 +29,6 @@ const STATE_NAMES = {
   'DC': 'District of Columbia'
 }
 
-const SEGMENTS = ['All segments', ...SEGMENT_NAMES.sort()]
-
 function HeatMap({ firms, filters, setFilters }) {
   const chartDiv = useRef(null)
   const chartRoot = useRef(null)
@@ -64,16 +62,12 @@ function HeatMap({ firms, filters, setFilters }) {
   const filterRecords = (records) => {
     let filtered = records.filter(r => r.hqStateAbbr)
     
-    if (filters.segment !== 'All segments') {
-      filtered = filtered.filter(r => firmHasPrimarySegment(r, filters.segment))
-    }
-    
-    if (filters.size !== 'all') {
+    if (filtersRef.current.size !== 'all') {
       filtered = filtered.filter(r => {
         const count = Number(r.eeCount) || 0
-        if (filters.size === 'small') return count < 50
-        if (filters.size === 'medium') return count >= 50 && count <= 500
-        if (filters.size === 'large') return count > 500
+        if (filtersRef.current.size === 'small') return count < 50
+        if (filtersRef.current.size === 'medium') return count >= 50 && count <= 500
+        if (filtersRef.current.size === 'large') return count > 500
         return true
       })
     }
@@ -106,11 +100,11 @@ function HeatMap({ firms, filters, setFilters }) {
       // Get growth based on selected timeframe
       // Growth values are decimals (0.03 = 3%, -0.1 = -10%)
       let growthDecimal = 0
-      if (filters.timeframe === '1Y Growth') {
+      if (filtersRef.current.timeframe === '1Y Growth') {
         growthDecimal = Number(r.growth1Y) || 0
-      } else if (filters.timeframe === '6M Growth') {
+      } else if (filtersRef.current.timeframe === '6M Growth') {
         growthDecimal = Number(r.growth6M) || 0
-      } else if (filters.timeframe === '2Y Growth') {
+      } else if (filtersRef.current.timeframe === '2Y Growth') {
         growthDecimal = Number(r.growth2Y) || 0
       }
       
@@ -243,11 +237,20 @@ function HeatMap({ firms, filters, setFilters }) {
 
     series.mapPolygons.template.adapters.add("fill", (fill, target) => {
       const dataItem = target.dataItem
-      if (dataItem) {
+      if (dataItem && dataItem.dataContext && dataItem.dataContext.firmCount > 0) {
         const growth = dataItem.dataContext.growth || 0
         return getColorForGrowth(growth)
       }
+      // Return base color for states with no data (will be made transparent via fillOpacity)
       return am5.color(0x1f2950)
+    })
+
+    series.mapPolygons.template.adapters.add("fillOpacity", (opacity, target) => {
+      const dataItem = target.dataItem
+      if (dataItem && dataItem.dataContext && dataItem.dataContext.firmCount > 0) {
+        return 1  // Fully opaque for states with data
+      }
+      return 0.1  // Almost transparent for states with no data
     })
 
     chartRoot.current = root
@@ -307,18 +310,6 @@ function HeatMap({ firms, filters, setFilters }) {
         </div>
       </div>
 
-      <div className="segment-pills-heatmap">
-        {SEGMENTS.map((seg) => (
-          <div
-            key={seg}
-            className={`segment-pill-heatmap ${filters.segment === seg ? 'active' : ''}`}
-            onClick={() => setFilters({...filters, segment: seg})}
-          >
-            {seg}
-          </div>
-        ))}
-      </div>
-
       <div ref={chartDiv} className="heatmap-chart"></div>
     </div>
   )
@@ -327,17 +318,12 @@ function HeatMap({ firms, filters, setFilters }) {
 // Component to display rankings based on HeatMap filters
 function HeatMapWithRankings({ firms, hideRankings = false }) {
   const [filters, setFilters] = useState({
-    segment: 'All segments',
     timeframe: '1Y Growth',
     size: 'all'
   })
 
   const filterRecords = (records) => {
     let filtered = records.filter(r => r.hqStateAbbr)
-    
-    if (filters.segment !== 'All segments') {
-      filtered = filtered.filter(r => firmHasPrimarySegment(r, filters.segment))
-    }
     
     if (filters.size !== 'all') {
       filtered = filtered.filter(r => {
