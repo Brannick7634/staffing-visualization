@@ -75,7 +75,7 @@ export const firmHasSegment = (firm, targetSegment) => {
   })
 }
 
-// Check if a firm's PRIMARY segment matches the target segment (case-insensitive)
+// Check if a firm's segment matches the target segment (case-insensitive)
 export const firmHasPrimarySegment = (firm, targetSegment) => {
   if (!firm || !targetSegment) return false
   

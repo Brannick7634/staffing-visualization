@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { submitLeadRequest } from '../services/airtable'
 import { US_STATES } from '../constants/usStates'
 import { SEGMENT_NAMES, SEGMENT_MAPPING } from '../constants/segments'
+import { EMPLOYEE_SIZE_BANDS } from '../constants/employeeSizeBands'
 import logo from '../assets/Instagram_Profile_1080_FullLogo.png'
 
 function Signup() {
@@ -283,14 +284,9 @@ function Signup() {
                 required
               >
                 <option value="">Select employee band</option>
-                <option>1–9 employees</option>
-                <option>10–24 employees</option>
-                <option>25–49 employees</option>
-                <option>50–99 employees</option>
-                <option>100–249 employees</option>
-                <option>250–499 employees</option>
-                <option>500–999 employees</option>
-                <option>1,000+ employees</option>
+                {EMPLOYEE_SIZE_BANDS.map((band) => (
+                  <option key={band} value={band}>{band}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -310,14 +306,14 @@ function Signup() {
               </select>
             </div>
             <div>
-              <div className="form-label">Primary segment*</div>
+              <div className="form-label">Segment*</div>
               <select
                 className="form-select"
                 value={formData.primarySegment}
                 onChange={(e) => setFormData({ ...formData, primarySegment: e.target.value })}
                 required
               >
-                <option value="">Select primary segment</option>
+                <option value="">Select Segment</option>
                 {SEGMENT_NAMES.sort().map(segment => (
                   <option key={segment} value={SEGMENT_MAPPING[segment]}>{segment}</option>
                 ))}
@@ -327,7 +323,7 @@ function Signup() {
           </div>
 
           <div className="helper-text" style={{ marginTop: '-8px', marginBottom: '16px' }}>
-            * Primary segment = the staffing segment where your company has the most payroll.
+            * Segment = the staffing segment where your company has the most payroll.
           </div>
 
           <div>

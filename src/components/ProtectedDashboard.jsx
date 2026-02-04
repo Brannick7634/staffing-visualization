@@ -8,6 +8,7 @@ import ProtectedCountyMap from './ProtectedCountyMap'
 import HeatMapWithRankings from './HeatMap'
 import { SEGMENT_NAMES, SEGMENT_MAPPING, firmHasPrimarySegment, normalizeSegment } from '../constants/segments'
 import { US_STATES } from '../constants/usStates'
+import { EMPLOYEE_SIZE_BANDS, normalizeEmployeeSize } from '../constants/employeeSizeBands'
 import logo from '../assets/Instagram_Profile_1080_FullLogo.png'
 import {
   countFirmsInView,
@@ -90,23 +91,6 @@ function ProtectedMiniPanel({ topStates }) {
 
 // Peer Position Panel Component
 function PeerPositionPanel({ user, firms }) {
-  // Normalize employee size for comparison
-  const normalizeEmployeeSize = (size) => {
-    if (!size) return ''
-    // Map from user format to database format
-    const sizeMap = {
-      '1–9 employees': '1-5,6-10',
-      '10–24 employees': '11-20,21-50',
-      '25–49 employees': '21-50',
-      '50–99 employees': '51-100',
-      '100–249 employees': '101-250',
-      '250–499 employees': '251-500',
-      '500–999 employees': '501-1000',
-      '1,000+ employees': '>1000'
-    }
-    return sizeMap[size] || size
-  }
-
   // Calculate peer group comparison
   const calculatePeerPosition = () => {
     if (!user || !firms || firms.length === 0) {
@@ -120,15 +104,24 @@ function PeerPositionPanel({ user, firms }) {
       }
     }
 
+    // Calculate "Your Average Growth" as average of ALL firms in user's segment
+    // Since firms array is already filtered by user's segment (from fetchProtectedFirms),
+    // we just calculate the average growth of all these firms
+    const allSegmentGrowthValues = firms
+      .map(firm => (Number(firm.growth1Y) || 0) * 100)
+      .filter(g => !isNaN(g))
+    
+    const userGrowth = allSegmentGrowthValues.length > 0
+      ? allSegmentGrowthValues.reduce((sum, val) => sum + val, 0) / allSegmentGrowthValues.length
+      : 0
+
     // Get normalized size buckets for user
     const userSizeBuckets = normalizeEmployeeSize(user.employeeBandSize).split(',')
 
-    // Filter peer firms: same segment and same employee size (all companies in database)
+    // Filter peer firms: same segment (already filtered) and same employee size
     const peerFirms = firms.filter(firm => {
-      const sameSegment = user.primarySegment && firmHasPrimarySegment(firm, user.primarySegment)
       const sameSize = userSizeBuckets.includes(firm.employeeSizeBucket)
-      
-      return sameSegment && sameSize
+      return sameSize
     })
     
     // Debug logging for peer firms
@@ -138,35 +131,24 @@ function PeerPositionPanel({ user, firms }) {
       sizeBuckets: userSizeBuckets,
       originalSize: user.employeeBandSize
     })
-    console.log('Total firms in database:', firms.length)
-    console.log('Peer firms found:', peerFirms.length)
-    console.log('Peer firms:', peerFirms.map(f => ({
-      name: f.id,
+    console.log('Total firms in user segment:', firms.length)
+    console.log('Peer firms (same size):', peerFirms.length)
+    console.log('User Average Growth (all segment firms):', userGrowth.toFixed(2) + '%')
+    console.log('Sample firms:', firms.slice(0, 5).map(f => ({
+      id: f.id,
       segment: f.primarySegment,
       sizeBucket: f.employeeSizeBucket,
       growth1Y: f.growth1Y,
       growthPercent: (Number(f.growth1Y) || 0) * 100
     })))
     
-    // Get growth values for median calculation
+    // Get growth values for peer median calculation
     const peerGrowthValues = peerFirms
       .map(firm => (Number(firm.growth1Y) || 0) * 100)
       .filter(g => !isNaN(g))
     
     console.log('Peer growth values (%):', peerGrowthValues.sort((a, b) => a - b))
-    console.log('Number of valid growth values:', peerGrowthValues.length)
-
-    // Formula 16: Get user's average growth from input
-    let userGrowth = 0
-    if (user.internalHeadcountGrowth) {
-      const growthRange = user.internalHeadcountGrowth
-      // Convert range to midpoint
-      if (growthRange === '0-5') userGrowth = 2.5
-      else if (growthRange === '5-10') userGrowth = 7.5
-      else if (growthRange === '10-20') userGrowth = 15
-      else if (growthRange === '20-50') userGrowth = 35
-      else if (growthRange === '50+') userGrowth = 60
-    }
+    console.log('Number of peer firms with valid growth:', peerGrowthValues.length)
 
     // Formula 17: Calculate peer median growth using the already filtered peer firms
     const peerMedianGrowth = calculateMedianGrowth(peerFirms)
@@ -250,17 +232,17 @@ function PeerPositionPanel({ user, firms }) {
               {peerData.userGrowth > 0 ? '+' : ''}{(peerData.userGrowth || 0).toFixed(1)}%
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Your reported growth
+              Avg of all firms in {user?.primarySegment}
             </div>
           </div>
           
           <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>PEER MEDIAN GROWTH</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.peerMedianGrowth > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
-              {peerData.peerMedianGrowth > 0 ? '+' : ''}{(peerData.peerMedianGrowth || 0).toFixed(1)}%
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Q1 (25TH PERCENTILE)</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.iqrQ1 > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
+              {peerData.iqrQ1 > 0 ? '+' : ''}{(peerData.iqrQ1 || 0).toFixed(1)}%
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              {peerData.peerFirmCount} peer firms
+              Lower quartile growth
             </div>
           </div>
 
@@ -275,12 +257,12 @@ function PeerPositionPanel({ user, firms }) {
           </div>
 
           <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>INTERQUARTILE RANGE</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)' }}>
-              {(peerData.iqr || 0).toFixed(1)}%
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Q3 (75TH PERCENTILE)</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.iqrQ3 > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
+              {peerData.iqrQ3 > 0 ? '+' : ''}{(peerData.iqrQ3 || 0).toFixed(1)}%
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Q1: {(peerData.iqrQ1 || 0).toFixed(1)}% to Q3: {(peerData.iqrQ3 || 0).toFixed(1)}%
+              Upper quartile growth
             </div>
           </div>
         </div>
@@ -298,7 +280,9 @@ function PeerPositionPanel({ user, firms }) {
             fontSize: '11px',
             color: 'var(--text-muted)'
           }}>
-            <strong>Peer criteria:</strong> Same segment ({user?.primarySegment}), same size ({user?.employeeBandSize}), all states
+            <strong>Your Avg Growth:</strong> Average of all {firms.length} firms in {user?.primarySegment} segment
+            <br />
+            <strong>Peer Median:</strong> Median of {peerData.peerFirmCount} firms with same size ({user?.employeeBandSize})
           </div>
 
           <div style={{ 
@@ -515,8 +499,8 @@ function ProtectedDataTable({ firms }) {
         <table style={{ minWidth: '1000px' }}>
           <thead>
             <tr>
-              <th style={{ minWidth: '80px', maxWidth: '100px' }}>Primary<br />Segment</th>
-              <th style={{ minWidth: '70px', maxWidth: '90px' }}>HQ<br />Location</th>
+              <th style={{ minWidth: '60px', maxWidth: '70px' }}>Segment</th>
+              <th style={{ minWidth: '50px', maxWidth: '60px' }}>HQ<br />Location</th>
               <th style={{ minWidth: '80px', maxWidth: '100px' }}>Company<br />City</th>
               <th style={{ minWidth: '90px', maxWidth: '110px', textAlign: 'center' }}>Internal<br />Employees<br />Headcount</th>
               <th style={{ minWidth: '90px', maxWidth: '110px', textAlign: 'center' }}>Avg<br />Headcount<br />Growth</th>
@@ -810,7 +794,7 @@ function UserEditForm({ user, onCancel }) {
 
         <div>
           <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            COMPANY SIZE *
+            EMPLOYEE BAND SIZE *
           </label>
           <select
             name="employeeBandSize"
@@ -827,15 +811,10 @@ function UserEditForm({ user, onCancel }) {
               fontSize: '14px'
             }}
           >
-            <option value="">Select size</option>
-            <option value="1–9 employees">1–9 employees</option>
-            <option value="10–24 employees">10–24 employees</option>
-            <option value="25–49 employees">25–49 employees</option>
-            <option value="50–99 employees">50–99 employees</option>
-            <option value="100–249 employees">100–249 employees</option>
-            <option value="250–499 employees">250–499 employees</option>
-            <option value="500–999 employees">500–999 employees</option>
-            <option value="1,000+ employees">1,000+ employees</option>
+            <option value="">Select employee band</option>
+            {EMPLOYEE_SIZE_BANDS.map((band) => (
+              <option key={band} value={band}>{band}</option>
+            ))}
           </select>
         </div>
 
@@ -869,7 +848,7 @@ function UserEditForm({ user, onCancel }) {
 
         <div>
           <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            PRIMARY SEGMENT *
+            SEGMENT *
           </label>
           <select
             name="primarySegment"
@@ -898,7 +877,7 @@ function UserEditForm({ user, onCancel }) {
 
         <div>
           <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            EMPLOYEE HEADCOUNT GROWTH *
+            EMPLOYEE HEADCOUNT GROWTH (%) *
           </label>
           <select
             name="internalHeadcountGrowth"
@@ -1050,7 +1029,7 @@ function ProtectedDashboard() {
                 </p>
               </div>
               <div className="filter-group" style={{ margin: 0 }}>
-                <label className="filter-label" style={{ marginRight: '8px' }}>See your segment in a detailed view per State:</label>
+                <label className="filter-label" style={{ marginRight: '8px', fontSize: '16px', fontWeight: '600' }}>See your segment in a detailed view per State:</label>
                 <select 
                   className="filter-select"
                   value={selectedState}
@@ -1128,7 +1107,7 @@ function ProtectedDashboard() {
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.firstName || 'N/A'}</div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>COMPANY SIZE</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>EMPLOYEE BAND SIZE</div>
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.employeeBandSize || 'N/A'}</div>
               </div>
               <div>
@@ -1136,11 +1115,11 @@ function ProtectedDashboard() {
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.hqState || 'N/A'}</div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>PRIMARY SEGMENT</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>SEGMENT</div>
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.primarySegment || 'N/A'}</div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>EMPLOYEE HEADCOUNT GROWTH</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>EMPLOYEE HEADCOUNT GROWTH (%)</div>
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.internalHeadcountGrowth ? `${user.internalHeadcountGrowth}%` : 'Not provided'}</div>
               </div>
             </div>

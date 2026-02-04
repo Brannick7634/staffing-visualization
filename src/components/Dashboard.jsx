@@ -6,6 +6,7 @@ import { submitLeadRequest } from '../services/airtable'
 import HeatMapWithRankings from './HeatMap'
 import { US_STATES } from '../constants/usStates'
 import { SEGMENT_NAMES, firmHasPrimarySegment, normalizeSegment, SEGMENT_MAPPING } from '../constants/segments'
+import { EMPLOYEE_SIZE_BANDS } from '../constants/employeeSizeBands'
 import logo from '../assets/Instagram_Profile_1080_FullLogo.png'
 import { 
   countFirmsInSegment, 
@@ -214,17 +215,7 @@ function MiniPanel({ topStates, topSegments }) {
     // Filter options - use segment mapping
   const segmentOptions = SEGMENT_NAMES.sort()
   
-  const employeeSizeOptions = [
-    '1-5',
-    '6-10',
-    '11-20',
-    '21-50',
-    '51-100',
-    '101-250',
-    '251-500',
-    '501-1000',
-    '>1000',
-  ]
+  const employeeSizeOptions = EMPLOYEE_SIZE_BANDS
   
   const stateOptions = [
     'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
@@ -719,14 +710,9 @@ function CTAForm() {
             onChange={(e) => setFormData({ ...formData, employeeBand: e.target.value })}
           >
             <option value="">Select employee band</option>
-            <option>1–9 employees</option>
-            <option>10–24 employees</option>
-            <option>25–49 employees</option>
-            <option>50–99 employees</option>
-            <option>100–249 employees</option>
-            <option>250–499 employees</option>
-            <option>500–999 employees</option>
-            <option>1,000+ employees</option>
+            {EMPLOYEE_SIZE_BANDS.map((band) => (
+              <option key={band} value={band}>{band}</option>
+            ))}
           </select>
         </div>
         <div>
@@ -969,27 +955,29 @@ function Dashboard() {
         </section>
 
         {/* Section 4: CTA */}
-        <section className="section-block">
-          <div className="cta-section">
-            <div>
-              <div className="section-eyebrow">Unlock the full Staffing Signal dashboard.</div>
-              <div className="cta-title">Get full dashboard access for your staffing firm.</div>
-              <p className="cta-subtitle">
-                See where you sit in the market and what signals matter most for your growth, risk, and margin.
-              </p>
-              <ul className="cta-list">
-                <li>Interactive US map built on your world.</li>
-                <li>Advanced filters by segment, size, tenure, and growth window.</li>
-                <li>Firm-level benchmarking vs. your peer group and competitors.</li>
-                <li>Access to new risk and compliance signal layers.</li>
-              </ul>
-              <p className="cta-subtitle" style={{ marginTop: '20px' }}>
-                The Staffing Signal – built by staffing risk specialists for staffing leaders.
-              </p>
+        {!user && (
+          <section className="section-block">
+            <div className="cta-section">
+              <div>
+                <div className="section-eyebrow">Unlock the full Staffing Signal dashboard.</div>
+                <div className="cta-title">Get full dashboard access for your staffing firm.</div>
+                <p className="cta-subtitle">
+                  See where you sit in the market and what signals matter most for your growth, risk, and margin.
+                </p>
+                <ul className="cta-list">
+                  <li>Interactive US map built on your world.</li>
+                  <li>Advanced filters by segment, size, tenure, and growth window.</li>
+                  <li>Firm-level benchmarking vs. your peer group and competitors.</li>
+                  <li>Access to new risk and compliance signal layers.</li>
+                </ul>
+                <p className="cta-subtitle" style={{ marginTop: '20px' }}>
+                  The Staffing Signal – built by staffing risk specialists for staffing leaders.
+                </p>
+              </div>
+              <CTAForm />
             </div>
-            <CTAForm />
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     </div>
   )
