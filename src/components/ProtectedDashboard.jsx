@@ -1088,7 +1088,7 @@ function ProtectedDashboard() {
             {loading || allFirmsLoading ? (
               <ProtectedLoadingSpinner />
             ) : selectedState ? (
-              <ProtectedCountyMap firms={allFirms} userState={selectedState} />
+              <ProtectedCountyMap firms={getFilteredAllFirmsBySegment()} userState={selectedState} />
             ) : (
               <HeatMapWithRankings key={`heatmap-${activeTab}`} firms={getFilteredAllFirmsBySegment()} hideRankings={true} />
             )}
