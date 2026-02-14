@@ -205,8 +205,8 @@ function PeerPositionPanel({ user, firms }) {
       peerFirmCount: peerFirms.length,
       positionText,
       gap,
-      iqr: iqrData.iqr || 0,                       // Actual IQR (Q3 - Q1)
-      iqrMedian: iqrData.iqrMedian || 0,           // Median of IQR-filtered values
+      iqr: iqrData.iqr || 0,
+      iqrMedian: iqrData.iqrMedian || 0,
       iqrQ1: iqrData.q1 || 0,
       iqrQ3: iqrData.q3 || 0,
       iqrGap: iqrGap,
@@ -256,7 +256,7 @@ function PeerPositionPanel({ user, firms }) {
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Q1 (25TH PERCENTILE)</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.iqrQ1 > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
-              {peerData.iqrQ1 > 0 ? '+' : ''}{(peerData.iqrQ1 || 0).toFixed(1)}%
+              {peerData.iqrQ1 > 0 ? '+' : ''}{(peerData.iqrQ1 || 0).toFixed(2)}%
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
               Lower quartile growth
@@ -266,7 +266,7 @@ function PeerPositionPanel({ user, firms }) {
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>MEDIAN (IQR-FILTERED)</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.iqrMedian > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
-              {peerData.iqrMedian > 0 ? '+' : ''}{(peerData.iqrMedian || 0).toFixed(1)}%
+              {peerData.iqrMedian > 0 ? '+' : ''}{(peerData.iqrMedian || 0).toFixed(2)}%
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
               Outliers removed ({peerData.outliersEliminated || 0})
@@ -276,7 +276,7 @@ function PeerPositionPanel({ user, firms }) {
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Q3 (75TH PERCENTILE)</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.iqrQ3 > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
-              {peerData.iqrQ3 > 0 ? '+' : ''}{(peerData.iqrQ3 || 0).toFixed(1)}%
+              {peerData.iqrQ3 > 0 ? '+' : ''}{(peerData.iqrQ3 || 0).toFixed(2)}%
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
               Upper quartile growth
