@@ -134,19 +134,19 @@ export function calculateIQR(numbers) {
     return { q1: 0, q3: 0, iqr: 0, dataMedian: 0, iqrMedian: 0 }
   }
   
-  if (numbers.length < 4) {
-    // Not enough data for meaningful IQR
-    const med = calculateMedian(numbers)
-    return { q1: med, q3: med, iqr: 0, dataMedian: med, iqrMedian: med }
-  }
-  
   const sorted = [...numbers].sort((a, b) => a - b)
   const n = sorted.length
   
-  // Calculate quartiles using Excel QUARTILE.INC method
-  const q1 = calculatePercentile(sorted, 0.25)  // 25th percentile
-  const q3 = calculatePercentile(sorted, 0.75)  // 75th percentile
-  const dataMedian = calculatePercentile(sorted, 0.50)  // 50th percentile (median)
+  // Special case: single value
+  if (n === 1) {
+    const value = sorted[0]
+    return { q1: value, q3: value, iqr: 0, dataMedian: value, iqrMedian: value }
+  }
+  
+  // Calculate quartiles using Excel QUARTILE.INC method (works for any n >= 2)
+  const q1 = calculatePercentile(sorted, 0.25)
+  const q3 = calculatePercentile(sorted, 0.75)
+  const dataMedian = calculatePercentile(sorted, 0.50)
   
   // IQR = Q3 - Q1 (this is the actual interquartile range)
   const iqr = q3 - q1
