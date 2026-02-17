@@ -175,13 +175,14 @@ function PeerPositionPanel({ user, firms }) {
     
     console.log('Calculated peer median growth:', (peerMedianGrowth || 0).toFixed(2) + '%')
     console.log('Calculated IQR (Q3 - Q1):', (iqrData.iqr || 0).toFixed(2) + '%')
+    console.log('Calculated data median (Q2):', (iqrData.dataMedian || 0).toFixed(2) + '%')
     console.log('Calculated IQR-filtered median:', (iqrData.iqrMedian || 0).toFixed(2) + '%')
     console.log('Outliers eliminated:', iqrData.outliersEliminated || 0)
     console.log('===========================\n')
 
     // Formula 18: Calculate growth gap
     const gap = calculateGrowthGap(userGrowth, peerMedianGrowth)
-    const iqrGap = calculateGrowthGap(userGrowth, iqrData.iqrMedian || 0)
+    const iqrGap = calculateGrowthGap(userGrowth, iqrData.dataMedian || 0)
 
     // Determine position
     let position = ''
@@ -206,6 +207,7 @@ function PeerPositionPanel({ user, firms }) {
       positionText,
       gap,
       iqr: iqrData.iqr || 0,
+      dataMedian: iqrData.dataMedian || 0,
       iqrMedian: iqrData.iqrMedian || 0,
       iqrQ1: iqrData.q1 || 0,
       iqrQ3: iqrData.q3 || 0,
@@ -264,12 +266,12 @@ function PeerPositionPanel({ user, firms }) {
           </div>
 
           <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>MEDIAN (IQR-FILTERED)</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.iqrMedian > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
-              {peerData.iqrMedian > 0 ? '+' : ''}{(peerData.iqrMedian || 0).toFixed(2)}%
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>MEDIAN (Q2)</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.dataMedian > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
+              {peerData.dataMedian > 0 ? '+' : ''}{(peerData.dataMedian || 0).toFixed(2)}%
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Outliers removed ({peerData.outliersEliminated || 0})
+              50th percentile growth
             </div>
           </div>
 
@@ -310,7 +312,7 @@ function PeerPositionPanel({ user, firms }) {
             fontSize: '11px',
             color: 'var(--text-muted)'
           }}>
-            <span style={{ color: 'var(--accent-teal)', fontWeight: '600' }}>💡 IQR-Filtered Median:</span> Median of middle 50% of peer firms (Q1 to Q3), excluding extreme outliers for stable benchmark.
+            <span style={{ color: 'var(--accent-teal)', fontWeight: '600' }}>💡 Median (Q2):</span> The 50th percentile - the middle value when all peer firms are sorted by growth rate. Half of peers grow faster, half grow slower.
           </div>
         </div>
       </div>
