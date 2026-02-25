@@ -5,13 +5,10 @@ import { useAirtableData } from '../hooks/useAirtable'
 import { submitLeadRequest } from '../services/airtable'
 import HeatMapWithRankings from './HeatMap'
 import { US_STATES } from '../constants/usStates'
-import { SEGMENT_NAMES, firmHasPrimarySegment, normalizeSegment, SEGMENT_MAPPING } from '../constants/segments'
+import { SEGMENT_NAMES, normalizeSegment, SEGMENT_MAPPING } from '../constants/segments'
 import { EMPLOYEE_SIZE_BANDS } from '../constants/employeeSizeBands'
 import logo from '../assets/Instagram_Profile_1080_FullLogo.png'
 import { 
-  countFirmsInSegment, 
-  findTopStateForSegment, 
-  calculateSegmentGrowth,
   formatGrowthPercentage,
   formatNumber,
   convertDecimalToPercentage
@@ -144,49 +141,8 @@ function MiniPanel({ topStates, topSegments }) {
     const [currentPage, setCurrentPage] = useState(1)
     const recordsPerPage = 5  // Limit to 5 records per page
 
-    // Filter to show only unique state-segment combinations (pick first occurrence)
-    // Sort by state and limit to 1 segment per state
-    const getUniqueStateSegmentFirms = (firmsList) => {
-      const stateSegmentMap = new Map()
-      
-      // Group firms by state and collect unique segments
-      firmsList.forEach(firm => {
-        const state = String(firm.hqLocation || firm.hqStateAbbr || '').trim()
-        const segment = normalizeSegment(firm.primarySegment || '')
-        
-        if (!state || !segment) return
-        
-        if (!stateSegmentMap.has(state)) {
-          stateSegmentMap.set(state, new Map())
-        }
-        
-        const segmentsForState = stateSegmentMap.get(state)
-        
-        // Only add if we haven't seen this segment for this state and haven't reached 1 segment
-        if (!segmentsForState.has(segment) && segmentsForState.size < 1) {
-          segmentsForState.set(segment, firm)
-        }
-      })
-      
-      // Convert back to array and get all states
-      const result = []
-      const allStates = Array.from(stateSegmentMap.keys())
-      
-      // Shuffle the states to get random order
-      const shuffledStates = allStates.sort(() => Math.random() - 0.5)
-      
-      // Take only first 5 states
-      shuffledStates.slice(0, 5).forEach(state => {
-        const segmentsForState = stateSegmentMap.get(state)
-        segmentsForState.forEach(firm => {
-          result.push(firm)
-        })
-      })
-      
-      return result
-    }
-
-    // Apply table filters first (segment filter removed - controlled by top-level TabPills)
+    // The firms passed are already pre-selected (5 random firms)
+    // Just apply the filters directly
     const tableFilteredFirms = firms.filter((firm) => {
       // Apply employee size filter
       if (currentFilters.employeeSize && firm.employeeSizeBucket !== currentFilters.employeeSize) {
@@ -204,34 +160,26 @@ function MiniPanel({ topStates, topSegments }) {
       return true
     })
 
-    // Then get unique state-segment combinations from filtered data
-    const filteredFirms = getUniqueStateSegmentFirms(tableFilteredFirms)
-
-    // Filter options - use segment mapping
-  const segmentOptions = SEGMENT_NAMES.sort()
-  
-  const employeeSizeOptions = EMPLOYEE_SIZE_BANDS
-  
-  const stateOptions = [
-    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
-    'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho',
-    'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana',
-    'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
-    'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
-    'New Hampshire', 'New Jersey', 'New Mexico', 'New York',
-    'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon',
-    'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
-    'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
+    // Show filtered results or original 5 if no filters applied
+    const currentRecords = tableFilteredFirms.slice(0, 5)
+    
+    // Filter options
+    const employeeSizeOptions = EMPLOYEE_SIZE_BANDS
+    
+    const stateOptions = [
+      'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
+      'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho',
+      'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana',
+      'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
+      'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+      'New Hampshire', 'New Jersey', 'New Mexico', 'New York',
+      'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon',
+      'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+      'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
       'West Virginia', 'Wisconsin', 'Wyoming',
     ]
-
-    // Calculate pagination based on filtered data - limit to just 1 page with 5 records
-  const totalPages = 1  // Only show 1 page
-  const maxRecords = 5  // Show maximum 5 records
-  const limitedFirms = filteredFirms.slice(0, maxRecords)
-  const startIndex = 0
-  const endIndex = limitedFirms.length
-  const currentRecords = limitedFirms
+    
+    const totalPages = 1  // Only show 1 page
   
   // Reset to page 1 when filters change
   const handleFilterChange = (filterName, value) => {
@@ -798,8 +746,8 @@ function Dashboard() {
     sessionStorage.setItem('selectedSegmentTab', activeTab.toString())
   }, [activeTab])
 
-  // Fetch ALL data once - no server-side filtering
-  const { firms, topStates, topSegments, loading, isConfigured } = useAirtableData()
+  // Fetch ALL data once - metrics from Airtable
+  const { firms, topStates, topSegments, metrics, loading, isConfigured } = useAirtableData()
 
   const handleLogin = () => {
     navigate('/login')
@@ -813,43 +761,77 @@ function Dashboard() {
     navigate('/dashboard')
   }
 
-  // Filter firms based on selected segment tab
-  const getFilteredFirmsBySegment = () => {
-    if (activeTab === 0 || segments[activeTab] === 'All segments') {
-      return firms
-    }
-
-    const selectedSegment = segments[activeTab]
-    return firms.filter(firm => firmHasPrimarySegment(firm, selectedSegment))
-  }
-
-  // Calculate stats based on filtered firms
-  // Using formulas from src/utils/formulas.js
+  // Get segment stats from pre-computed metrics
   const getSegmentStats = () => {
-    const filteredFirms = getFilteredFirmsBySegment()
+    if (!metrics || !metrics.segmentStats) {
+      return {
+        totalFirms: '-',
+        topState: '-',
+        yearGrowth: '-',
+      }
+    }
+    
     const selectedSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
+    const stats = metrics.segmentStats[selectedSegment]
     
-    // Formula 1: Count firms in segment
-    const totalFirms = countFirmsInSegment(filteredFirms, selectedSegment)
-    
-    // Formula 2: Find top state for segment
-    const topStateCode = findTopStateForSegment(filteredFirms, selectedSegment)
-    const topStateName = topStateCode !== 'N/A' 
-      ? (US_STATES.find(s => s.value === topStateCode)?.label || topStateCode)
-      : 'N/A'
-    
-    // Formula 3: Calculate 1-year growth for segment
-    const avgGrowth = calculateSegmentGrowth(filteredFirms, selectedSegment)
+    if (!stats) {
+      return {
+        totalFirms: '-',
+        topState: '-',
+        yearGrowth: '-',
+      }
+    }
     
     return {
-      totalFirms: formatNumber(totalFirms),
-      topState: topStateName,
-      yearGrowth: formatGrowthPercentage(avgGrowth),
+      totalFirms: stats.totalFirms,
+      topState: stats.topState,
+      yearGrowth: stats.yearGrowth,
     }
+  }
+
+  // Get heatmap data from pre-computed metrics for current segment
+  const getHeatmapData = () => {
+    if (!metrics || !metrics.heatmapData) {
+      return []
+    }
+    
+    const selectedSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
+    return metrics.heatmapData[selectedSegment] || {}
+  }
+  
+  // Get top states for current segment
+  const getTopStates = () => {
+    if (!metrics || !metrics.segmentTopStates) {
+      return topStates || []  // Fallback to global
+    }
+    
+    const selectedSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
+    return metrics.segmentTopStates[selectedSegment] || []
+  }
+  
+  // Get top segments - only show for "All segments" tab
+  const getTopSegments = () => {
+    if (activeTab === 0) {
+      return topSegments || []  // Show global segments ranking only on "All segments"
+    }
+    return []  // Hide for individual segment tabs
+  }
+
+  // Get table firms for current segment
+  const getSegmentFirms = () => {
+    if (!metrics || !metrics.segmentTableFirms) {
+      return firms || []  // Fallback to global firms
+    }
+    
+    const selectedSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
+    return metrics.segmentTableFirms[selectedSegment] || []
   }
 
   const segmentStats = getSegmentStats()
-  const segmentFilteredFirms = getFilteredFirmsBySegment()
+  const heatmapData = getHeatmapData()
+  const segmentTopStates = getTopStates()
+  const segmentTopSegments = getTopSegments()
+  const segmentFirms = getSegmentFirms()
 
   const mapFilters = [
     { label: 'All segments', active: true },
@@ -921,7 +903,7 @@ function Dashboard() {
           </h2>
 
           <div className="panel">
-            {loading ? <LoadingSpinner /> : <HeatMapWithRankings key={`heatmap-${activeTab}`} firms={segmentFilteredFirms} />}
+            {loading ? <LoadingSpinner /> : <HeatMapWithRankings heatmapData={heatmapData} topStates={segmentTopStates} topSegments={segmentTopSegments} />}
           </div>
         </section>
 
@@ -938,7 +920,7 @@ function Dashboard() {
     <div className="panel" style={{ paddingTop: '16px' }}>
       {loading ? <LoadingSpinner /> : (
         <DataTable
-          firms={segmentFilteredFirms}
+          firms={segmentFirms}
           onFiltersChange={setTableFilters}
           currentFilters={tableFilters}
         />

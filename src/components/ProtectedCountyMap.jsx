@@ -178,7 +178,9 @@ const ProtectedCountyMap = ({ firms, userState }) => {
 
   // Calculate available counties with data
   const availableCounties = useMemo(() => {
-    if (!userState || !firms || firms.length === 0) return []
+    if (!userState || !firms || firms.length === 0) {
+      return []
+    }
     
     const stateCode = STATE_NAME_TO_ABBR[userState] || userState.toLowerCase()
     const upperStateCode = stateCode.toUpperCase()
@@ -527,7 +529,6 @@ const ProtectedCountyMap = ({ firms, userState }) => {
           })
         }
       })
-      
       
       let matchedCount = 0
       let unmatchedCounties = []

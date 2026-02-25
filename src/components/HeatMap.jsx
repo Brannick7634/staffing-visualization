@@ -3,17 +3,6 @@ import * as am5 from '@amcharts/amcharts5'
 import * as am5map from '@amcharts/amcharts5/map'
 import am5geodata_usaLow from '@amcharts/amcharts5-geodata/usaLow'
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated'
-import { SEGMENT_NAMES, firmHasPrimarySegment, normalizeSegment } from '../constants/segments'
-import {
-  calculateStateAverageGrowth,
-  countFirmsInState,
-  calculateStateTotalHeadcount,
-  calculateTopStatesByGrowth,
-  calculateTopSegmentsByGrowth,
-  formatGrowthPercentage,
-  formatNumber,
-  convertDecimalToPercentage
-} from '../utils/formulas'
 
 const STATE_NAMES = {
   'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
@@ -29,7 +18,7 @@ const STATE_NAMES = {
   'DC': 'District of Columbia'
 }
 
-function HeatMap({ firms, filters, setFilters }) {
+function HeatMap({ heatmapData, filters, setFilters }) {
   const chartDiv = useRef(null)
   const chartRoot = useRef(null)
   const polygonSeries = useRef(null)
@@ -59,87 +48,7 @@ function HeatMap({ firms, filters, setFilters }) {
     filtersRef.current = filters
   }, [filters])
 
-  const filterRecords = (records) => {
-    let filtered = records.filter(r => r.hqStateAbbr)
-    
-    if (filtersRef.current.size !== 'all') {
-      filtered = filtered.filter(r => {
-        const count = Number(r.eeCount) || 0
-        if (filtersRef.current.size === 'small') return count < 50
-        if (filtersRef.current.size === 'medium') return count >= 50 && count <= 500
-        if (filtersRef.current.size === 'large') return count > 500
-        return true
-      })
-    }
-    
-    return filtered
-  }
-
-  const aggregateByState = (records) => {
-    const stateData = {}
-    
-    records.forEach(r => {
-      const state = r.hqStateAbbr
-      if (!state) return
-      
-      if (!stateData[state]) {
-        stateData[state] = {
-          firms: [],
-          headcount: 0,
-          tenures: [],
-          growths: []
-        }
-      }
-      
-      stateData[state].firms.push(r)
-      stateData[state].headcount += Number(r.eeCount) || 0
-      
-      const tenure = Number(r.averageTenure) || 0
-      if (tenure > 0) stateData[state].tenures.push(tenure)
-      
-      // Get growth based on selected timeframe
-      // Growth values are decimals (0.03 = 3%, -0.1 = -10%)
-      let growthDecimal = 0
-      if (filtersRef.current.timeframe === '1Y Growth') {
-        growthDecimal = Number(r.growth1Y) || 0
-      } else if (filtersRef.current.timeframe === '6M Growth') {
-        growthDecimal = Number(r.growth6M) || 0
-      } else if (filtersRef.current.timeframe === '2Y Growth') {
-        growthDecimal = Number(r.growth2Y) || 0
-      }
-      
-      // Convert decimal to percentage (0.03 -> 3)
-      const growth = growthDecimal * 100
-      
-      if (!isNaN(growth)) {
-        stateData[state].growths.push(growth)
-      }
-    })
-    
-    const aggregated = Object.entries(stateData).map(([state, data]) => {
-      const avgGrowth = data.growths.length > 0 
-        ? data.growths.reduce((a, b) => a + b, 0) / data.growths.length 
-        : 0
-      
-      const medianTenure = data.tenures.length > 0
-        ? data.tenures.sort((a, b) => a - b)[Math.floor(data.tenures.length / 2)]
-        : 0
-      
-      const result = {
-        id: "US-" + state,
-        stateCode: state,
-        stateName: STATE_NAMES[state] || state,
-        growth: avgGrowth,
-        firmCount: data.firms.length,
-        totalHeadcount: data.headcount,
-        medianTenure: medianTenure
-      }
-      
-      return result
-    })
-    
-    return aggregated
-  }
+  // Remove filterRecords and aggregateByState functions - using pre-computed data
 
   useEffect(() => {
     if (!chartDiv.current) return
@@ -268,16 +177,14 @@ function HeatMap({ firms, filters, setFilters }) {
   useEffect(() => {
     if (!polygonSeries.current || !mapReady) return
 
-    const filtered = filterRecords(firms)
-    const stateAggregates = aggregateByState(filtered)
-    
-    const mapData = stateAggregates.map(s => ({
+    // Use pre-computed heatmap data
+    const mapData = (heatmapData || []).map(s => ({
       ...s,
       value: s.growth
     }))
     
     polygonSeries.current.data.setAll(mapData)
-  }, [firms, filters, mapReady])
+  }, [heatmapData, filters, mapReady])
 
   return (
     <div>
@@ -315,70 +222,54 @@ function HeatMap({ firms, filters, setFilters }) {
   )
 }
 
-// Component to display rankings based on HeatMap filters
-function HeatMapWithRankings({ firms, hideRankings = false }) {
+// Component to display rankings with pre-computed data
+function HeatMapWithRankings({ heatmapData, topStates, topSegments, hideRankings = false }) {
   const [filters, setFilters] = useState({
     timeframe: '1Y Growth',
     size: 'all'
   })
 
-  const filterRecords = (records) => {
-    let filtered = records.filter(r => r.hqStateAbbr)
+  // Get pre-computed heatmap data based on current filters
+  // Parse the new structure: { state: { filter: {g, f} } } -> array format for map
+  const getHeatmapDataForFilters = () => {
+    if (!heatmapData) return []
     
-    if (filters.size !== 'all') {
-      filtered = filtered.filter(r => {
-        const count = Number(r.eeCount) || 0
-        if (filters.size === 'small') return count < 50
-        if (filters.size === 'medium') return count >= 50 && count <= 500
-        if (filters.size === 'large') return count > 500
-        return true
-      })
-    }
+    const key = `${filters.timeframe}_${filters.size}`
+    const result = []
     
-    return filtered
+    // heatmapData is now: { stateCode: { "1Y Growth_all": {g, f}, ... } }
+    Object.entries(heatmapData).forEach(([stateCode, filterData]) => {
+      const metrics = filterData[key]
+      if (metrics) {
+        result.push({
+          id: "US-" + stateCode,
+          stateCode,
+          stateName: STATE_NAMES[stateCode] || stateCode,
+          growth: metrics.g,  // abbreviated key
+          firmCount: metrics.f  // abbreviated key
+        })
+      }
+    })
+    
+    return result
   }
 
-  // Formula 7: Calculate top 5 states by average growth
-  const getTopStates = () => {
-    const filteredFirms = filterRecords(firms)
-    const stateNames = STATE_NAMES
-    
-    const topStatesData = calculateTopStatesByGrowth(filteredFirms, 5)
-    
-    return topStatesData.map((item, index) => ({
-      rank: index + 1,
-      name: stateNames[item.state] || item.state,
-      growth: formatGrowthPercentage(item.avgGrowth)
-    }))
-  }
-
-  // Formula 10: Calculate top 3 segments by growth (using primarySegment)
-  const getTopSegments = () => {
-    const topSegmentsData = calculateTopSegmentsByGrowth(firms, 3)
-    
-    return topSegmentsData.map((item) => ({
-      name: item.name,
-      growth: formatGrowthPercentage(item.avgGrowth)
-    }))
-  }
-
-  const topStates = getTopStates()
-  const topSegments = getTopSegments()
+  const currentHeatmapData = getHeatmapDataForFilters()
 
   if (hideRankings) {
-    return <HeatMap firms={firms} filters={filters} setFilters={setFilters} />
+    return <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} />
   }
 
   return (
     <div className="two-column">
       <div>
-        <HeatMap firms={firms} filters={filters} setFilters={setFilters} />
+        <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} />
       </div>
       <div className="mini-panel">
-        <div>
+        <div style={{ marginTop: '14px' }}>
           <div className="mini-title">Top 5 states by 1-yr growth (avg %)</div>
           <div className="mini-list">
-            {topStates.map((state, index) => (
+            {(topStates || []).map((state, index) => (
               <div key={state.rank || index} className="mini-row">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div className="mini-rank">{state.rank || index + 1}</div>
@@ -390,26 +281,28 @@ function HeatMapWithRankings({ firms, hideRankings = false }) {
           </div>
         </div>
 
-        <div style={{ marginTop: '14px' }}>
-          <div className="mini-title">Top 3 Segments in the U.S by 1-Y Growth</div>
-          <div className="mini-list">
-            {topSegments.map((segment, index) => {
-              // Format segment name: keep USLH, EOR, PEO, IT, MGF as-is, capitalize first letter for others
-              const formatSegmentName = (name) => {
-                const upperCaseSegments = ['USLH', 'EOR', 'PEO', 'IT', 'MGF']
-                if (upperCaseSegments.includes(name)) return name
-                return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
-              }
-              
-              return (
-                <div key={index} className="mini-row">
-                  <span>{formatSegmentName(segment.name)}</span>
-                  <span className="text-positive">{segment.growth}</span>
-                </div>
-              )
-            })}
+        {topSegments && topSegments.length > 0 && (
+          <div style={{ marginTop: '14px' }}>
+            <div className="mini-title">Top 3 Segments in the U.S by 1-Y Growth</div>
+            <div className="mini-list">
+              {topSegments.map((segment, index) => {
+                // Format segment name: keep USLH, EOR, PEO, IT, MGF as-is, capitalize first letter for others
+                const formatSegmentName = (name) => {
+                  const upperCaseSegments = ['USLH', 'EOR', 'PEO', 'IT', 'MGF']
+                  if (upperCaseSegments.includes(name)) return name
+                  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+                }
+                
+                return (
+                  <div key={index} className="mini-row">
+                    <span>{formatSegmentName(segment.name)}</span>
+                    <span className="text-positive">{segment.growth}</span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

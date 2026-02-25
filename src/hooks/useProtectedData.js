@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { fetchProtectedFirms } from '../services/airtable'
+import { 
+  fetchProtectedFirms
+} from '../services/airtable'
 const CACHE_KEY_PREFIX = 'airtable_protected_data'
 const CACHE_DURATION = 60 * 60 * 1000
 const getCacheKey = (user) => {
@@ -13,11 +15,14 @@ const getCacheKey = (user) => {
 const getCachedData = (user) => {
   try {
     const cacheKey = getCacheKey(user)
-    if (!cacheKey) return null
+    if (!cacheKey) {
+      return null
+    }
     const cached = localStorage.getItem(cacheKey)
     if (!cached) {
       return null
     }
+    
     const { data, timestamp } = JSON.parse(cached)
     const now = Date.now()
     if (now - timestamp < CACHE_DURATION) {
@@ -25,7 +30,7 @@ const getCachedData = (user) => {
         localStorage.removeItem(cacheKey)
         return null
       }
-      return data
+      return { ...data, timestamp }
     } else {
       localStorage.removeItem(cacheKey)
       return null
@@ -39,19 +44,43 @@ const getCachedData = (user) => {
 const setCachedData = (user, data) => {
   try {
     const cacheKey = getCacheKey(user)
-    if (!cacheKey) return
+    if (!cacheKey) {
+      return
+    }
+    
     const cacheObject = {
-      data,
+      data: {
+        firms: data.firms
+      },
       timestamp: Date.now()
     }
+    
     localStorage.setItem(cacheKey, JSON.stringify(cacheObject))
   } catch (error) {
+    if (error.name === 'QuotaExceededError') {
+      try {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith(CACHE_KEY_PREFIX)) {
+            localStorage.removeItem(key)
+          }
+        })
+        const cacheKey = getCacheKey(user)
+        const cacheObject = {
+          data: { firms: data.firms },
+          timestamp: Date.now()
+        }
+        localStorage.setItem(cacheKey, JSON.stringify(cacheObject))
+      } catch (retryError) {
+        // Silent fail
+      }
+    }
   }
 }
 export function useProtectedData(user) {
   const [firms, setFirms] = useState([])
   const [loading, setLoading] = useState(true)
   const [isConfigured, setIsConfigured] = useState(false)
+  
   useEffect(() => {
     async function loadData() {
       setLoading(true)
@@ -60,13 +89,16 @@ export function useProtectedData(user) {
       setIsConfigured(hasAirtableConfig)
       if (hasAirtableConfig && user) {
         const cachedData = getCachedData(user)
-        if (cachedData) {
+        
+        if (cachedData && cachedData.firms && Array.isArray(cachedData.firms)) {
           setFirms(cachedData.firms)
           setLoading(false)
           return
         }
+        
         try {
           const data = await fetchProtectedFirms(user)
+          
           setFirms(data)
           setCachedData(user, { firms: data })
         } catch (error) {

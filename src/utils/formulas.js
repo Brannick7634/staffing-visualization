@@ -5,7 +5,7 @@
  * Each formula includes a human-readable description explaining what it calculates and how.
  */
 
-import { getFirmStateAbbr, normalizeStateAbbr } from './stateNormalization'
+import { getFirmStateAbbr, normalizeStateAbbr } from './stateNormalization.js'
 
 // ============================================================================
 // HELPER FUNCTIONS

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useProtectedData } from '../hooks/useProtectedData'
@@ -116,15 +116,17 @@ function PeerPositionPanel({ user, firms }) {
         userGrowth: 0,
         peerMedianGrowth: 0,
         peerFirmCount: 0,
+        segmentFirmCount: 0,
         positionText: 'Not enough data',
         gap: 0
       }
     }
 
+    // Firms are already filtered by user's segment from the API
+    const segmentFirms = firms
+
     // Calculate "Your Average Growth" as average of ALL firms in user's segment
-    // Since firms array is already filtered by user's segment (from fetchProtectedFirms),
-    // we just calculate the average growth of all these firms
-    const allSegmentGrowthValues = firms
+    const allSegmentGrowthValues = segmentFirms
       .map(firm => (Number(firm.growth1Y) || 0) * 100)
       .filter(g => !isNaN(g))
     
@@ -135,50 +137,22 @@ function PeerPositionPanel({ user, firms }) {
     // Get normalized size buckets for user
     const userSizeBuckets = normalizeEmployeeSize(user.employeeBandSize).split(',')
 
-    // Filter peer firms: same segment (already filtered) and same employee size
-    const peerFirms = firms.filter(firm => {
+    // Filter peer firms by employee size only (segment already filtered by API)
+    const peerFirms = segmentFirms.filter(firm => {
       const sameSize = userSizeBuckets.includes(firm.employeeSizeBucket)
       return sameSize
     })
-    
-    // Debug logging for peer firms
-    console.log('=== PEER FIRMS CALCULATION ===')
-    console.log('User Info:', {
-      segment: user.primarySegment,
-      sizeBuckets: userSizeBuckets,
-      originalSize: user.employeeBandSize
-    })
-    console.log('Total firms in user segment:', firms.length)
-    console.log('Peer firms (same size):', peerFirms.length)
-    console.log('User Average Growth (all segment firms):', userGrowth.toFixed(2) + '%')
-    console.log('Sample firms:', firms.slice(0, 5).map(f => ({
-      id: f.id,
-      segment: f.primarySegment,
-      sizeBucket: f.employeeSizeBucket,
-      growth1Y: f.growth1Y,
-      growthPercent: (Number(f.growth1Y) || 0) * 100
-    })))
     
     // Get growth values for peer median calculation
     const peerGrowthValues = peerFirms
       .map(firm => (Number(firm.growth1Y) || 0) * 100)
       .filter(g => !isNaN(g))
-    
-    console.log('Peer growth values (%):', peerGrowthValues.sort((a, b) => a - b))
-    console.log('Number of peer firms with valid growth:', peerGrowthValues.length)
 
     // Formula 17: Calculate peer median growth using the already filtered peer firms
     const peerMedianGrowth = calculateMedianGrowth(peerFirms)
     
     // Calculate IQR growth (outliers removed)
     const iqrData = calculatePeerIQRGrowth(peerFirms) || {}
-    
-    console.log('Calculated peer median growth:', (peerMedianGrowth || 0).toFixed(2) + '%')
-    console.log('Calculated IQR (Q3 - Q1):', (iqrData.iqr || 0).toFixed(2) + '%')
-    console.log('Calculated data median (Q2):', (iqrData.dataMedian || 0).toFixed(2) + '%')
-    console.log('Calculated IQR-filtered median:', (iqrData.iqrMedian || 0).toFixed(2) + '%')
-    console.log('Outliers eliminated:', iqrData.outliersEliminated || 0)
-    console.log('===========================\n')
 
     // Formula 18: Calculate growth gap
     const gap = calculateGrowthGap(userGrowth, peerMedianGrowth)
@@ -204,6 +178,7 @@ function PeerPositionPanel({ user, firms }) {
       userGrowth: userGrowth,
       peerMedianGrowth: peerMedianGrowth || 0,
       peerFirmCount: peerFirms.length,
+      segmentFirmCount: segmentFirms.length,
       positionText,
       gap,
       iqr: iqrData.iqr || 0,
@@ -299,7 +274,7 @@ function PeerPositionPanel({ user, firms }) {
             fontSize: '11px',
             color: 'var(--text-muted)'
           }}>
-            <strong>Your Avg Growth:</strong> Average of all {firms.length} firms in {user?.primarySegment} segment
+            <strong>Your Avg Growth:</strong> Average of all {peerData.segmentFirmCount} firms in {user?.primarySegment} segment
             <br />
             <strong>Peer Median:</strong> Median of {peerData.peerFirmCount} firms with same size ({user?.employeeBandSize})
           </div>
@@ -940,10 +915,14 @@ function ProtectedDashboard() {
   })
   
   const { firms, loading, isConfigured } = useProtectedData(user)
-  const { firms: allFirms, loading: allFirmsLoading } = useAirtableData() // Get all firms data for maps
+  const { metrics, loading: metricsLoading } = useAirtableData() // Get pre-computed metrics
   const [selectedState, setSelectedState] = useState('')
   
   const segments = ['All segments', ...SEGMENT_NAMES.sort()]
+  
+  // Protected page: firms are already filtered by user's segment in the API call
+  // This reduces data transfer and improves performance
+  // firms = user's segment firms only (e.g., 49 agriculture firms)
 
   // Save activeTab to sessionStorage whenever it changes
   useEffect(() => {
@@ -965,27 +944,69 @@ function ProtectedDashboard() {
     return firms.filter(firm => firmHasPrimarySegment(firm, selectedSegment))
   }
   
-  // Filter allFirms (for HeatMap) by selected segment
-  const getFilteredAllFirmsBySegment = () => {
-    if (activeTab === 0 || segments[activeTab] === 'All segments') {
-      return allFirms
+  // Filter allFirms (for HeatMap) by selected segment - now get from pre-computed metrics
+  const getHeatmapData = () => {
+    if (!metrics || !metrics.heatmapData) {
+      return {}
     }
     
-    const selectedSegment = segments[activeTab]
-    return allFirms.filter(firm => firmHasPrimarySegment(firm, selectedSegment))
+    const selectedSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
+    const data = metrics.heatmapData[selectedSegment] || {}
+    return data
   }
   
   // Get filtered firms for all calculations
   const segmentFilteredFirms = getFilteredFirmsBySegment()
-
-  // Data is already filtered by API based on user's segment/state
+  const heatmapData = getHeatmapData()
   
-  // Calculate KPIs based on user's data (from API, already filtered by segment)
+  // For county visualization, use segment-specific county data
+  // Convert countyData back to firm array format for ProtectedCountyMap
+  const allFirmsForCountyViz = useMemo(() => {
+    const currentSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
+    
+    if (!metrics?.countyDataBySegment) {
+      return []
+    }
+    
+    // Get county data for current segment
+    const segmentCountyData = metrics.countyDataBySegment[currentSegment]
+    if (!segmentCountyData) {
+      return []
+    }
+    
+    const firmsList = []
+    
+    Object.entries(segmentCountyData).forEach(([stateAbbr, cities]) => {
+      Object.entries(cities).forEach(([city, data]) => {
+        // Add each firm from the county data
+        if (data.firms && Array.isArray(data.firms)) {
+          data.firms.forEach(firm => {
+            firmsList.push({
+              id: firm.id,
+              primarySegment: firm.segment,
+              hqStateAbbr: stateAbbr,
+              companyCity: city,
+              eeCount: firm.headcount,
+              growth1Y: firm.growth1Y || 0,
+              growth6M: firm.growth6M || 0,
+              growth2Y: firm.growth2Y || 0
+            })
+          })
+        }
+      })
+    })
+    
+    return firmsList
+  }, [metrics, activeTab, segments])
+  
+  // Data is already filtered by API based on user's segment
+  
+  // Calculate KPIs based on user's segment data
   const totalFirms = countFirmsInView(firms)
   const medianGrowth = calculateMedianGrowth(firms)
   const topSegmentsData = calculateTopSegmentsByGrowth(firms, 3)
-  const topSegment = topSegmentsData[0]?.name || 'N/A'
-  const otherSegments = topSegmentsData.slice(1).map(s => s.name).join(', ') || 'None'
+  const topSegment = user?.primarySegment || 'N/A'
+  const otherSegments = topSegmentsData.slice(0, 2).map(s => s.name).filter(name => name !== topSegment).join(', ') || 'None'
   const topCityName = findTopCity(firms)
   
   const cityCounts = {}
@@ -1087,12 +1108,14 @@ function ProtectedDashboard() {
                 </select>
               </div>
             </div>
-            {loading || allFirmsLoading ? (
+            {loading || metricsLoading ? (
               <ProtectedLoadingSpinner />
             ) : selectedState ? (
-              <ProtectedCountyMap firms={getFilteredAllFirmsBySegment()} userState={selectedState} />
+              <ProtectedCountyMap firms={allFirmsForCountyViz} userState={selectedState} />
             ) : (
-              <HeatMapWithRankings key={`heatmap-${activeTab}`} firms={getFilteredAllFirmsBySegment()} hideRankings={true} />
+              <>
+                <HeatMapWithRankings key={`heatmap-${activeTab}`} heatmapData={heatmapData} topStates={[]} topSegments={[]} hideRankings={true} />
+              </>
             )}
           </div>
         </section>
@@ -1108,7 +1131,7 @@ function ProtectedDashboard() {
           </p>
 
           <div className="panel" style={{ paddingTop: '16px' }}>
-            {loading ? <ProtectedLoadingSpinner /> : <ProtectedDataTable firms={firms} />}
+            {loading || metricsLoading ? <ProtectedLoadingSpinner /> : <ProtectedDataTable firms={firms} />}
           </div>
         </section>
 
