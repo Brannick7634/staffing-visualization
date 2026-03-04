@@ -13,7 +13,7 @@ import {
   formatNumber,
   convertDecimalToPercentage
 } from '../utils/formulas'
-import { getFirmStateName, statesMatch } from '../utils/stateNormalization'
+import { getFirmStateName, statesMatch, normalizeStateAbbr } from '../utils/stateNormalization'
 
 // Header Component
 function Header({ user, onLogin, onSignup, onGotoDashboard }) {
@@ -141,27 +141,25 @@ function MiniPanel({ topStates, topSegments }) {
     const [currentPage, setCurrentPage] = useState(1)
     const recordsPerPage = 5  // Limit to 5 records per page
 
-    // The firms passed are already pre-selected (5 random firms)
-    // Just apply the filters directly
-    const tableFilteredFirms = firms.filter((firm) => {
-      // Apply employee size filter
-      if (currentFilters.employeeSize && firm.employeeSizeBucket !== currentFilters.employeeSize) {
-        return false
+    // Look up pre-cached firms for the active filter combination.
+    // firms is { default, bySize, byState } – each bucket already has up to 5 firms.
+    const getFirmsForFilters = () => {
+      const { employeeSize, state } = currentFilters
+      if (employeeSize && state) {
+        // Both filters: use size bucket then narrow by state
+        const sizeList = firms.bySize?.[employeeSize] || []
+        return sizeList.filter(firm => statesMatch(getFirmStateName(firm), state))
       }
-      
-      // Apply state filter with fuzzy matching
-      if (currentFilters.state) {
-        const firmState = getFirmStateName(firm)
-        if (!statesMatch(firmState, currentFilters.state)) {
-          return false
-        }
+      if (employeeSize) return firms.bySize?.[employeeSize] || []
+      if (state) {
+        const abbr = normalizeStateAbbr(state)
+        return firms.byState?.[abbr] || []
       }
-      
-      return true
-    })
+      return firms.default || []
+    }
 
-    // Show filtered results or original 5 if no filters applied
-    const currentRecords = tableFilteredFirms.slice(0, 5)
+    // Show filtered results (already pre-limited to 5 per bucket)
+    const currentRecords = getFirmsForFilters().slice(0, 5)
     
     // Filter options
     const employeeSizeOptions = EMPLOYEE_SIZE_BANDS
@@ -820,11 +818,14 @@ function Dashboard() {
   // Get table firms for current segment
   const getSegmentFirms = () => {
     if (!metrics || !metrics.segmentTableFirms) {
-      return firms || []  // Fallback to global firms
+      return { default: firms || [], bySize: {}, byState: {} }  // Fallback to global firms
     }
     
     const selectedSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
-    return metrics.segmentTableFirms[selectedSegment] || []
+    const cached = metrics.segmentTableFirms[selectedSegment]
+    // Handle old array format from stale cache
+    if (Array.isArray(cached)) return { default: cached, bySize: {}, byState: {} }
+    return cached || { default: [], bySize: {}, byState: {} }
   }
 
   const segmentStats = getSegmentStats()

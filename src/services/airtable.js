@@ -449,9 +449,29 @@ function getSegmentTableFirms(firms, segment) {
     ? firms 
     : firms.filter(firm => firmHasPrimarySegment(firm, segment))
   
-  // Shuffle and take 5 random firms
-  const shuffled = [...segmentFirms].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, 5)
+  const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5)
+
+  // Default: 5 random firms (no filter applied)
+  const defaultFirms = shuffle(segmentFirms).slice(0, 5)
+
+  // 5 firms per employee size band
+  const bySize = {}
+  const BANDS = ['1-5', '6-10', '11-20', '21-50', '51-100', '101-250', '251-500', '501-1000', '>1000']
+  for (const band of BANDS) {
+    const bandFirms = segmentFirms.filter(f => f.employeeSizeBucket?.trim() === band)
+    bySize[band] = shuffle(bandFirms).slice(0, 5)
+  }
+
+  // 5 firms per state — use normalized abbreviation as key to match DataTable lookup
+  const byState = {}
+  for (const firm of segmentFirms) {
+    const abbr = getFirmStateAbbr(firm)
+    if (!abbr) continue
+    if (!byState[abbr]) byState[abbr] = []
+    if (byState[abbr].length < 5) byState[abbr].push(firm)
+  }
+
+  return { default: defaultFirms, bySize, byState }
 }
 
 /**
@@ -703,12 +723,12 @@ export async function fetchDashboardMetrics() {
         const statsData = JSON.parse(statsJson)
         metrics.segmentStats[segment] = statsData.segmentStats
         metrics.segmentTopStates[segment] = statsData.topStatesByGrowth || []
-        metrics.segmentTableFirms[segment] = statsData.tableFirms || []  // Load per-segment firms
+        metrics.segmentTableFirms[segment] = statsData.tableFirms || { default: [], bySize: {}, byState: {} }  // Load per-segment firms
         
         // "All segments" contains the global data
         if (segment === 'All segments') {
           metrics.topSegmentsByGrowth = statsData.topSegmentsByGrowth || []
-          metrics.tableFirms = statsData.tableFirms || []
+          metrics.tableFirms = statsData.tableFirms?.default || []
         }
       }
       
