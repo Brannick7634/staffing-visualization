@@ -18,7 +18,7 @@ const STATE_NAMES = {
   'DC': 'District of Columbia'
 }
 
-function HeatMap({ heatmapData, filters, setFilters }) {
+function HeatMap({ heatmapData, filters, setFilters, segments, activeTab, onTabClick }) {
   const chartDiv = useRef(null)
   const chartRoot = useRef(null)
   const polygonSeries = useRef(null)
@@ -210,12 +210,32 @@ function HeatMap({ heatmapData, filters, setFilters }) {
             onChange={(e) => setFilters({...filters, size: e.target.value})}
           >
             <option value="all">All sizes</option>
-            <option value="small">Small (&lt; 50)</option>
-            <option value="medium">Medium (50-500)</option>
-            <option value="large">Large (&gt; 500)</option>
+            <option value="1-5">1-5</option>
+            <option value="6-10">6-10</option>
+            <option value="11-20">11-20</option>
+            <option value="21-50">21-50</option>
+            <option value="51-100">51-100</option>
+            <option value="101-250">101-250</option>
+            <option value="251-500">251-500</option>
+            <option value="501-1000">501-1000</option>
+            <option value=">1000">&gt;1000</option>
           </select>
         </div>
       </div>
+
+      {segments && segments.length > 0 && (
+        <div className="tabs-row" style={{ marginTop: '12px' }}>
+          {segments.map((tab, index) => (
+            <div
+              key={index}
+              className={`tab-pill ${activeTab === index ? 'active' : ''}`}
+              onClick={() => onTabClick(index)}
+            >
+              {tab}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div ref={chartDiv} className="heatmap-chart"></div>
     </div>
@@ -223,7 +243,7 @@ function HeatMap({ heatmapData, filters, setFilters }) {
 }
 
 // Component to display rankings with pre-computed data
-function HeatMapWithRankings({ heatmapData, topStates, topSegments, hideRankings = false }) {
+function HeatMapWithRankings({ heatmapData, topStatesByTimeframe, topSegmentsByTimeframe, hideRankings = false, segments, activeTab, onTabClick }) {
   const [filters, setFilters] = useState({
     timeframe: '1Y Growth',
     size: 'all'
@@ -256,20 +276,23 @@ function HeatMapWithRankings({ heatmapData, topStates, topSegments, hideRankings
 
   const currentHeatmapData = getHeatmapDataForFilters()
 
+  const currentTopStates = (topStatesByTimeframe && topStatesByTimeframe[filters.timeframe]) || []
+  const currentTopSegments = (topSegmentsByTimeframe && topSegmentsByTimeframe[filters.timeframe]) || []
+
   if (hideRankings) {
-    return <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} />
+    return <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} segments={segments} activeTab={activeTab} onTabClick={onTabClick} />
   }
 
   return (
     <div className="two-column">
       <div>
-        <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} />
+        <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} segments={segments} activeTab={activeTab} onTabClick={onTabClick} />
       </div>
       <div className="mini-panel">
         <div style={{ marginTop: '14px' }}>
-          <div className="mini-title">Top 5 states by 1-yr growth (avg %)</div>
+          <div className="mini-title">Top 5 states by {filters.timeframe === '6M Growth' ? '6-mo' : filters.timeframe === '2Y Growth' ? '2-yr' : '1-yr'} growth (avg %)</div>
           <div className="mini-list">
-            {(topStates || []).map((state, index) => (
+            {currentTopStates.map((state, index) => (
               <div key={state.rank || index} className="mini-row">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div className="mini-rank">{state.rank || index + 1}</div>
@@ -281,11 +304,11 @@ function HeatMapWithRankings({ heatmapData, topStates, topSegments, hideRankings
           </div>
         </div>
 
-        {topSegments && topSegments.length > 0 && (
+        {currentTopSegments.length > 0 && (
           <div style={{ marginTop: '14px' }}>
-            <div className="mini-title">Top 3 Segments in the U.S by 1-Y Growth</div>
+            <div className="mini-title">Top 3 Segments in the U.S by {filters.timeframe === '6M Growth' ? '6-Mo' : filters.timeframe === '2Y Growth' ? '2-Yr' : '1-Yr'} Growth</div>
             <div className="mini-list">
-              {topSegments.map((segment, index) => {
+              {currentTopSegments.map((segment, index) => {
                 // Format segment name: keep USLH, EOR, PEO, IT, MGF as-is, capitalize first letter for others
                 const formatSegmentName = (name) => {
                   const upperCaseSegments = ['USLH', 'EOR', 'PEO', 'IT', 'MGF']

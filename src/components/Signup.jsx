@@ -55,7 +55,7 @@ function Signup() {
     
     // Validate required fields
     if (!formData.employeeBand) {
-      setError('Employee band size is required')
+      setError('Internal employee band size is required')
       return
     }
     
@@ -276,7 +276,7 @@ function Signup() {
 
           <div className="cta-form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
             <div>
-              <div className="form-label">Employee Band Size</div>
+              <div className="form-label">Internal Employee Band Size</div>
               <select
                 className="form-select"
                 value={formData.employeeBand}

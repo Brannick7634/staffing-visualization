@@ -383,14 +383,19 @@ export function calculateStateTotalHeadcount(firms, stateCode) {
  * 
  * Example: Arizona avg 12%, Nevada avg 10%, Florida avg 8% → these are top 3
  */
-export function calculateTopStatesByGrowth(firms, topCount = 5) {
+export function calculateTopStatesByGrowth(firms, topCount = 5, timeframe = '1Y Growth') {
   const stateGrowth = {}
   
   firms.forEach(firm => {
     const state = getFirmStateAbbr(firm)
     if (!state) return
     
-    const growthPercent = convertDecimalToPercentage(firm.growth1Y)
+    let rawGrowth
+    if (timeframe === '6M Growth') rawGrowth = firm.growth6M
+    else if (timeframe === '2Y Growth') rawGrowth = firm.growth2Y
+    else rawGrowth = firm.growth1Y
+
+    const growthPercent = convertDecimalToPercentage(rawGrowth)
     
     if (!isNaN(growthPercent)) {
       if (!stateGrowth[state]) {
@@ -468,7 +473,7 @@ export function calculateMedianGrowth(firms) {
  * 
  * Example: Technology 15% avg, Healthcare 12% avg, Finance 8% avg → these are top 3
  */
-export function calculateTopSegmentsByGrowth(firms, topCount = 3) {
+export function calculateTopSegmentsByGrowth(firms, topCount = 3, timeframe = '1Y Growth') {
   if (!firms || firms.length === 0) return []
   
   const segmentGrowth = {}
@@ -477,7 +482,12 @@ export function calculateTopSegmentsByGrowth(firms, topCount = 3) {
     const segment = firm.primarySegment
     if (!segment) return
     
-    const growthPercent = convertDecimalToPercentage(firm.growth1Y)
+    let rawGrowth
+    if (timeframe === '6M Growth') rawGrowth = firm.growth6M
+    else if (timeframe === '2Y Growth') rawGrowth = firm.growth2Y
+    else rawGrowth = firm.growth1Y
+
+    const growthPercent = convertDecimalToPercentage(rawGrowth)
     
     if (!isNaN(growthPercent)) {
       if (!segmentGrowth[segment]) {

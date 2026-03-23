@@ -25,11 +25,27 @@ const COMPANY_VIEW_ID = import.meta.env.VITE_AIRTABLE_COMPANY_VIEW || 'Grid view
 const DASHBOARD_METRICS_TABLE = 'DashboardMetrices'
 const DASHBOARD_METRICS_VIEW = 'Grid view'  // View name for DashboardMetrices table
 
+// Size filters for heatmap — order must stay in sync with heatmap_data_1..10 fields
+const HEATMAP_SIZE_FILTERS = ['all', '1-5', '6-10', '11-20', '21-50', '51-100', '101-250', '251-500', '501-1000', '>1000']
+
 // Field names in DashboardMetrices table
 const METRICS_FIELDS = {
-  SEGMENT: 'segment',  // Single line text - segment name
-  STATS: 'stats',  // Long text - segment stats and rankings
-  HEATMAP: 'heatmap_data',  // Long text - heatmap data for this segment
+  SEGMENT: 'segment',          // Single line text - segment name
+  STATS: 'stats',              // Long text - segment stats and rankings (NO tableFirms)
+  HEATMAP_DATA_1:  'heatmap_data_1',   // size=all
+  HEATMAP_DATA_2:  'heatmap_data_2',   // size=1-5
+  HEATMAP_DATA_3:  'heatmap_data_3',   // size=6-10
+  HEATMAP_DATA_4:  'heatmap_data_4',   // size=11-20
+  HEATMAP_DATA_5:  'heatmap_data_5',   // size=21-50
+  HEATMAP_DATA_6:  'heatmap_data_6',   // size=51-100
+  HEATMAP_DATA_7:  'heatmap_data_7',   // size=101-250
+  HEATMAP_DATA_8:  'heatmap_data_8',   // size=251-500
+  HEATMAP_DATA_9:  'heatmap_data_9',   // size=501-1000
+  HEATMAP_DATA_10: 'heatmap_data_10',  // size=>1000
+  TABLE_DEFAULT: 'table_default',   // Long text - 5 default firms (no filter)
+  TABLE_BY_SIZE: 'table_by_size',   // Long text - 5 firms per size band
+  TABLE_STATE_1: 'table_state_1',   // Long text - byState firms: AL-MO (26 states)
+  TABLE_STATE_2: 'table_state_2',   // Long text - byState firms: MT-WY (25 states)
   COUNTY_DATA_1: 'county_data_1',
   COUNTY_DATA_2: 'county_data_2',
   COUNTY_DATA_3: 'county_data_3',
@@ -58,6 +74,66 @@ const METRICS_FIELDS = {
   COUNTY_DATA_26: 'county_data_26',
   COMPUTED_AT: 'computed_at',
   IS_RECOMPUTING: 'is_recomputing'
+}
+
+// State split for table_state_1 (26 states: AL–MO)
+const TABLE_STATE_GROUP_1 = ['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO']
+// State split for table_state_2 (25 states: MT–WY)
+const TABLE_STATE_GROUP_2 = ['MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
+
+// Abbreviate a firm object for compact storage (used in default + bySize lists)
+function abbreviateFirm(f) {
+  return {
+    id: f.id,
+    s:  f.primarySegment,
+    sa: f.hqStateAbbr,
+    hl: f.hqLocation,
+    cc: f.companyCity,
+    ec: f.eeCount,
+    eb: f.employeeSizeBucket,
+    g1: f.growth1Y,
+    g6: f.growth6M,
+    g2: f.growth2Y
+  }
+}
+
+// Ultra-compact array encoding for byState per-band slices.
+// State and band are already known from the key structure so they are omitted.
+// Shape: [primarySegment, companyCity, eeCount, growth1Y, growth6M, growth2Y]
+function abbreviateFirmCompact(f) {
+  return [f.primarySegment, f.companyCity, f.eeCount, f.growth1Y, f.growth6M, f.growth2Y]
+}
+
+// Expand compact array back to a full firm object.
+// stateAbbr and band must be supplied from the surrounding key context.
+function expandFirmCompact(arr, stateAbbr, band) {
+  return {
+    primarySegment:     arr[0],
+    hqStateAbbr:        stateAbbr,
+    hqLocation:         stateAbbr,
+    companyCity:        arr[1],
+    eeCount:            arr[2],
+    employeeSizeBucket: band || '',
+    growth1Y:           arr[3],
+    growth6M:           arr[4],
+    growth2Y:           arr[5],
+  }
+}
+
+// Expand an abbreviated firm back to full keys for the UI
+function expandFirm(f) {
+  return {
+    id:                f.id,
+    primarySegment:    f.s,
+    hqStateAbbr:       f.sa,
+    hqLocation:        f.hl,
+    companyCity:       f.cc,
+    eeCount:           f.ec,
+    employeeSizeBucket: f.eb,
+    growth1Y:          f.g1,
+    growth6M:          f.g6,
+    growth2Y:          f.g2
+  }
 }
 
 // State groupings for county data split (2 states per group for 26 fields)
@@ -339,33 +415,57 @@ function computeSegmentStats(firms, segment) {
   }
 }
 
+const TIMEFRAMES = ['6M Growth', '1Y Growth', '2Y Growth']
+
 /**
- * Compute top 5 states by average 1-year growth
+ * Compute top 5 states by average growth for a given timeframe
  */
-function computeTopStatesByGrowth(firms) {
-  const topStatesData = calculateTopStatesByGrowth(firms, 5)
+function computeTopStatesByGrowth(firms, timeframe = '1Y Growth') {
+  const topStatesData = calculateTopStatesByGrowth(firms, 5, timeframe)
   
   return topStatesData.map((item, index) => ({
     rank: index + 1,
     name: STATE_NAMES[item.state] || item.state,
     stateCode: item.state,
     growth: formatGrowthPercentage(item.avgGrowth),
-    growthRaw: Math.round(item.avgGrowth * 1000) / 1000  // Max 3 decimals
+    growthRaw: Math.round(item.avgGrowth * 1000) / 1000
   }))
 }
 
 /**
- * Compute top 3 segments by 1-year growth
+ * Compute top 5 states for all timeframes, returns object keyed by timeframe
  */
-function computeTopSegmentsByGrowth(firms) {
-  const topSegmentsData = calculateTopSegmentsByGrowth(firms, 3)
+function computeTopStatesByGrowthAllTimeframes(firms) {
+  const result = {}
+  TIMEFRAMES.forEach(tf => {
+    result[tf] = computeTopStatesByGrowth(firms, tf)
+  })
+  return result
+}
+
+/**
+ * Compute top 3 segments by growth for a given timeframe
+ */
+function computeTopSegmentsByGrowth(firms, timeframe = '1Y Growth') {
+  const topSegmentsData = calculateTopSegmentsByGrowth(firms, 3, timeframe)
   
   return topSegmentsData.map(item => ({
     name: item.name,
     growth: formatGrowthPercentage(item.avgGrowth),
-    growthRaw: Math.round(item.avgGrowth * 1000) / 1000,  // Max 3 decimals
+    growthRaw: Math.round(item.avgGrowth * 1000) / 1000,
     firmCount: item.firmCount
   }))
+}
+
+/**
+ * Compute top 3 segments for all timeframes, returns object keyed by timeframe
+ */
+function computeTopSegmentsByGrowthAllTimeframes(firms) {
+  const result = {}
+  TIMEFRAMES.forEach(tf => {
+    result[tf] = computeTopSegmentsByGrowth(firms, tf)
+  })
+  return result
 }
 
 /**
@@ -374,16 +474,10 @@ function computeTopSegmentsByGrowth(firms) {
  * Includes ALL 51 states (even if 0 firms)
  */
 function computeHeatmapData(firms, timeframe, sizeFilter) {
-  // Apply size filter
+  // Apply size filter — sizeFilter matches employeeSizeBucket exactly (e.g. '1-5', '101-250')
   let filtered = firms
   if (sizeFilter !== 'all') {
-    filtered = firms.filter(r => {
-      const count = Number(r.eeCount) || 0
-      if (sizeFilter === 'small') return count < 50
-      if (sizeFilter === 'medium') return count >= 50 && count <= 500
-      if (sizeFilter === 'large') return count > 500
-      return true
-    })
+    filtered = firms.filter(r => r.employeeSizeBucket?.trim() === sizeFilter)
   }
   
   // Initialize ALL 51 states with empty data
@@ -442,36 +536,55 @@ function computeHeatmapData(firms, timeframe, sizeFilter) {
 }
 
 /**
- * Get 5 random firms for a specific segment
+ * Get up to 5 firms per filter combination for a specific segment.
+ * All firm objects are abbreviated to minimise stored characters.
  */
 function getSegmentTableFirms(firms, segment) {
-  const segmentFirms = segment === 'All segments' 
-    ? firms 
+  const segmentFirms = segment === 'All segments'
+    ? firms
     : firms.filter(firm => firmHasPrimarySegment(firm, segment))
-  
+
   const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5)
 
-  // Default: 5 random firms (no filter applied)
-  const defaultFirms = shuffle(segmentFirms).slice(0, 5)
+  // Default: 5 random firms (abbreviated)
+  const defaultFirms = shuffle(segmentFirms).slice(0, 5).map(abbreviateFirm)
 
-  // 5 firms per employee size band
+  // Flat: up to 5 random firms per size band (any state) — used for size-only filter.
+  // Kept small (~6 KB) so table_by_size never causes a 413.
   const bySize = {}
   const BANDS = ['1-5', '6-10', '11-20', '21-50', '51-100', '101-250', '251-500', '501-1000', '>1000']
   for (const band of BANDS) {
     const bandFirms = segmentFirms.filter(f => f.employeeSizeBucket?.trim() === band)
-    bySize[band] = shuffle(bandFirms).slice(0, 5)
+    bySize[band] = shuffle(bandFirms).slice(0, 5).map(abbreviateFirm)
   }
 
-  // 5 firms per state — use normalized abbreviation as key to match DataTable lookup
-  const byState = {}
+  // Extended per-state map using ultra-compact array encoding.
+  // Shape: { stateAbbr: { _: [compactFirm, ...], "101-250": [compactFirm, ...], ... } }
+  //   _   → up to 5 default firms for that state (state-only filter)
+  //   band → up to 5 firms for that state + band combo (both-filters case)
+  // Using compact arrays instead of objects cuts size ~3× vs abbreviateFirm.
+  const byStateExt = {}
   for (const firm of segmentFirms) {
     const abbr = getFirmStateAbbr(firm)
     if (!abbr) continue
-    if (!byState[abbr]) byState[abbr] = []
-    if (byState[abbr].length < 5) byState[abbr].push(firm)
+    if (!byStateExt[abbr]) byStateExt[abbr] = { _: [] }
+    if (byStateExt[abbr]._.length < 5) byStateExt[abbr]._.push(abbreviateFirmCompact(firm))
+    const band = firm.employeeSizeBucket?.trim()
+    if (band) {
+      if (!byStateExt[abbr][band]) byStateExt[abbr][band] = []
+      if (byStateExt[abbr][band].length < 5) byStateExt[abbr][band].push(abbreviateFirmCompact(firm))
+    }
   }
 
-  return { default: defaultFirms, bySize, byState }
+  // Split byStateExt into two groups matching TABLE_STATE_GROUP_1 / _2
+  const byState1 = {}
+  const byState2 = {}
+  for (const [abbr, stateData] of Object.entries(byStateExt)) {
+    if (TABLE_STATE_GROUP_1.includes(abbr)) byState1[abbr] = stateData
+    else byState2[abbr] = stateData
+  }
+
+  return { default: defaultFirms, bySize, byState1, byState2 }
 }
 
 /**
@@ -491,23 +604,23 @@ export async function computeDashboardMetrics() {
     segments.forEach(segment => {
       segmentStats[segment] = computeSegmentStats(firms, segment)
       
-      // Compute top states for each segment
+      // Compute top states for each segment across all timeframes
       const segmentFirms = segment === 'All segments' 
         ? firms 
         : firms.filter(firm => firmHasPrimarySegment(firm, segment))
-      segmentTopStates[segment] = computeTopStatesByGrowth(segmentFirms)
+      segmentTopStates[segment] = computeTopStatesByGrowthAllTimeframes(segmentFirms)
       
       // Get 5 example firms for each segment
       segmentTableFirms[segment] = getSegmentTableFirms(firms, segment)
     })
     
-    // Compute top segments (only for "All segments")
-    const topSegmentsByGrowth = computeTopSegmentsByGrowth(firms)
+    // Compute top segments across all timeframes (only for "All segments")
+    const topSegmentsByGrowth = computeTopSegmentsByGrowthAllTimeframes(firms)
     
     // Compute heatmap data - restructured by state to minimize repetition
     // Structure: { segment: { state: { filter1: {g, f}, filter2: {g, f}, ... } } }
     const timeframes = ['6M Growth', '1Y Growth', '2Y Growth']
-    const sizeFilters = ['all', 'small', 'medium', 'large']
+    const sizeFilters = ['all', '1-5', '6-10', '11-20', '21-50', '51-100', '101-250', '251-500', '501-1000', '>1000']
     const heatmapData = {}
     
     segments.forEach(segment => {
@@ -630,24 +743,49 @@ export async function storeDashboardMetrics(metrics) {
     const recordsToCreate = []
     
     for (const segment of segments) {
-      // Stats data for this segment
+      // Stats data for this segment (no tableFirms — stored in dedicated fields)
       const statsData = {
         segmentStats: metrics.segmentStats[segment],
-        topStatesByGrowth: metrics.segmentTopStates[segment] || [],  // Per segment
-        topSegmentsByGrowth: segment === 'All segments' ? metrics.topSegmentsByGrowth : [],  // Only for "All segments"
-        tableFirms: metrics.segmentTableFirms[segment] || []  // 5 example firms for this segment
+        topStatesByGrowth: metrics.segmentTopStates[segment] || {},  // Per segment, keyed by timeframe
+        topSegmentsByGrowth: segment === 'All segments' ? metrics.topSegmentsByGrowth : {},  // Only for "All segments", keyed by timeframe
       }
-      
-      // Heatmap data for this segment
-      const heatmapData = metrics.heatmapData[segment] || {}
-      
+
+      // Table firms — split across dedicated fields to avoid character limits
+      const tf = metrics.segmentTableFirms[segment] || {}
+      const tableDefaultJson = JSON.stringify(tf.default || [])
+      const tableBySizeJson  = JSON.stringify(tf.bySize  || {})
+      const tableState1Json  = JSON.stringify(tf.byState1 || {})
+      const tableState2Json  = JSON.stringify(tf.byState2 || {})
+
+      // Heatmap data — split by size filter into 10 fields (~3K chars each)
+      const heatmapFull = metrics.heatmapData[segment] || {}
+      const heatmapSlices = HEATMAP_SIZE_FILTERS.map(sizeFilter => {
+        const slice = {}
+        const suffix = `_${sizeFilter}`
+        Object.entries(heatmapFull).forEach(([stateCode, filterData]) => {
+          slice[stateCode] = {}
+          Object.entries(filterData).forEach(([key, val]) => {
+            if (key.endsWith(suffix)) {
+              slice[stateCode][key.slice(0, key.length - suffix.length)] = val
+            }
+          })
+        })
+        return slice
+      })
+
       const statsJson = JSON.stringify(statsData)
-      const heatmapJson = JSON.stringify(heatmapData)
-      
+      const heatmapFields = Object.fromEntries(
+        HEATMAP_SIZE_FILTERS.map((_, i) => [METRICS_FIELDS[`HEATMAP_DATA_${i + 1}`], JSON.stringify(heatmapSlices[i])])
+      )
+
       const fields = {
         [METRICS_FIELDS.SEGMENT]: segment,
         [METRICS_FIELDS.STATS]: statsJson,
-        [METRICS_FIELDS.HEATMAP]: heatmapJson,
+        ...heatmapFields,
+        [METRICS_FIELDS.TABLE_DEFAULT]: tableDefaultJson,
+        [METRICS_FIELDS.TABLE_BY_SIZE]: tableBySizeJson,
+        [METRICS_FIELDS.TABLE_STATE_1]: tableState1Json,
+        [METRICS_FIELDS.TABLE_STATE_2]: tableState2Json,
         [METRICS_FIELDS.COMPUTED_AT]: computedAt,
         [METRICS_FIELDS.IS_RECOMPUTING]: 'false'
       }
@@ -678,9 +816,10 @@ export async function storeDashboardMetrics(metrics) {
       recordsToCreate.push({ fields })
     }
     
-    for (let i = 0; i < recordsToCreate.length; i += 10) {
-      const batch = recordsToCreate.slice(i, i + 10)
-      await base(DASHBOARD_METRICS_TABLE).create(batch)
+    // Create one record at a time — batching 10 at once can exceed Airtable's
+    // request body limit (413) when county_data_* fields are large.
+    for (const record of recordsToCreate) {
+      await base(DASHBOARD_METRICS_TABLE).create([record])
     }
     
     return { success: true }
@@ -717,19 +856,58 @@ export async function fetchDashboardMetrics() {
     for (const record of records) {
       const segment = record.get(METRICS_FIELDS.SEGMENT)
       const statsJson = record.get(METRICS_FIELDS.STATS)
-      const heatmapJson = record.get(METRICS_FIELDS.HEATMAP)
+      const heatmapJsons = HEATMAP_SIZE_FILTERS.map((_, i) => record.get(METRICS_FIELDS[`HEATMAP_DATA_${i + 1}`]))
       
       if (statsJson) {
         const statsData = JSON.parse(statsJson)
         metrics.segmentStats[segment] = statsData.segmentStats
-        metrics.segmentTopStates[segment] = statsData.topStatesByGrowth || []
-        metrics.segmentTableFirms[segment] = statsData.tableFirms || { default: [], bySize: {}, byState: {} }  // Load per-segment firms
-        
-        // "All segments" contains the global data
+        metrics.segmentTopStates[segment] = statsData.topStatesByGrowth || {}  // keyed by timeframe
+
+        // "All segments" contains the global segments ranking
         if (segment === 'All segments') {
-          metrics.topSegmentsByGrowth = statsData.topSegmentsByGrowth || []
-          metrics.tableFirms = statsData.tableFirms?.default || []
+          metrics.topSegmentsByGrowth = statsData.topSegmentsByGrowth || {}  // keyed by timeframe
         }
+      }
+
+      // Reconstruct table firms from dedicated fields (expand abbreviated keys)
+      const tableDefaultJson = record.get(METRICS_FIELDS.TABLE_DEFAULT)
+      const tableBySizeJson  = record.get(METRICS_FIELDS.TABLE_BY_SIZE)
+      const tableState1Json  = record.get(METRICS_FIELDS.TABLE_STATE_1)
+      const tableState2Json  = record.get(METRICS_FIELDS.TABLE_STATE_2)
+
+      const defaultFirms = tableDefaultJson ? JSON.parse(tableDefaultJson).map(expandFirm) : []
+      // bySize shape: flat { band: [5 firms] } — for size-only filter
+      const bySize = tableBySizeJson
+        ? Object.fromEntries(
+            Object.entries(JSON.parse(tableBySizeJson)).map(([band, list]) => [band, list.map(expandFirm)])
+          )
+        : {}
+      // state1/2 shape: { stateAbbr: { _: [compactArr], band: [compactArr] } }
+      // Expand compact arrays back to full firm objects, supplying state/band from keys.
+      const expandStateGroup = (raw) => {
+        if (!raw) return {}
+        const parsed = JSON.parse(raw)
+        const out = {}
+        for (const [abbr, bandMap] of Object.entries(parsed)) {
+          out[abbr] = {}
+          for (const [key, list] of Object.entries(bandMap)) {
+            const band = key === '_' ? '' : key
+            out[abbr][key] = list.map(arr => expandFirmCompact(arr, abbr, band))
+          }
+        }
+        return out
+      }
+      const state1 = expandStateGroup(tableState1Json)
+      const state2 = expandStateGroup(tableState2Json)
+
+      metrics.segmentTableFirms[segment] = {
+        default: defaultFirms,
+        bySize,
+        byState: { ...state1, ...state2 }
+      }
+
+      if (segment === 'All segments') {
+        metrics.tableFirms = defaultFirms
       }
       
       // County data - load for EACH segment from its 26 fields
@@ -750,14 +928,24 @@ export async function fetchDashboardMetrics() {
         metrics.countyDataBySegment[segment] = segmentCountyData
       }
       
-      if (heatmapJson) {
-        const heatmapData = JSON.parse(heatmapJson)
-        metrics.heatmapData[segment] = heatmapData
+      if (heatmapJsons.some(Boolean)) {
+        const merged = {}
+        heatmapJsons.forEach((json, i) => {
+          if (!json) return
+          const sizeFilter = HEATMAP_SIZE_FILTERS[i]
+          Object.entries(JSON.parse(json)).forEach(([stateCode, timeframeMap]) => {
+            if (!merged[stateCode]) merged[stateCode] = {}
+            Object.entries(timeframeMap).forEach(([timeframe, val]) => {
+              merged[stateCode][`${timeframe}_${sizeFilter}`] = val
+            })
+          })
+        })
+        metrics.heatmapData[segment] = merged
       }
     }
     
     metrics.countyData = metrics.countyDataBySegment['All segments'] || {}
-    metrics.topStatesByGrowth = metrics.segmentTopStates['All segments'] || []
+    metrics.topStatesByGrowth = metrics.segmentTopStates['All segments'] || {}
     
     return metrics
   } catch (error) {

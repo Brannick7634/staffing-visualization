@@ -145,15 +145,18 @@ function MiniPanel({ topStates, topSegments }) {
     // firms is { default, bySize, byState } – each bucket already has up to 5 firms.
     const getFirmsForFilters = () => {
       const { employeeSize, state } = currentFilters
+      const abbr = state ? normalizeStateAbbr(state) : null
       if (employeeSize && state) {
-        // Both filters: use size bucket then narrow by state
-        const sizeList = firms.bySize?.[employeeSize] || []
-        return sizeList.filter(firm => statesMatch(getFirmStateName(firm), state))
+        // Both filters: look up byState[abbr][band] (compact array encoded)
+        return firms.byState?.[abbr]?.[employeeSize] || []
       }
-      if (employeeSize) return firms.bySize?.[employeeSize] || []
+      if (employeeSize) {
+        // Size only: use flat bySize[band] list
+        return firms.bySize?.[employeeSize] || []
+      }
       if (state) {
-        const abbr = normalizeStateAbbr(state)
-        return firms.byState?.[abbr] || []
+        // State only: use byState[abbr]._ default list
+        return firms.byState?.[abbr]?._ || []
       }
       return firms.default || []
     }
@@ -285,8 +288,10 @@ function MiniPanel({ topStates, topSegments }) {
               <th>Segment</th>
               <th className="col-hq-location">HQ Location</th>
               <th>Company City</th>
-              <th className="col-employee-size">Employee Size Bucket</th>
+              <th className="col-employee-size">Internal Employee Size Bucket</th>
+              <th>Growth 6M %</th>
               <th>Growth 1Y %</th>
+              <th>Growth 2Y %</th>
             </tr>
           </thead>
           <tbody>
@@ -325,8 +330,14 @@ function MiniPanel({ topStates, topSegments }) {
                       <span className="chip">{row.employeeSizeBucket}</span>
                     ) : '-'}
                   </td>
+                  <td className={getGrowthClass(row.growth6M)}>
+                    {formatGrowth(row.growth6M)}
+                  </td>
                   <td className={getGrowthClass(row.growth1Y)}>
                     {formatGrowth(row.growth1Y)}
+                  </td>
+                  <td className={getGrowthClass(row.growth2Y)}>
+                    {formatGrowth(row.growth2Y)}
                   </td>
                 </tr>
               )
@@ -424,7 +435,7 @@ function CTAForm() {
     
     // Validate required fields
     if (!formData.employeeBand) {
-      setError('Employee band size is required')
+      setError('Internal employee band size is required')
       return
     }
     
@@ -630,7 +641,7 @@ function CTAForm() {
 
       <div className="cta-form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
         <div>
-          <div className="form-label">Employee Band Size</div>
+          <div className="form-label">Internal Employee Band Size</div>
           <select
             className="form-select"
             value={formData.employeeBand}
@@ -797,22 +808,22 @@ function Dashboard() {
     return metrics.heatmapData[selectedSegment] || {}
   }
   
-  // Get top states for current segment
+  // Get top states for current segment (keyed by timeframe)
   const getTopStates = () => {
     if (!metrics || !metrics.segmentTopStates) {
-      return topStates || []  // Fallback to global
+      return {}  // Fallback
     }
     
     const selectedSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
-    return metrics.segmentTopStates[selectedSegment] || []
+    return metrics.segmentTopStates[selectedSegment] || {}
   }
   
-  // Get top segments - only show for "All segments" tab
+  // Get top segments - only show for "All segments" tab (keyed by timeframe)
   const getTopSegments = () => {
     if (activeTab === 0) {
-      return topSegments || []  // Show global segments ranking only on "All segments"
+      return metrics?.topSegmentsByGrowth || {}  // Show global segments ranking only on "All segments"
     }
-    return []  // Hide for individual segment tabs
+    return {}  // Hide for individual segment tabs
   }
 
   // Get table firms for current segment
@@ -863,14 +874,15 @@ function Dashboard() {
         {/* Section 1: Staffing Dashboard */}
         <section className="section-block">
           <div className="section-label">Staffing Dashboard</div>
+          <p className="section-subtitle" style={{ marginTop: '6px', marginBottom: '4px', fontSize: '13px', opacity: 0.7 }}>
+            Live insights from public records
+          </p>
           <h1 className="section-heading">See the signal for each staffing segment.</h1>
           <p className="section-subtitle">
             Filter thousands of staffing firms by segment, location, growth, and more.
           </p>
 
           <div className="panel">
-            <TabPills tabs={segments} activeTab={activeTab} onTabClick={setActiveTab} />
-
             {loading ? (
               <LoadingSpinner />
             ) : (
@@ -904,7 +916,7 @@ function Dashboard() {
           </h2>
 
           <div className="panel">
-            {loading ? <LoadingSpinner /> : <HeatMapWithRankings heatmapData={heatmapData} topStates={segmentTopStates} topSegments={segmentTopSegments} />}
+            {loading ? <LoadingSpinner /> : <HeatMapWithRankings heatmapData={heatmapData} topStatesByTimeframe={segmentTopStates} topSegmentsByTimeframe={segmentTopSegments} segments={segments} activeTab={activeTab} onTabClick={setActiveTab} />}
           </div>
         </section>
 

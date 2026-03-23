@@ -56,13 +56,7 @@ function ProtectedHeatMap({ firms }) {
     let filtered = records.filter(r => r.hqStateAbbr)
     
     if (filters.size !== 'all') {
-      filtered = filtered.filter(r => {
-        const count = Number(r.eeCount) || 0
-        if (filters.size === 'small') return count < 50
-        if (filters.size === 'medium') return count >= 50 && count <= 500
-        if (filters.size === 'large') return count > 500
-        return true
-      })
+      filtered = filtered.filter(r => r.employeeSizeBucket?.trim() === filters.size)
     }
     
     return filtered
@@ -281,9 +275,15 @@ function ProtectedHeatMap({ firms }) {
             onChange={(e) => setFilters({...filters, size: e.target.value})}
           >
             <option value="all">All sizes</option>
-            <option value="small">Small (&lt; 50)</option>
-            <option value="medium">Medium (50-500)</option>
-            <option value="large">Large (&gt; 500)</option>
+            <option value="1-5">1-5</option>
+            <option value="6-10">6-10</option>
+            <option value="11-20">11-20</option>
+            <option value="21-50">21-50</option>
+            <option value="51-100">51-100</option>
+            <option value="101-250">101-250</option>
+            <option value="251-500">251-500</option>
+            <option value="501-1000">501-1000</option>
+            <option value=">1000">&gt;1000</option>
           </select>
         </div>
       </div>
