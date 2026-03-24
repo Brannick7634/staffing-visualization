@@ -288,7 +288,7 @@ function MiniPanel({ topStates, topSegments }) {
               <th>Segment</th>
               <th className="col-hq-location">HQ Location</th>
               <th>Company City</th>
-              <th className="col-employee-size">Internal Employee Size Bucket</th>
+              <th className="col-employee-size">Size Bucket</th>
               <th>Growth 6M %</th>
               <th>Growth 1Y %</th>
               <th>Growth 2Y %</th>

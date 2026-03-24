@@ -99,13 +99,14 @@ function abbreviateFirm(f) {
 
 // Ultra-compact array encoding for byState per-band slices.
 // State and band are already known from the key structure so they are omitted.
-// Shape: [primarySegment, companyCity, eeCount, growth1Y, growth6M, growth2Y]
+// Shape: [primarySegment, companyCity, eeCount, growth1Y, growth6M, growth2Y, employeeSizeBucket]
 function abbreviateFirmCompact(f) {
-  return [f.primarySegment, f.companyCity, f.eeCount, f.growth1Y, f.growth6M, f.growth2Y]
+  return [f.primarySegment, f.companyCity, f.eeCount, f.growth1Y, f.growth6M, f.growth2Y, f.employeeSizeBucket || '']
 }
 
 // Expand compact array back to a full firm object.
 // stateAbbr and band must be supplied from the surrounding key context.
+// For the _ (state-only) bucket band is '' so arr[6] (stored bucket) is used instead.
 function expandFirmCompact(arr, stateAbbr, band) {
   return {
     primarySegment:     arr[0],
@@ -113,7 +114,7 @@ function expandFirmCompact(arr, stateAbbr, band) {
     hqLocation:         stateAbbr,
     companyCity:        arr[1],
     eeCount:            arr[2],
-    employeeSizeBucket: band || '',
+    employeeSizeBucket: band || arr[6] || '',
     growth1Y:           arr[3],
     growth6M:           arr[4],
     growth2Y:           arr[5],

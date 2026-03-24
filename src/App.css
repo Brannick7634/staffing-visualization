@@ -425,8 +425,8 @@ th {
 }
 
 .col-employee-size {
-  width: 140px;
-  max-width: 160px;
+  width: 110px;
+  max-width: 120px;
   white-space: nowrap;
   text-align: center;
 }
