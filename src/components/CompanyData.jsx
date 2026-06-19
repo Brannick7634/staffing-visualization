@@ -12,9 +12,9 @@ const dashboardModel = {
     description: 'Live hiring activity and momentum based on 50,000+ job boards and company career pages worldwide.',
     loadingDelay: 1400,
     actions: [
-      { id: 'dashboard', label: 'Go to Dashboard', icon: 'screen' },
       { id: 'help', label: 'How it works', icon: 'info' },
       { id: 'export', label: 'Export', icon: 'download' },
+      { id: 'dashboard', label: 'Go to Dashboard', icon: 'screen' },
     ],
   },
   howItWorks: {
@@ -270,12 +270,10 @@ function KpiCard({ icon, label, value, change, comparison, variant = 'teal', spa
 
 function PageLoader() {
   return (
-    <main className="company-page-loader" role="status" aria-label="Loading Job Signals">
-      <div className="company-page-loader-content">
-        <div className="spinner" aria-hidden="true" />
-        <p>Loading data...</p>
-      </div>
-    </main>
+    <div className="company-page-loader-content" aria-label='Loading Company Data'>
+      <div className="spinner" aria-hidden="true" />
+      <p>Loading data...</p>
+    </div>
   )
 }
 
@@ -576,11 +574,9 @@ export default function CompanyDetails() {
   const selected = industries[industry]
 
   useEffect(() => {
-    document.body.classList.add('company-details-body')
     const apiTimer = window.setTimeout(() => setPageLoading(false), header.loadingDelay)
 
     return () => {
-      document.body.classList.remove('company-details-body')
       window.clearTimeout(apiTimer)
     }
   }, [header.loadingDelay])
@@ -706,174 +702,186 @@ export default function CompanyDetails() {
     setShowHowItWorks(true)
   }
 
-  if (pageLoading) return <PageLoader />
+  if (pageLoading) return (
+    <div className="page-wrappers" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 48px)' , gap:0}}>
+      <PageLoader />
+    </div>
+  )
 
   return (
     <>
-      <main className="company-details-page">
-      <header className="company-details-header">
-        <div>
-          <p className="company-title">{header.title}</p>
-          <p className="company-eyebrow">{header.eyebrow}</p>
-          <p className="company-description">{header.description}</p>
-        </div>
-        <div className="company-header-actions">
-          <div className="company-top-buttons">
-            {header.actions.map(action => (
-              <button
-                type="button"
-                key={action.id}
-                className={action.id === 'dashboard' ? 'pill-btn company-dashboard-button' : undefined}
-                onClick={() => handleHeaderAction(action.id)}
-              >
-                {action.id !=='dashboard' && <Icon name={action.icon} size={18} />}
-                {action.label}
-              </button>
-            ))}
-          </div>
-          <div className="company-filter-buttons">
-            {filterControls.map(control => (
-              <button type="button" key={control.id}>
-                <Icon name={control.icon} size={19} />
-                {control.label}
-                <Icon name="chevron" size={17} />
-              </button>
-            ))}
-          </div>
-        </div>
-      </header>
-
-      <section className="company-kpi-grid" aria-label={summary.ariaLabel}>
-        {kpiCards.map(card => (
-          <KpiCard key={card.id} {...card} />
-        ))}
-      </section>
-
-      <section className="company-dashboard-grid">
-        <div className="company-left-column">
-          <article className="company-panel company-momentum-panel">
-            <div className="company-panel-heading">
+      <div className="page-wrapper">
+        <div className="dashboard-shell">
+          <main className="company-details-page">
+            <header className="company-details-header">
               <div>
-                <h2>{momentum.title} <Icon name="info" size={16} /></h2>
-                <p>{momentum.subtitle}</p>
+                <p className="company-title">{header.title}</p>
+                <p className="company-eyebrow">{header.eyebrow}</p>
+                <p className="company-description">{header.description}</p>
               </div>
-              <button type="button" className="company-select-button">{momentum.periodLabel} <Icon name="chevron" size={15} /></button>
-            </div>
-
-            <div className="company-momentum-chart is-ready">
-              <div className="company-industry-list">
-                {momentum.rows.map(row => (
-                  <div className="company-industry-name" key={row.name}>
-                    <span className={row.value < 0 ? 'negative' : ''}><Icon name={row.icon} size={16} /></span>
-                    {row.name}
-                  </div>
-                ))}
-              </div>
-              <div className="company-bars">
-                <div className="company-zero-line" />
-                {momentum.rows.map((row, index) => (
-                  <div
-                    className="company-bar-row company-tooltip-target"
-                    key={row.name}
-                    style={{ '--chart-delay': `${index * 70}ms` }}
-                    tabIndex="0"
-                    aria-describedby={`momentum-tooltip-${index}`}
-                  >
-                    <div className="company-bar-side negative">
-                      {row.value < 0 && <span style={{ width: `${Math.abs(row.value) / momentumScale * 100}%` }} />}
-                    </div>
-                    <div className="company-bar-side positive">
-                      {row.value > 0 && <span style={{ width: `${row.value / momentumScale * 100}%` }} />}
-                    </div>
-                    <strong>{row.value > 0 ? '+' : ''}{row.value.toFixed(1)}%</strong>
-                    <span className="company-data-tooltip" id={`momentum-tooltip-${index}`} role="tooltip">
-                      <strong>{row.name}</strong>
-                      <small>{row.value > 0 ? '+' : ''}{row.value.toFixed(1)}% · {momentum.axisTitle}</small>
-                    </span>
-                  </div>
-                ))}
-                <div className="company-axis">
-                  {momentum.axisValues.map(value => <span key={value}>{value > 0 ? '+' : ''}{value}%</span>)}
+              <div className="company-header-actions">
+                <div className="company-top-buttons">
+                  {header.actions.map(action => (
+                    <button
+                      type="button"
+                      key={action.id}
+                      className={action.id === 'dashboard' ? 'pill-btn company-dashboard-button' : undefined}
+                      onClick={() => handleHeaderAction(action.id)}
+                    >
+                      {action.id !== 'dashboard' && <Icon name={action.icon} size={18} />}
+                      {action.label}
+                    </button>
+                  ))}
                 </div>
-                <div className="company-axis-title">{momentum.axisTitle}</div>
+                <div className="company-filter-buttons">
+                  {filterControls.map(control => (
+                    <button type="button" key={control.id}>
+                      <Icon name={control.icon} size={19} />
+                      {control.label}
+                      <Icon name="chevron" size={17} />
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </article>
+            </header>
 
-          <article className="company-panel company-trend-panel">
-            <div className="company-panel-heading">
-              <h2>{trend.title} <Icon name="info" size={16} /></h2>
-              <select value={industry} onChange={handleIndustryChange} aria-label={trend.title}>
-                {industryNames.map(name => <option key={name}>{name}</option>)}
-              </select>
-            </div>
-            <div className="company-trend-tabs">
-              {trendTabs.map(tab => (
-                <button key={tab} type="button" className={trendTab === tab ? 'active' : ''} onClick={() => handleTrendChange(tab)}>{tab}</button>
+            <section className="company-kpi-grid" aria-label={summary.ariaLabel}>
+              {kpiCards.map(card => (
+                <KpiCard key={card.id} {...card} />
               ))}
-            </div>
-            <div className="company-trend-chart is-ready">
-              <TrendChart
-                key={`${industry}-${trendTab}`}
-                values={values}
-                labels={trendPointLabels}
-                ariaLabel={trend.chartAriaLabel}
-                industry={industry}
-                metricLabel={trendTab}
-                domainMaximum={trendYAxis.maximum}
-                startDate={trend.startMonth}
-                endDate={trend.endMonth}
-              />
-            </div>
-            <p className="company-trend-zoom-hint">{trend.zoomHint}</p>
-            <p className="company-source">{source.label}: {source.detail} <Icon name="info" size={13} /></p>
-          </article>
-        </div>
+            </section>
 
-        <article className="company-panel company-snapshot-panel">
-          <div className="company-panel-heading">
-            <h2>{snapshot.title}</h2>
-            <select value={industry} onChange={handleIndustryChange} aria-label={snapshot.title}>
-              {industryNames.map(name => <option key={name}>{name}</option>)}
-            </select>
-          </div>
-          <div className="company-snapshot-title">
-            <span><Icon name={selected.icon} size={28} /></span>
-            <div><h3>{industry}</h3><p>{selected.status}</p></div>
-          </div>
-          <div className="company-snapshot-stats">
-            {snapshot.metrics.map(metric => (
-              <div key={metric.key}>
-                <strong>{formatNumber(selected[metric.key])}</strong>
-                <small>{metric.label}</small>
-                <em>↑ {selected.changes[metric.changeKey].toFixed(1)}%</em>
-                <span>{snapshot.comparisonLabel}</span>
+            <section className="company-dashboard-grid">
+              <div className="company-left-column">
+                <article className="company-panel company-momentum-panel">
+                  <div className="company-panel-heading">
+                    <div>
+                      <h2>{momentum.title} <Icon name="info" size={16} /></h2>
+                      <p>{momentum.subtitle}</p>
+                    </div>
+                    <button type="button" className="company-select-button">{momentum.periodLabel} <Icon name="chevron" size={15} /></button>
+                  </div>
+
+                  <div className="company-momentum-chart is-ready">
+                    <div className="company-industry-list">
+                      {momentum.rows.map(row => (
+                        <div className="company-industry-name" key={row.name}>
+                          <span className={row.value < 0 ? 'negative' : ''}><Icon name={row.icon} size={16} /></span>
+                          {row.name}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="company-bars">
+                      <div className="company-zero-line" />
+                      {momentum.rows.map((row, index) => (
+                        <div
+                          className="company-bar-row company-tooltip-target"
+                          key={row.name}
+                          style={{ '--chart-delay': `${index * 70}ms` }}
+                          tabIndex="0"
+                          aria-describedby={`momentum-tooltip-${index}`}
+                        >
+                          <div className="company-bar-side negative">
+                            {row.value < 0 && <span style={{ width: `${Math.abs(row.value) / momentumScale * 100}%` }} />}
+                          </div>
+                          <div className="company-bar-side positive">
+                            {row.value > 0 && <span style={{ width: `${row.value / momentumScale * 100}%` }} />}
+                          </div>
+                          <strong>{row.value > 0 ? '+' : ''}{row.value.toFixed(1)}%</strong>
+                          <span className="company-data-tooltip" id={`momentum-tooltip-${index}`} role="tooltip">
+                            <strong>{row.name}</strong>
+                            <small>{row.value > 0 ? '+' : ''}{row.value.toFixed(1)}% · {momentum.axisTitle}</small>
+                          </span>
+                        </div>
+                      ))}
+                      <div className="company-axis">
+                        {momentum.axisValues.map(value => <span key={value}>{value > 0 ? '+' : ''}{value}%</span>)}
+                      </div>
+                      <div className="company-axis-title">{momentum.axisTitle}</div>
+                    </div>
+                  </div>
+                </article>
+
+                <article className="company-panel company-trend-panel">
+                  <div className="company-panel-heading">
+                    <h2>{trend.title} <Icon name="info" size={16} /></h2>
+                    <select value={industry} onChange={handleIndustryChange} aria-label={trend.title}>
+                      {industryNames.map(name => <option key={name}>{name}</option>)}
+                    </select>
+                  </div>
+                  <div className="company-trend-tabs">
+                    {trendTabs.map(tab => (
+                      <button key={tab} type="button" className={trendTab === tab ? 'active' : ''} onClick={() => handleTrendChange(tab)}>{tab}</button>
+                    ))}
+                  </div>
+                  <div className="company-trend-chart is-ready">
+                    <TrendChart
+                      key={`${industry}-${trendTab}`}
+                      values={values}
+                      labels={trendPointLabels}
+                      ariaLabel={trend.chartAriaLabel}
+                      industry={industry}
+                      metricLabel={trendTab}
+                      domainMaximum={trendYAxis.maximum}
+                      startDate={trend.startMonth}
+                      endDate={trend.endMonth}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex' }}>
+                      <p className="company-source">{source.label}: {source.detail} <Icon name="info" size={13} /></p>
+                    </div>
+                    <p className="company-trend-zoom-hint">{trend.zoomHint}</p>
+                  </div>
+                </article>
               </div>
-            ))}
-          </div>
-          <div className="company-functions is-ready">
-            <h4>{snapshot.functionsTitle}</h4>
-            {selected.functions.map((item, index) => (
-              <div
-                className="company-function-row company-tooltip-target"
-                key={item.name}
-                style={{ '--chart-delay': `${index * 80}ms` }}
-                tabIndex="0"
-                aria-describedby={`function-tooltip-${index}`}
-              >
-                <span>{item.name}</span>
-                <div><i style={{ width: `${item.width}%` }} /></div>
-                <strong>{formatNumber(item.value)}</strong>
-                <span className="company-data-tooltip" id={`function-tooltip-${index}`} role="tooltip">
-                  <strong>{item.name}</strong>
-                  <small>{formatNumber(item.value)} {snapshot.functionMetricLabel}</small>
-                </span>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-      </main>
+
+              <article className="company-panel company-snapshot-panel">
+                <div className="company-panel-heading">
+                  <h2>{snapshot.title}</h2>
+                  <select value={industry} onChange={handleIndustryChange} aria-label={snapshot.title}>
+                    {industryNames.map(name => <option key={name}>{name}</option>)}
+                  </select>
+                </div>
+                <div className="company-snapshot-title">
+                  <span><Icon name={selected.icon} size={28} /></span>
+                  <div><h3>{industry}</h3><p>{selected.status}</p></div>
+                </div>
+                <div className="company-snapshot-stats">
+                  {snapshot.metrics.map(metric => (
+                    <div key={metric.key}>
+                      <strong>{formatNumber(selected[metric.key])}</strong>
+                      <small>{metric.label}</small>
+                      <em>↑ {selected.changes[metric.changeKey].toFixed(1)}%</em>
+                      <span>{snapshot.comparisonLabel}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="company-functions is-ready">
+                  <h4>{snapshot.functionsTitle}</h4>
+                  {selected.functions.map((item, index) => (
+                    <div
+                      className="company-function-row company-tooltip-target"
+                      key={item.name}
+                      style={{ '--chart-delay': `${index * 80}ms` }}
+                      tabIndex="0"
+                      aria-describedby={`function-tooltip-${index}`}
+                    >
+                      <span>{item.name}</span>
+                      <div><i style={{ width: `${item.width}%` }} /></div>
+                      <strong>{formatNumber(item.value)}</strong>
+                      <span className="company-data-tooltip" id={`function-tooltip-${index}`} role="tooltip">
+                        <strong>{item.name}</strong>
+                        <small>{formatNumber(item.value)} {snapshot.functionMetricLabel}</small>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </section>
+          </main>
+        </div>
+      </div>
       {showHowItWorks && <HowItWorksModal content={howItWorks} onClose={() => setShowHowItWorks(false)} />}
     </>
   )

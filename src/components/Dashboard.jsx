@@ -690,7 +690,7 @@ function CTAForm() {
       </div>
 
       <div>
-        <div className="form-label">Employee Headcount Growth (%)</div>
+        <div className="form-label">Employee Headcount Growth (%)*</div>
         <select
           className="form-select"
           value={formData.internalHeadcountGrowth}

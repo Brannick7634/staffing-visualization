@@ -27,7 +27,7 @@ import {
 import { getUniqueValidStates, statesMatch, getFirmStateName } from '../utils/stateNormalization'
 
 // Protected Header Component
-function ProtectedHeader({ user, onLogout, onCompanyData, onHomeClick}) {
+function ProtectedHeader({ user, onLogout, onCompanyData, onHomeClick }) {
   return (
     <header className="top-bar">
       <div className="top-bar-left">
@@ -38,8 +38,8 @@ function ProtectedHeader({ user, onLogout, onCompanyData, onHomeClick}) {
         </div>
       </div>
       <div className="top-bar-right">
-        <span style={{ 
-          marginRight: '10px', 
+        <span style={{
+          marginRight: '10px',
           color: 'var(--text-primary)',
           fontSize: '14px',
           fontWeight: '500'
@@ -135,7 +135,7 @@ function PeerPositionPanel({ user, firms }) {
     const allSegmentGrowthValues = segmentFirms
       .map(firm => (Number(firm.growth1Y) || 0) * 100)
       .filter(g => !isNaN(g))
-    
+
     const userGrowth = allSegmentGrowthValues.length > 0
       ? allSegmentGrowthValues.reduce((sum, val) => sum + val, 0) / allSegmentGrowthValues.length
       : 0
@@ -148,7 +148,7 @@ function PeerPositionPanel({ user, firms }) {
       const sameSize = userSizeBuckets.includes(firm.employeeSizeBucket)
       return sameSize
     })
-    
+
     // Get growth values for peer median calculation
     const peerGrowthValues = peerFirms
       .map(firm => (Number(firm.growth1Y) || 0) * 100)
@@ -156,7 +156,7 @@ function PeerPositionPanel({ user, firms }) {
 
     // Formula 17: Calculate peer median growth using the already filtered peer firms
     const peerMedianGrowth = calculateMedianGrowth(peerFirms)
-    
+
     // Calculate IQR growth (outliers removed)
     const iqrData = calculatePeerIQRGrowth(peerFirms) || {}
 
@@ -167,7 +167,7 @@ function PeerPositionPanel({ user, firms }) {
     // Determine position
     let position = ''
     let positionText = ''
-    
+
     if (Math.abs(gap) < 2) {
       position = 'close to'
       positionText = `You are tracking closely with your peer group (within ${Math.abs(gap).toFixed(1)}% of median)`
@@ -205,22 +205,23 @@ function PeerPositionPanel({ user, firms }) {
         <div className="section-label" style={{ marginBottom: '8px' }}>
           My Position vs Market
         </div>
-        <div style={{ 
-          fontSize: '18px', 
-          fontWeight: '700', 
+        <div style={{
+          fontSize: '18px',
+          fontWeight: '700',
           marginBottom: '16px',
           color: peerData.gap >= 2 ? 'var(--accent-teal)' : peerData.gap <= -2 ? 'var(--accent-pink)' : 'var(--text-primary)'
         }}>
           You are <span style={{ textDecoration: 'underline' }}>{peerData.position}</span> your peer group
         </div>
-        
+
         <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
           {peerData.positionText}
         </div>
 
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(4, 1fr)', 
+        <div style={{
+          display: 'grid',
+          paddingLeft: "10px",
+          gridTemplateColumns: 'repeat(2, 1fr)',
           gap: '16px',
           marginTop: '16px',
           paddingTop: '16px',
@@ -235,8 +236,8 @@ function PeerPositionPanel({ user, firms }) {
               Avg of all firms in {user?.primarySegment}
             </div>
           </div>
-          
-          <div>
+
+          {/* <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Q1 (25TH PERCENTILE)</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.iqrQ1 > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
               {peerData.iqrQ1 > 0 ? '+' : ''}{(peerData.iqrQ1 || 0).toFixed(2)}%
@@ -244,10 +245,10 @@ function PeerPositionPanel({ user, firms }) {
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
               Lower quartile growth
             </div>
-          </div>
+          </div> */}
 
           <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>MEDIAN (Q2)</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>MEDIAN</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.dataMedian > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
               {peerData.dataMedian > 0 ? '+' : ''}{(peerData.dataMedian || 0).toFixed(2)}%
             </div>
@@ -256,7 +257,7 @@ function PeerPositionPanel({ user, firms }) {
             </div>
           </div>
 
-          <div>
+          {/* <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Q3 (75TH PERCENTILE)</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: peerData.iqrQ3 > 0 ? 'var(--accent-teal)' : 'var(--accent-pink)' }}>
               {peerData.iqrQ3 > 0 ? '+' : ''}{(peerData.iqrQ3 || 0).toFixed(2)}%
@@ -264,28 +265,30 @@ function PeerPositionPanel({ user, firms }) {
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
               Upper quartile growth
             </div>
-          </div>
+          </div> */}
         </div>
 
-        <div style={{ 
+        <div style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: '12px',
           marginTop: '16px'
         }}>
-          <div style={{ 
+          <div style={{
             padding: '10px 14px',
+            display: "flex",
+            flexDirection: "column",
+            rowGap: "4px",
             background: 'rgba(0, 0, 0, 0.2)',
             borderRadius: '8px',
             fontSize: '11px',
             color: 'var(--text-muted)'
           }}>
-            <strong>Your Avg Growth:</strong> Average of all {peerData.segmentFirmCount} firms in {user?.primarySegment} segment
-            <br />
-            <strong>Peer Median:</strong> Median of {peerData.peerFirmCount} firms with same size ({user?.employeeBandSize})
+            <div><strong>Your Avg Growth:</strong> Average of all {peerData.segmentFirmCount} firms in {user?.primarySegment} segment</div>
+            <div><strong>Peer Median:</strong> Median of {peerData.peerFirmCount} firms with same size ({user?.employeeBandSize})</div>
           </div>
 
-          <div style={{ 
+          <div style={{
             padding: '10px 14px',
             background: 'rgba(16, 217, 205, 0.1)',
             border: '1px solid rgba(16, 217, 205, 0.3)',
@@ -293,7 +296,7 @@ function PeerPositionPanel({ user, firms }) {
             fontSize: '11px',
             color: 'var(--text-muted)'
           }}>
-            <span style={{ color: 'var(--accent-teal)', fontWeight: '600' }}>💡 Median (Q2):</span> The 50th percentile - the middle value when all peer firms are sorted by growth rate. Half of peers grow faster, half grow slower.
+            <span style={{ color: 'var(--accent-teal)', fontWeight: '600' }}>💡 Median:</span> The 50th percentile - the middle value when all peer firms are sorted by growth rate. Half of peers grow faster, half grow slower.
           </div>
         </div>
       </div>
@@ -306,18 +309,36 @@ function ProtectedDataTable({ firms }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [filters, setFilters] = useState({
     state: '',
+    city: '',
     employeeBand: '',
     growthBand: '',
+    growth6M: '',
+    growth2Y: '',
   })
   const recordsPerPage = 30
-  
+
   // Get segment options from constants
   const segmentOptions = SEGMENT_NAMES.sort()
-  
+
   // Get state options - use normalized unique valid states
   const stateOptions = getUniqueValidStates(firms)
-  
+
   const employeeBandOptions = [...new Set(firms.map(f => f.employeeSizeBucket).filter(Boolean))].sort()
+  const cityOptions = [
+    ...new Set(
+      firms
+        .map(f => f.companyCity)
+        .filter(Boolean)
+    )
+  ].sort()
+
+  const growthRangeOptions = [
+    'Negative',
+    '0-5%',
+    '5-10%',
+    '10-20%',
+    '20%+',
+  ]
   const growthBandOptions = [
     'Negative',
     '0-5%',
@@ -325,12 +346,24 @@ function ProtectedDataTable({ firms }) {
     '10-20%',
     '20%+',
   ]
-  
+
   // Formula 19: Calculate average headcount growth across timeframes
   const calculateAvgHeadcountGrowth = (firm) => {
     return calculateAverageHeadcountGrowth(firm)
   }
-  
+
+  const matchesGrowthBand = (value, band) => {
+    const growth = (Number(value) || 0) * 100
+
+    if (band === 'Negative') return growth < 0
+    if (band === '0-5%') return growth >= 0 && growth <= 5
+    if (band === '5-10%') return growth > 5 && growth <= 10
+    if (band === '10-20%') return growth > 10 && growth <= 20
+    if (band === '20%+') return growth > 20
+
+    return true
+  }
+
   // Apply filters to data
   const filteredFirms = firms.filter((firm) => {
     // Handle state filter with fuzzy matching
@@ -338,9 +371,9 @@ function ProtectedDataTable({ firms }) {
       const firmState = getFirmStateName(firm)
       if (!statesMatch(firmState, filters.state)) return false
     }
-    
+
     if (filters.employeeBand && firm.employeeSizeBucket !== filters.employeeBand) return false
-    
+
     if (filters.growthBand) {
       // growth1Y is a decimal (0.03 = 3%, -0.1 = -10%), convert to percentage
       const growthDecimal = Number(firm.growth1Y) || 0
@@ -351,46 +384,68 @@ function ProtectedDataTable({ firms }) {
       if (filters.growthBand === '10-20%' && (growth < 10 || growth > 20)) return false
       if (filters.growthBand === '20%+' && growth < 20) return false
     }
-    
+
+    if (filters.city) {
+      const firmCity = String(firm.companyCity || '')
+        .trim()
+        .toLowerCase()
+
+      const selectedCity = String(filters.city)
+        .trim()
+        .toLowerCase()
+
+      if (firmCity !== selectedCity) {
+        return false
+      }
+    }
+
+    if (filters.growth6M && !matchesGrowthBand(firm.growth6M, filters.growth6M)) {
+      return false
+    }
+
+    if (filters.growth2Y && !matchesGrowthBand(firm.growth2Y, filters.growth2Y)) {
+      return false
+    }
+
     return true
   })
-  
+
   // Calculate pagination based on filtered data
   const totalPages = Math.ceil(filteredFirms.length / recordsPerPage)
   const startIndex = (currentPage - 1) * recordsPerPage
   const endIndex = startIndex + recordsPerPage
   const currentRecords = filteredFirms.slice(startIndex, endIndex)
-  
+
   // Reset to page 1 when filters change
   const handleFilterChange = (filterName, value) => {
     setFilters((prev) => ({ ...prev, [filterName]: value }))
     setCurrentPage(1)
   }
-  
+
   // Clear all filters
   const clearFilters = () => {
     setFilters({ state: '', employeeBand: '', growthBand: '' })
     setCurrentPage(1)
   }
-  
+
   // Handle page changes
   const goToPage = (page) => {
     setCurrentPage(page)
   }
-  
+
   const goToPrevious = () => {
     if (currentPage > 1) goToPage(currentPage - 1)
   }
-  
+
   const goToNext = () => {
     if (currentPage < totalPages) goToPage(currentPage + 1)
   }
-  
+
   // Generate page numbers to show
   const getPageNumbers = () => {
     const pages = []
     const maxPagesToShow = 5
-    
+
     if (totalPages <= maxPagesToShow) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i)
@@ -414,70 +469,123 @@ function ProtectedDataTable({ firms }) {
         pages.push(totalPages)
       }
     }
-    
+
     return pages
   }
-  
+
   return (
     <>
       {/* Filters */}
       <div className="table-filters">
-        <div className="filter-group">
-          <label className="filter-label">HQ State:</label>
-          <select 
-            className="filter-select"
-            value={filters.state}
-            onChange={(e) => handleFilterChange('state', e.target.value)}
-          >
-            <option value="">All States</option>
-            {stateOptions.map((option, index) => (
-              <option key={`state-${index}-${option}`} value={option}>{option}</option>
-            ))}
-          </select>
+
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div className="filter-group">
+            <label className="filter-label">HQ State:</label>
+            <select
+              className="filter-select"
+              value={filters.state}
+              onChange={(e) => handleFilterChange('state', e.target.value)}
+            >
+              <option value="">All States</option>
+              {stateOptions.map((option, index) => (
+                <option key={`state-${index}-${option}`} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Company City:</label>
+            <select
+              className="filter-select"
+              value={filters.city}
+              onChange={(e) => handleFilterChange('city', e.target.value)}
+            >
+              <option value="">All Cities</option>
+              {cityOptions.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Internal Employee Band:</label>
+            <select
+              className="filter-select"
+              value={filters.employeeBand}
+              onChange={(e) => handleFilterChange('employeeBand', e.target.value)}
+            >
+              <option value="">All Bands</option>
+              {employeeBandOptions.map((option, index) => (
+                <option key={`band-${index}-${option}`} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        
-        <div className="filter-group">
-          <label className="filter-label">Internal Employee Band:</label>
-          <select 
-            className="filter-select"
-            value={filters.employeeBand}
-            onChange={(e) => handleFilterChange('employeeBand', e.target.value)}
-          >
-            <option value="">All Bands</option>
-            {employeeBandOptions.map((option, index) => (
-              <option key={`band-${index}-${option}`} value={option}>{option}</option>
-            ))}
-          </select>
+
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div className="filter-group">
+            <label className="filter-label">Growth Band (6-M):</label>
+            <select
+              className="filter-select"
+              value={filters.growth6M}
+              onChange={(e) => handleFilterChange('growth6M', e.target.value)}
+            >
+              <option value="">All Growth</option>
+              {growthRangeOptions.map(option => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Growth Band (1-yr):</label>
+            <select
+              className="filter-select"
+              value={filters.growthBand}
+              onChange={(e) => handleFilterChange('growthBand', e.target.value)}
+            >
+              <option value="">All Growth</option>
+              {growthBandOptions.map((option, index) => (
+                <option key={`growth-${index}-${option}`} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Growth Band (2-Yr):</label>
+            <select
+              className="filter-select"
+              value={filters.growth2Y}
+              onChange={(e) => handleFilterChange('growth2Y', e.target.value)}
+            >
+              <option value="">All Growth</option>
+              {growthRangeOptions.map(option => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        
-        <div className="filter-group">
-          <label className="filter-label">Growth Band (1-yr):</label>
-          <select 
-            className="filter-select"
-            value={filters.growthBand}
-            onChange={(e) => handleFilterChange('growthBand', e.target.value)}
-          >
-            <option value="">All Growth</option>
-            {growthBandOptions.map((option, index) => (
-              <option key={`growth-${index}-${option}`} value={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-        
-        {(filters.state || filters.employeeBand || filters.growthBand) && (
+
+        {(filters.state || filters.employeeBand || filters.growthBand || filters.growth2Y || filters.growth6M || filters.city) && (
           <button className="filter-clear-btn" onClick={clearFilters}>
             Clear Filters
           </button>
         )}
       </div>
-      
+
       {/* <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span>💡</span>
           <span>Scroll horizontally to view all columns →</span>
         </div>
       </div> */}
-      
+
       <div className="table-wrapper" style={{ overflowX: 'auto' }}>
         <table style={{ minWidth: '1000px' }}>
           <thead>
@@ -486,7 +594,7 @@ function ProtectedDataTable({ firms }) {
               <th style={{ minWidth: '50px', maxWidth: '60px' }}>HQ<br />Location</th>
               <th style={{ minWidth: '80px', maxWidth: '100px' }}>Company<br />City</th>
               <th style={{ minWidth: '90px', maxWidth: '110px', textAlign: 'center' }}>Internal<br />Employees<br />Headcount</th>
-              <th style={{ minWidth: '90px', maxWidth: '110px', textAlign: 'center' }}>Avg<br />Headcount<br />Growth</th>
+              {/* <th style={{ minWidth: '90px', maxWidth: '110px', textAlign: 'center' }}>Avg<br />Headcount<br />Growth</th> */}
               <th style={{ minWidth: '90px', maxWidth: '110px', textAlign: 'center' }}>6-Month<br />Growth</th>
               <th style={{ minWidth: '90px', maxWidth: '110px', textAlign: 'center' }}>1-Year<br />Growth</th>
               <th style={{ minWidth: '90px', maxWidth: '110px', textAlign: 'center' }}>2-Year<br />Growth</th>
@@ -500,7 +608,7 @@ function ProtectedDataTable({ firms }) {
                 const percentage = convertDecimalToPercentage(value)
                 return formatGrowthPercentage(percentage)
               }
-              
+
               const getGrowthClass = (value) => {
                 if (value === null || value === undefined || value === '-') return ''
                 // Handle both decimal values (0.03) and formatted strings ("+3%")
@@ -515,7 +623,7 @@ function ProtectedDataTable({ firms }) {
                 if (numValue < 0) return 'text-negative'
                 return ''
               }
-              
+
               // Format segment name: keep USLH, EOR, PEO, IT, MGF as-is, capitalize first letter for others
               const formatSegmentName = (name) => {
                 if (!name) return '-'
@@ -523,11 +631,11 @@ function ProtectedDataTable({ firms }) {
                 if (upperCaseSegments.includes(name)) return name
                 return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
               }
-              
+
               // Calculate and format average headcount growth
               const avgGrowth = calculateAvgHeadcountGrowth(row)
               const formattedAvgGrowth = formatGrowthPercentage(avgGrowth)
-              
+
               return (
                 <tr key={row.id || index}>
                   <td>{formatSegmentName(row.primarySegment)}</td>
@@ -538,9 +646,9 @@ function ProtectedDataTable({ firms }) {
                       <span className="chip">{row.employeeSizeBucket}</span>
                     ) : '-'}
                   </td>
-                  <td className={getGrowthClass(formattedAvgGrowth)} style={{ textAlign: 'center' }}>
+                  {/* <td className={getGrowthClass(formattedAvgGrowth)} style={{ textAlign: 'center' }}>
                     {formattedAvgGrowth}
-                  </td>
+                  </td> */}
                   <td className={getGrowthClass(row.growth6M)} style={{ textAlign: 'center' }}>
                     {formatGrowthValue(row.growth6M)}
                   </td>
@@ -556,17 +664,17 @@ function ProtectedDataTable({ firms }) {
           </tbody>
         </table>
       </div>
-      
+
       {totalPages > 1 && (
         <div className="pagination">
-          <button 
+          <button
             className="pagination-btn"
             onClick={goToPrevious}
             disabled={currentPage === 1}
           >
             ← Previous
           </button>
-          
+
           <div className="pagination-numbers">
             {getPageNumbers().map((page, index) => (
               page === '...' ? (
@@ -582,8 +690,8 @@ function ProtectedDataTable({ firms }) {
               )
             ))}
           </div>
-          
-          <button 
+
+          <button
             className="pagination-btn"
             onClick={goToNext}
             disabled={currentPage === totalPages}
@@ -592,7 +700,7 @@ function ProtectedDataTable({ firms }) {
           </button>
         </div>
       )}
-      
+
       <div className={`pagination-info ${totalPages <= 1 ? 'pagination-info-no-pages' : ''}`}>
         Showing {filteredFirms.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, filteredFirms.length)} of {filteredFirms.length} records
         {filteredFirms.length !== firms.length && (
@@ -608,10 +716,10 @@ function ProtectedDataTable({ firms }) {
 // Protected Loading Spinner Component
 function ProtectedLoadingSpinner() {
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
       padding: '40px',
       color: 'var(--text-muted)'
     }}>
@@ -676,7 +784,7 @@ function UserEditForm({ user, onCancel }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     const validationError = validateForm()
     if (validationError) {
       setError(validationError)
@@ -688,7 +796,7 @@ function UserEditForm({ user, onCancel }) {
 
     try {
       const result = await updateUserProfile(user.id, formData)
-      
+
       if (result.success) {
         // Update the auth context with new user data
         updateUser(result.user)
@@ -705,7 +813,7 @@ function UserEditForm({ user, onCancel }) {
   }
 
   return (
-    <form id="edit-form" onSubmit={handleSubmit} style={{ 
+    <form id="edit-form" onSubmit={handleSubmit} style={{
       display: 'none',
       marginTop: '24px',
       padding: '24px',
@@ -715,7 +823,7 @@ function UserEditForm({ user, onCancel }) {
       <h3 style={{ fontSize: '16px', marginBottom: '16px', color: 'var(--text-primary)' }}>
         Edit Profile Information
       </h3>
-      
+
       {error && (
         <div style={{
           padding: '12px',
@@ -913,19 +1021,19 @@ function UserEditForm({ user, onCancel }) {
 function ProtectedDashboard() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  
+
   // Initialize activeTab from sessionStorage or default to 0
   const [activeTab, setActiveTab] = useState(() => {
     const saved = sessionStorage.getItem('selectedSegmentTab')
     return saved ? parseInt(saved, 10) : 0
   })
-  
+
   const { firms, loading, isConfigured } = useProtectedData(user)
   const { metrics, loading: metricsLoading } = useAirtableData() // Get pre-computed metrics
   const [selectedState, setSelectedState] = useState('')
-  
+
   const segments = ['All segments', ...SEGMENT_NAMES.sort()]
-  
+
   // Protected page: firms are already filtered by user's segment in the API call
   // This reduces data transfer and improves performance
   // firms = user's segment firms only (e.g., 49 agriculture firms)
@@ -939,49 +1047,49 @@ function ProtectedDashboard() {
     logout()
     navigate('/')
   }
-  
+
   // Filter firms by selected segment
   const getFilteredFirmsBySegment = () => {
     if (activeTab === 0 || segments[activeTab] === 'All segments') {
       return firms
     }
-    
+
     const selectedSegment = segments[activeTab]
     return firms.filter(firm => firmHasPrimarySegment(firm, selectedSegment))
   }
-  
+
   // Filter allFirms (for HeatMap) by selected segment - now get from pre-computed metrics
   const getHeatmapData = () => {
     if (!metrics || !metrics.heatmapData) {
       return {}
     }
-    
+
     const selectedSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
     const data = metrics.heatmapData[selectedSegment] || {}
     return data
   }
-  
+
   // Get filtered firms for all calculations
   const segmentFilteredFirms = getFilteredFirmsBySegment()
   const heatmapData = getHeatmapData()
-  
+
   // For county visualization, use segment-specific county data
   // Convert countyData back to firm array format for ProtectedCountyMap
   const allFirmsForCountyViz = useMemo(() => {
     const currentSegment = activeTab === 0 ? 'All segments' : segments[activeTab]
-    
+
     if (!metrics?.countyDataBySegment) {
       return []
     }
-    
+
     // Get county data for current segment
     const segmentCountyData = metrics.countyDataBySegment[currentSegment]
     if (!segmentCountyData) {
       return []
     }
-    
+
     const firmsList = []
-    
+
     Object.entries(segmentCountyData).forEach(([stateAbbr, cities]) => {
       Object.entries(cities).forEach(([city, data]) => {
         // Add each firm from the county data
@@ -1001,12 +1109,12 @@ function ProtectedDashboard() {
         }
       })
     })
-    
+
     return firmsList
   }, [metrics, activeTab, segments])
-  
+
   // Data is already filtered by API based on user's segment
-  
+
   // Calculate KPIs based on user's segment data
   const totalFirms = countFirmsInView(firms)
   const medianGrowth = calculateMedianGrowth(firms)
@@ -1014,15 +1122,15 @@ function ProtectedDashboard() {
   const topSegment = user?.primarySegment || 'N/A'
   const otherSegments = topSegmentsData.slice(0, 2).map(s => s.name).filter(name => name !== topSegment).join(', ') || 'None'
   const topCityName = findTopCity(firms)
-  
+
   const cityCounts = {}
   firms.forEach(firm => {
     const city = firm.companyCity
     if (city) cityCounts[city] = (cityCounts[city] || 0) + 1
   })
-  const sortedCities = Object.entries(cityCounts).sort(([,a], [,b]) => b - a)
+  const sortedCities = Object.entries(cityCounts).sort(([, a], [, b]) => b - a)
   const otherCities = sortedCities.slice(1, 3).map(([city]) => city).join(', ') || 'None'
-  
+
   const userKPIs = {
     totalFirms: formatNumber(totalFirms),
     medianGrowth: formatGrowthPercentage(medianGrowth),
@@ -1035,14 +1143,75 @@ function ProtectedDashboard() {
   return (
     <div className="page-wrapper">
       <div className="dashboard-shell">
-        <ProtectedHeader 
-          user={user} 
+        <ProtectedHeader
+          user={user}
           onLogout={handleLogout}
           onCompanyData={() => navigate('/company-data')}
           onHomeClick={() => navigate('/')}
         />
 
-        {/* Section 1: Protected Staffing Dashboard */}
+        {/* Section 1: Protected Info */}
+        <section className="section-block">
+          <div className="panel" style={{ padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <div className="section-eyebrow">Your Account Information</div>
+                <h2 className="section-heading" style={{ fontSize: '24px', marginBottom: '0' }}>
+                  Welcome back, {user?.firstName}!
+                </h2>
+              </div>
+              <button
+                className="pill-btn secondary"
+                onClick={() => {
+                  const isEditing = document.getElementById('edit-form').style.display === 'block'
+                  document.getElementById('edit-form').style.display = isEditing ? 'none' : 'block'
+                  document.getElementById('view-info').style.display = isEditing ? 'grid' : 'none'
+                }}
+              >
+                Edit Information
+              </button>
+            </div>
+
+            <div id="view-info" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '16px',
+              marginTop: '24px'
+            }}>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>EMAIL</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.email}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>FIRST NAME</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.firstName || 'N/A'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>INTERNAL EMPLOYEE BAND SIZE</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.employeeBandSize || 'N/A'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>HQ STATE</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.hqState || 'N/A'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>SEGMENT</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.primarySegment || 'N/A'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>INTERNAL EMPLOYEE HEADCOUNT GROWTH (%)</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.internalHeadcountGrowth ? `${user.internalHeadcountGrowth}%` : 'Not provided'}</div>
+              </div>
+            </div>
+
+            <UserEditForm user={user} onCancel={() => {
+              document.getElementById('edit-form').style.display = 'none'
+              document.getElementById('view-info').style.display = 'grid'
+            }} />
+          </div>
+        </section>
+
+        {/* Section 2: Protected Staffing Dashboard */}
         <section className="section-block">
           <div className="section-label">See if you are ahead, behind or closing the gap.</div>
           <h1 className="section-heading">Get the big picture, then work the list.</h1>
@@ -1081,7 +1250,7 @@ function ProtectedDashboard() {
           </div>
         </section>
 
-        {/* Section 2: Map + Side Panel */}
+        {/* Section 3: Map + Side Panel */}
         <section className="section-block">
           {/* Peer Position Panel - Now on top */}
           {!loading && <PeerPositionPanel user={user} firms={firms} />}
@@ -1089,7 +1258,7 @@ function ProtectedDashboard() {
           <div className="panel" style={{ marginTop: '20px' }}>
             {/* Segment filter tabs for HeatMap */}
             <TabPills tabs={segments} activeTab={activeTab} onTabClick={setActiveTab} />
-            
+
             <div style={{ marginBottom: '12px', marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <div className="section-label" style={{ marginBottom: '4px' }}>
@@ -1099,9 +1268,9 @@ function ProtectedDashboard() {
                   {selectedState ? 'County-level data for selected state' : 'Heatmap shows all staffing firms data'}
                 </p>
               </div>
-              <div className="filter-group" style={{ margin: 0 }}>
+              <div className="filter-group" style={{ margin: 0, flexWrap: 'wrap', gap: '8px' }}>
                 <label className="filter-label" style={{ marginRight: '8px', fontSize: '16px', fontWeight: '600' }}>See your segment in a detailed view per State:</label>
-                <select 
+                <select
                   className="filter-select"
                   value={selectedState}
                   onChange={(e) => setSelectedState(e.target.value)}
@@ -1128,7 +1297,7 @@ function ProtectedDashboard() {
           </div>
         </section>
 
-        {/* Section 3: Firms Table */}
+        {/* Section 4: Firms Table */}
         <section className="section-block">
           <div className="section-label">Firms behind the signal</div>
           <h2 className="section-heading" style={{ fontSize: '20px' }}>
@@ -1140,67 +1309,6 @@ function ProtectedDashboard() {
 
           <div className="panel" style={{ paddingTop: '16px' }}>
             {loading || metricsLoading ? <ProtectedLoadingSpinner /> : <ProtectedDataTable firms={firms} />}
-          </div>
-        </section>
-
-        {/* Section 4: Protected Info */}
-        <section className="section-block">
-          <div className="panel" style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <div className="section-eyebrow">Your Account Information</div>
-                <h2 className="section-heading" style={{ fontSize: '24px', marginBottom: '0' }}>
-                  Welcome back, {user?.firstName}!
-                </h2>
-              </div>
-              <button 
-                className="pill-btn secondary"
-                onClick={() => {
-                  const isEditing = document.getElementById('edit-form').style.display === 'block'
-                  document.getElementById('edit-form').style.display = isEditing ? 'none' : 'block'
-                  document.getElementById('view-info').style.display = isEditing ? 'grid' : 'none'
-                }}
-              >
-                Edit Information
-              </button>
-            </div>
-            
-            <div id="view-info" style={{ 
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '16px',
-              marginTop: '24px'
-            }}>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>EMAIL</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.email}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>FIRST NAME</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.firstName || 'N/A'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>EMPLOYEE BAND SIZE</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.employeeBandSize || 'N/A'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>HQ STATE</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.hqState || 'N/A'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>SEGMENT</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.primarySegment || 'N/A'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>EMPLOYEE HEADCOUNT GROWTH (%)</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.internalHeadcountGrowth ? `${user.internalHeadcountGrowth}%` : 'Not provided'}</div>
-              </div>
-            </div>
-
-            <UserEditForm user={user} onCancel={() => {
-              document.getElementById('edit-form').style.display = 'none'
-              document.getElementById('view-info').style.display = 'grid'
-            }} />
           </div>
         </section>
       </div>

@@ -52,24 +52,29 @@ function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    
+
     // Validate required fields
     if (!formData.employeeBand) {
       setError('Internal employee band size is required')
       return
     }
-    
+
+    if (!formData.primarySegment) {
+      setError('Segment is required')
+      return
+    }
+
     if (!formData.internalHeadcountGrowth) {
       setError('Internal headcount growth is required')
       return
     }
-    
+
     const passwordError = validatePassword(formData.password)
     if (passwordError) {
       setError(passwordError)
       return
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
       return
@@ -95,7 +100,7 @@ function Signup() {
     setShowDisclaimerModal(false)
     setSubmitting(true)
     setError('') // Clear any previous errors
-    
+
     try {
       // Submit to Airtable Staffing Signal Staffing Signal Leads Table (Test) with password
       const result = await submitLeadRequest({
@@ -107,7 +112,7 @@ function Signup() {
         primarySegment: pendingFormData.primarySegment,
         internalHeadcountGrowth: pendingFormData.internalHeadcountGrowth
       })
-      
+
       if (result.success) {
         navigate('/login')
       } else {
@@ -133,9 +138,9 @@ function Signup() {
             </div>
             <div className="modal-body">
               <p style={{ marginBottom: '16px', lineHeight: '1.6' }}>
-                The Staffing Signal displays estimates and insights built from public websites and third-party sources, 
-                plus our own aggregation and modeling. This information may be incomplete, delayed, inaccurate, or out of date. 
-                Metrics like company size, growth rates, segment labels, and location can be misreported by source sites and 
+                The Staffing Signal displays estimates and insights built from public websites and third-party sources,
+                plus our own aggregation and modeling. This information may be incomplete, delayed, inaccurate, or out of date.
+                Metrics like company size, growth rates, segment labels, and location can be misreported by source sites and
                 may not match a company's internal records.
               </p>
               <p style={{ marginBottom: '12px', fontWeight: '600' }}>
@@ -146,7 +151,7 @@ function Signup() {
                   The data and insights are provided "as is" for informational purposes only.
                 </li>
                 <li style={{ marginBottom: '8px' }}>
-                  You will not rely on this information as the sole basis for business, legal, insurance, compliance, 
+                  You will not rely on this information as the sole basis for business, legal, insurance, compliance,
                   financial, or hiring decisions.
                 </li>
                 <li style={{ marginBottom: '8px' }}>
@@ -156,10 +161,10 @@ function Signup() {
                   The Staffing Signal is not affiliated with or endorsed by any listed company unless explicitly stated.
                 </li>
               </ol>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
                 cursor: 'pointer',
                 padding: '12px',
                 background: 'rgba(255, 255, 255, 0.05)',
@@ -178,15 +183,15 @@ function Signup() {
               </label>
             </div>
             <div className="modal-footer">
-              <button 
-                className="pill-btn secondary" 
+              <button
+                className="pill-btn secondary"
                 onClick={handleDisclaimerCancel}
                 style={{ minWidth: '120px' }}
               >
                 Cancel
               </button>
-              <button 
-                className="pill-btn primary" 
+              <button
+                className="pill-btn primary"
                 onClick={handleDisclaimerAgree}
                 disabled={!disclaimerAgreed}
                 style={{ minWidth: '180px', opacity: disclaimerAgreed ? 1 : 0.5 }}
@@ -197,7 +202,7 @@ function Signup() {
           </div>
         </div>
       )}
-      
+
       <div className="auth-container auth-container-wide">
         <div className="auth-header">
           <img src={logo} alt="The Staffing Signal logo" className="logo-img" />
@@ -209,9 +214,9 @@ function Signup() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           {error && (
-            <div style={{ 
-              color: '#ff3e8a', 
-              fontSize: '14px', 
+            <div style={{
+              color: '#ff3e8a',
+              fontSize: '14px',
               marginBottom: '16px',
               padding: '12px',
               background: 'rgba(255, 62, 138, 0.1)',
@@ -274,7 +279,7 @@ function Signup() {
             </div>
           </div>
 
-          <div className="cta-form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+          <div className="cta-form-row" style={{ display: 'flex', justifyItems: "end", alignItems: "end" }}>
             <div>
               <div className="form-label">Internal Employee Band Size</div>
               <select
@@ -327,10 +332,11 @@ function Signup() {
           </div>
 
           <div>
-            <div className="form-label">Employee Headcount Growth (%)</div>
+            <div className="form-label">Employee Headcount Growth (%)*</div>
             <select
               className="form-select"
               value={formData.internalHeadcountGrowth}
+              required
               onChange={(e) => setFormData({ ...formData, internalHeadcountGrowth: e.target.value })}
             >
               <option value="">Select growth range</option>

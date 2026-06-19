@@ -18,6 +18,7 @@
 
 body {
   margin: 0;
+  min-height: 100vh;
   padding: 24px 0;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background:
@@ -1064,13 +1065,6 @@ tbody tr:hover {
   }
 }
 
-/* Company details / Job Signals */
-body.company-details-body {
-  padding: 0;
-  padding-top: 10px;
-  background: #050b19;
-  overflow-x: hidden;
-}
 
 .company-page-loader {
   width: 100%;
@@ -1102,11 +1096,9 @@ body.company-details-body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: 100vh;
-  padding: 10px 16px 18px;
-  background:
-    radial-gradient(circle at 82% 5%, rgba(11, 27, 49, .38), transparent 34%),
-    linear-gradient(145deg, #070e1d, var(--company-bg) 65%);
+  min-height: auto;
+  padding: 0;
+  background: transparent;
   color: var(--company-text);
   font-family: Inter, "Segoe UI", sans-serif;
 }
