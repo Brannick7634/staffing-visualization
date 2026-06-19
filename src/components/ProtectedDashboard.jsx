@@ -27,7 +27,7 @@ import {
 import { getUniqueValidStates, statesMatch, getFirmStateName } from '../utils/stateNormalization'
 
 // Protected Header Component
-function ProtectedHeader({ user, onLogout }) {
+function ProtectedHeader({ user, onLogout, onCompanyData, onHomeClick}) {
   return (
     <header className="top-bar">
       <div className="top-bar-left">
@@ -46,6 +46,12 @@ function ProtectedHeader({ user, onLogout }) {
         }}>
           Hi, {user?.firstName}
         </span>
+        <button className='pill-btn' onClick={onHomeClick}>
+          Home
+        </button>
+        <button className="pill-btn" onClick={onCompanyData}>
+          Company Data
+        </button>
         <button className="pill-btn secondary" onClick={onLogout}>
           Log out
         </button>
@@ -1032,6 +1038,8 @@ function ProtectedDashboard() {
         <ProtectedHeader 
           user={user} 
           onLogout={handleLogout}
+          onCompanyData={() => navigate('/company-data')}
+          onHomeClick={() => navigate('/')}
         />
 
         {/* Section 1: Protected Staffing Dashboard */}

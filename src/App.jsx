@@ -5,6 +5,7 @@ import Login from './components/Login'
 import Signup from './components/Signup'
 import Dashboard from './components/Dashboard'
 import ProtectedDashboard from './components/ProtectedDashboard'
+import CompanyData from './components/CompanyData'
 
 function App() {
   return (
@@ -14,13 +15,20 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route 
-            path="/dashboard" 
+          <Route path="/company-data"
+            element={
+              <ProtectedRoute>
+                <CompanyData />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <ProtectedDashboard />
               </ProtectedRoute>
-            } 
+            }
           />
         </Routes>
       </Router>
