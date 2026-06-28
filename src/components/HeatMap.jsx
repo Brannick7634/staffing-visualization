@@ -18,12 +18,13 @@ const STATE_NAMES = {
   'DC': 'District of Columbia'
 }
 
-function HeatMap({ heatmapData, filters, setFilters, segments, activeTab, onTabClick }) {
+function HeatMap({ heatmapData, filters, setFilters, segments, activeTab, onTabClick, onStateSelect }) {
   const chartDiv = useRef(null)
   const chartRoot = useRef(null)
   const polygonSeries = useRef(null)
   const [mapReady, setMapReady] = useState(false)
   const filtersRef = useRef(filters)
+  const onStateSelectRef = useRef(onStateSelect)
 
   const getColorForGrowth = (growth) => {
     if (growth <= -25) return am5.color(0x7F1D1D) // deep red
@@ -43,10 +44,14 @@ function HeatMap({ heatmapData, filters, setFilters, segments, activeTab, onTabC
     return "Growing significantly"
   }
 
-  // Keep filters ref up to date
+  // Keep refs up to date for amCharts event handlers
   useEffect(() => {
     filtersRef.current = filters
   }, [filters])
+
+  useEffect(() => {
+    onStateSelectRef.current = onStateSelect
+  }, [onStateSelect])
 
   // Remove filterRecords and aggregateByState functions - using pre-computed data
 
@@ -162,6 +167,13 @@ function HeatMap({ heatmapData, filters, setFilters, segments, activeTab, onTabC
       return 0.1  // Almost transparent for states with no data
     })
 
+    series.mapPolygons.template.events.on("click", (ev) => {
+      const stateName = ev.target.dataItem?.dataContext?.stateName
+      if (stateName && onStateSelectRef.current) {
+        onStateSelectRef.current(stateName)
+      }
+    })
+
     chartRoot.current = root
     polygonSeries.current = series
     
@@ -243,7 +255,7 @@ function HeatMap({ heatmapData, filters, setFilters, segments, activeTab, onTabC
 }
 
 // Component to display rankings with pre-computed data
-function HeatMapWithRankings({ heatmapData, topStatesByTimeframe, topSegmentsByTimeframe, hideRankings = false, segments, activeTab, onTabClick }) {
+function HeatMapWithRankings({ heatmapData, topStatesByTimeframe, topSegmentsByTimeframe, hideRankings = false, segments, activeTab, onTabClick, onStateSelect }) {
   const [filters, setFilters] = useState({
     timeframe: '1Y Growth',
     size: 'all'
@@ -280,13 +292,13 @@ function HeatMapWithRankings({ heatmapData, topStatesByTimeframe, topSegmentsByT
   const currentTopSegments = (topSegmentsByTimeframe && topSegmentsByTimeframe[filters.timeframe]) || []
 
   if (hideRankings) {
-    return <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} segments={segments} activeTab={activeTab} onTabClick={onTabClick} />
+    return <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} segments={segments} activeTab={activeTab} onTabClick={onTabClick} onStateSelect={onStateSelect} />
   }
 
   return (
     <div className="two-column">
       <div>
-        <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} segments={segments} activeTab={activeTab} onTabClick={onTabClick} />
+        <HeatMap heatmapData={currentHeatmapData} filters={filters} setFilters={setFilters} segments={segments} activeTab={activeTab} onTabClick={onTabClick} onStateSelect={onStateSelect} />
       </div>
       <div className="mini-panel">
         <div style={{ marginTop: '14px' }}>

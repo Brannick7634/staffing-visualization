@@ -24,7 +24,7 @@ import {
   formatNumber,
   convertDecimalToPercentage
 } from '../utils/formulas'
-import { getUniqueValidStates, statesMatch, getFirmStateName } from '../utils/stateNormalization'
+import { statesMatch, getFirmStateName } from '../utils/stateNormalization'
 
 // Protected Header Component
 function ProtectedHeader({ user, onLogout, onCompanyData, onHomeClick }) {
@@ -305,10 +305,9 @@ function PeerPositionPanel({ user, firms }) {
 }
 
 // Protected Data Table Component
-function ProtectedDataTable({ firms }) {
+function ProtectedDataTable({ firms, selectedState = '', onStateChange }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [filters, setFilters] = useState({
-    state: '',
     city: '',
     employeeBand: '',
     growthBand: '',
@@ -321,7 +320,7 @@ function ProtectedDataTable({ firms }) {
   const segmentOptions = SEGMENT_NAMES.sort()
 
   // Get state options - use normalized unique valid states
-  const stateOptions = getUniqueValidStates(firms)
+  const stateOptions = US_STATES.map((state) => state.label)
 
   const employeeBandOptions = [...new Set(firms.map(f => f.employeeSizeBucket).filter(Boolean))].sort()
   const cityOptions = [
@@ -366,10 +365,9 @@ function ProtectedDataTable({ firms }) {
 
   // Apply filters to data
   const filteredFirms = firms.filter((firm) => {
-    // Handle state filter with fuzzy matching
-    if (filters.state) {
+    if (selectedState) {
       const firmState = getFirmStateName(firm)
-      if (!statesMatch(firmState, filters.state)) return false
+      if (!statesMatch(firmState, selectedState)) return false
     }
 
     if (filters.employeeBand && firm.employeeSizeBucket !== filters.employeeBand) return false
@@ -422,9 +420,15 @@ function ProtectedDataTable({ firms }) {
     setCurrentPage(1)
   }
 
+  const handleStateChange = (value) => {
+    onStateChange?.(value)
+    setCurrentPage(1)
+  }
+
   // Clear all filters
   const clearFilters = () => {
-    setFilters({ state: '', employeeBand: '', growthBand: '' })
+    setFilters({ city: '', employeeBand: '', growthBand: '', growth6M: '', growth2Y: '' })
+    onStateChange?.('')
     setCurrentPage(1)
   }
 
@@ -483,8 +487,8 @@ function ProtectedDataTable({ firms }) {
             <label className="filter-label">HQ State:</label>
             <select
               className="filter-select"
-              value={filters.state}
-              onChange={(e) => handleFilterChange('state', e.target.value)}
+              value={selectedState}
+              onChange={(e) => handleStateChange(e.target.value)}
             >
               <option value="">All States</option>
               {stateOptions.map((option, index) => (
@@ -572,7 +576,7 @@ function ProtectedDataTable({ firms }) {
           </div>
         </div>
 
-        {(filters.state || filters.employeeBand || filters.growthBand || filters.growth2Y || filters.growth6M || filters.city) && (
+        {(selectedState || filters.employeeBand || filters.growthBand || filters.growth2Y || filters.growth6M || filters.city) && (
           <button className="filter-clear-btn" onClick={clearFilters}>
             Clear Filters
           </button>
@@ -1031,6 +1035,17 @@ function ProtectedDashboard() {
   const { firms, loading, isConfigured } = useProtectedData(user)
   const { metrics, loading: metricsLoading } = useAirtableData() // Get pre-computed metrics
   const [selectedState, setSelectedState] = useState('')
+  const [showCountyMap, setShowCountyMap] = useState(false)
+
+  const handleStateSync = (state) => {
+    setSelectedState(state)
+    setShowCountyMap(false)
+  }
+
+  const handleCountyMapDropdown = (state) => {
+    setSelectedState(state)
+    setShowCountyMap(!!state)
+  }
 
   const segments = ['All segments', ...SEGMENT_NAMES.sort()]
 
@@ -1262,10 +1277,10 @@ function ProtectedDashboard() {
             <div style={{ marginBottom: '12px', marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <div className="section-label" style={{ marginBottom: '4px' }}>
-                  {selectedState ? `${selectedState} COUNTY DATA` : 'US STAFFING GROWTH BY SIGNAL'}
+                  {showCountyMap && selectedState ? `${selectedState} COUNTY DATA` : 'US STAFFING GROWTH BY SIGNAL'}
                 </div>
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
-                  {selectedState ? 'County-level data for selected state' : 'Heatmap shows all staffing firms data'}
+                  {showCountyMap && selectedState ? 'County-level data for selected state' : 'Heatmap shows all staffing firms data'}
                 </p>
               </div>
               <div className="filter-group" style={{ margin: 0, flexWrap: 'wrap', gap: '8px' }}>
@@ -1273,7 +1288,7 @@ function ProtectedDashboard() {
                 <select
                   className="filter-select"
                   value={selectedState}
-                  onChange={(e) => setSelectedState(e.target.value)}
+                  onChange={(e) => handleCountyMapDropdown(e.target.value)}
                   style={{ minWidth: '200px' }}
                 >
                   <option value="">All States (Heatmap)</option>
@@ -1287,11 +1302,18 @@ function ProtectedDashboard() {
             </div>
             {loading || metricsLoading ? (
               <ProtectedLoadingSpinner />
-            ) : selectedState ? (
+            ) : showCountyMap && selectedState ? (
               <ProtectedCountyMap firms={allFirmsForCountyViz} userState={selectedState} />
             ) : (
               <>
-                <HeatMapWithRankings key={`heatmap-${activeTab}`} heatmapData={heatmapData} topStates={[]} topSegments={[]} hideRankings={true} />
+                <HeatMapWithRankings
+                  key={`heatmap-${activeTab}`}
+                  heatmapData={heatmapData}
+                  topStates={[]}
+                  topSegments={[]}
+                  hideRankings={true}
+                  onStateSelect={handleStateSync}
+                />
               </>
             )}
           </div>
@@ -1308,7 +1330,13 @@ function ProtectedDashboard() {
           </p>
 
           <div className="panel" style={{ paddingTop: '16px' }}>
-            {loading || metricsLoading ? <ProtectedLoadingSpinner /> : <ProtectedDataTable firms={firms} />}
+            {loading || metricsLoading ? <ProtectedLoadingSpinner /> : (
+              <ProtectedDataTable
+                firms={firms}
+                selectedState={selectedState}
+                onStateChange={handleCountyMapDropdown}
+              />
+            )}
           </div>
         </section>
       </div>
