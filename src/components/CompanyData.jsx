@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import * as am5 from '@amcharts/amcharts5'
 import * as am5xy from '@amcharts/amcharts5/xy'
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated'
+import { SEGMENT_NAMES } from '../constants/segments'
+import { useAuth } from '../context/AuthContext'
+import { useJobSignals } from '../hooks/useJobSignals'
+import { getDefaultIndustry } from '../services/jobSignals'
 
 const dashboardModel = {
-  defaultIndustry: 'Healthcare',
   header: {
     title: 'JOB SIGNALS',
     eyebrow: 'SEE WHERE HIRING IS ACCELERATING, STABILIZING OR SLOWING.',
-    description: 'Live hiring activity and momentum based on 50,000+ job boards and company career pages worldwide.',
-    loadingDelay: 1400,
+    description: 'Live hiring activity and momentum from LinkedIn job scrapes, grouped by staffing segment.',
     actions: [
       { id: 'help', label: 'How it works', icon: 'info' },
       { id: 'export', label: 'Export', icon: 'download' },
@@ -19,135 +21,47 @@ const dashboardModel = {
   },
   howItWorks: {
     title: 'How Job Signals Works',
-    description: 'Job Signals turns live hiring activity into a simple view of where demand is growing, stabilizing, or slowing.',
+    description: 'Job Signals turns LinkedIn hiring activity into a simple view of where demand is growing, stabilizing, or slowing by staffing segment.',
     steps: [
       {
         title: 'Collect',
-        description: 'We monitor job boards and company career pages for newly opened and recently closed roles.',
+        description: 'We scrape LinkedIn jobs for staffing firms on a ~2 week cycle and store each run as a dated snapshot.',
       },
       {
         title: 'Normalize',
-        description: 'Listings are grouped by industry, location, and hiring function so changes can be compared consistently.',
+        description: 'Jobs are joined to Company Details via LinkedIn company ID and rolled up by Primary Segment.',
       },
       {
         title: 'Measure',
-        description: 'Momentum compares the current hiring window with the previous period to highlight meaningful movement.',
+        description: 'Momentum compares the latest scrape to the previous scrape. The first scrape is a zero baseline.',
       },
     ],
-    note: 'The figures on this page are demonstration data and can be replaced by your API response.',
+    note: 'Until a second scrape exists, momentum is shown as a baseline. Top hiring functions use Work Type from LinkedIn jobs.',
     closeLabel: 'Got it',
-  },
-  filters: {
-    rangeEnd: '2024-06-18',
-    rangeDays: 31,
-    comparisonDays: 30,
-    location: 'All Locations',
   },
   summary: {
     ariaLabel: 'Hiring summary',
-    cards: [
-      { id: 'tracked', icon: 'briefcase', label: 'ACTIVE JOBS TRACKED', value: 4200000, change: 6.4, sparkline: true },
-      { id: 'growing', icon: 'rising', label: 'INDUSTRIES GROWING', value: 18, change: 2, sparkline: true },
-      { id: 'declining', icon: 'falling', label: 'INDUSTRIES DECLINING', value: 7, change: 1, variant: 'pink', sparkline: true },
-      { id: 'hottest', icon: 'flame', label: 'HOTTEST SECTOR' },
-    ],
   },
   momentum: {
     title: 'INDUSTRY HIRING MOMENTUM',
-    subtitle: '% Change in active jobs over the last 30 days',
-    periodLabel: 'Change: Last 30 days',
+    subtitle: '% Change in active jobs vs previous scrape',
     axisTitle: '% Change in Active Jobs',
-    axisValues: [-15, -10, -5, 0, 5, 10, 15],
-    rows: [
-      { name: 'Healthcare', value: 12, icon: 'heart' },
-      { name: 'Life Sciences', value: 9, icon: 'flask' },
-      { name: 'Energy', value: 7, icon: 'bolt' },
-      { name: 'Technology', value: 3, icon: 'screen' },
-      { name: 'Finance', value: -2, icon: 'bank' },
-      { name: 'Retail', value: -5, icon: 'cart' },
-      { name: 'Manufacturing', value: -11, icon: 'factory' },
-    ],
   },
   trend: {
     title: 'HIRING TREND OVER TIME',
     chartAriaLabel: 'Hiring trend line chart',
     zoomHint: 'Scroll to zoom · Drag to select · Use the scrollbar to pan',
-    startMonth: '2023-10-02',
-    endMonth: '2024-10-02',
     yAxisTickCount: 4,
-    series: {
-      'Active Jobs': [58, 61, 67, 72, 75, 82, 78, 86, 91, 88, 97, 104, 112, 119, 116, 125, 132, 139, 136, 145, 151, 148, 156, 160, 155, 164, 161, 168, 172, 178],
-      'New Jobs': [28, 31, 29, 36, 39, 42, 38, 44, 48, 45, 51, 56, 61, 58, 64, 70, 67, 74, 78, 73, 80, 84, 81, 87, 91, 89, 95, 98, 101, 106],
-      'Companies Hiring': [42, 44, 47, 46, 51, 54, 52, 57, 60, 58, 63, 67, 65, 70, 73, 75, 72, 78, 82, 80, 85, 88, 86, 91, 94, 92, 97, 100, 103, 107],
-    },
   },
   snapshot: {
     title: 'INDUSTRY SNAPSHOT',
-    functionsTitle: 'TOP HIRING FUNCTIONS',
+    functionsTitle: 'TOP WORK TYPES',
     functionMetricLabel: 'Open jobs',
-    comparisonLabel: 'vs 30 days ago',
     metrics: [
       { key: 'activeJobs', label: 'Active Jobs', changeKey: 'activeJobs' },
-      { key: 'newJobs', label: 'New Jobs (30 days)', changeKey: 'newJobs' },
+      { key: 'newJobs', label: 'Jobs this scrape', changeKey: 'newJobs' },
       { key: 'companies', label: 'Companies Hiring', changeKey: 'companies' },
     ],
-  },
-  source: {
-    label: 'Source',
-    detail: '50,000+ job boards and company career pages',
-  },
-  industries: {
-    Healthcare: {
-      icon: 'heart',
-      trendFactor: 1,
-      momentum: 12,
-      activeJobs: 142301,
-      newJobs: 36150,
-      companies: 18620,
-      changes: { activeJobs: 12, newJobs: 9.4, companies: 8.1 },
-      status: 'Strong hiring momentum',
-      functions: [
-        { name: 'Nursing', value: 32540, width: 100 },
-        { name: 'Clinical Operations', value: 18870, width: 72 },
-        { name: 'Medical Research', value: 14230, width: 52 },
-        { name: 'Regulatory Affairs', value: 9610, width: 36 },
-        { name: 'Health Informatics', value: 7420, width: 25 },
-      ],
-    },
-    Technology: {
-      icon: 'screen',
-      trendFactor: 0.91,
-      momentum: 8,
-      activeJobs: 118742,
-      newJobs: 29480,
-      companies: 15930,
-      changes: { activeJobs: 8, newJobs: 6.7, companies: 5.9 },
-      status: 'Steady hiring momentum',
-      functions: [
-        { name: 'Software Engineering', value: 28710, width: 100 },
-        { name: 'Data & Analytics', value: 21940, width: 78 },
-        { name: 'Cybersecurity', value: 15360, width: 55 },
-        { name: 'Product Management', value: 10480, width: 38 },
-        { name: 'Cloud Infrastructure', value: 8930, width: 31 },
-      ],
-    },
-    Energy: {
-      icon: 'bolt',
-      trendFactor: 0.78,
-      momentum: 7,
-      activeJobs: 94825,
-      newJobs: 21960,
-      companies: 11405,
-      changes: { activeJobs: 7, newJobs: 5.8, companies: 4.9 },
-      status: 'Positive hiring momentum',
-      functions: [
-        { name: 'Field Operations', value: 20450, width: 100 },
-        { name: 'Engineering', value: 16520, width: 81 },
-        { name: 'Project Development', value: 11340, width: 56 },
-        { name: 'Environmental Safety', value: 7880, width: 39 },
-        { name: 'Grid Technology', value: 6120, width: 30 },
-      ],
-    },
   },
 }
 
@@ -193,9 +107,15 @@ const formatCompactNumber = (value) => new Intl.NumberFormat('en-US', {
 const formatNumber = (value) => new Intl.NumberFormat('en-US').format(value)
 
 const generateYAxis = (values, tickCount) => {
-  const dataMaximum = Math.max(...values)
+  const dataMaximum = Math.max(...values, 0)
+  if (dataMaximum === 0) {
+    return {
+      maximum: 10,
+      ticks: Array.from({ length: tickCount + 1 }, (_, index) => 10 - index * (10 / tickCount)),
+    }
+  }
   const roughStep = dataMaximum / tickCount
-  const step = Math.ceil(roughStep / 10) * 10
+  const step = Math.ceil(roughStep / 10) * 10 || 10
   const maximum = step * tickCount
 
   return {
@@ -259,8 +179,10 @@ function KpiCard({ icon, label, value, change, comparison, variant = 'teal', spa
         <span className="company-kpi-label">{label}</span>
         <strong className="company-kpi-value">{value}</strong>
         <div className="company-kpi-change">
-          <span>{showArrow && (variant === 'pink' ? '↓ ' : '↑ ')}{change}</span>
-          {comparison && <small>{comparison}</small>}
+          <span className="company-kpi-change-main">
+            {showArrow && (variant === 'pink' ? '↓ ' : '↑ ')}{change}
+          </span>
+          {comparison && <small className="company-kpi-change-sub">{comparison}</small>}
         </div>
       </div>
       {sparkline && <Sparkline direction={variant === 'pink' ? 'down' : 'up'} color={variant} />}
@@ -272,7 +194,7 @@ function PageLoader() {
   return (
     <div className="company-page-loader-content" aria-label='Loading Company Data'>
       <div className="spinner" aria-hidden="true" />
-      <p>Loading data...</p>
+      <p>Loading job signals...</p>
     </div>
   )
 }
@@ -406,14 +328,14 @@ function TrendChart({
       max: domainMaximum,
       strictMinMax: true,
       maxPrecision: 0,
-      numberFormat: "#'K'",
+      numberFormat: '#,###',
       renderer: yRenderer,
     }))
 
     const tooltip = am5.Tooltip.new(root, {
       getFillFromSprite: false,
       getStrokeFromSprite: false,
-      labelText: "[#8fa0b4]{valueX.formatDate('MMM d, yyyy')}[/]\n[bold #f0ffff]{valueY}K[/]\n[#12c7c7]{industry} · {metricLabel}[/]",
+      labelText: "[#8fa0b4]{valueX.formatDate('MMM d, yyyy')}[/]\n[bold #f0ffff]{valueY.formatNumber('#,###')}[/]\n[#12c7c7]{industry} · {metricLabel}[/]",
       pointerOrientation: 'horizontal',
       animationDuration: 80,
       autoTextColor: false,
@@ -551,35 +473,65 @@ function TrendChart({
   return <div ref={chartRef} className="company-amchart" role="img" aria-label={ariaLabel} />
 }
 
+function formatMomentumLabel(value, isBaseline) {
+  if (isBaseline || value == null) return 'Baseline'
+  const rounded = Number(value)
+  const sign = rounded > 0 ? '+' : ''
+  return `${sign}${rounded.toFixed(1)}%`
+}
+
+function emptySelectedSegment() {
+  return {
+    icon: 'briefcase',
+    activeJobs: 0,
+    newJobs: 0,
+    companies: 0,
+    momentum: null,
+    isBaseline: true,
+    changes: { activeJobs: null, newJobs: null, companies: null },
+    status: 'No matched jobs for this segment yet',
+    functions: [],
+    trend: {
+      'Active Jobs': [0],
+      'New Jobs': [0],
+      'Companies Hiring': [0],
+    },
+  }
+}
+
 export default function CompanyDetails() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const { metrics, loading, error, isConfigured } = useJobSignals()
   const {
-    defaultIndustry,
     header,
-    filters,
     summary,
     momentum,
     trend,
     snapshot,
-    source,
     howItWorks,
-    industries,
   } = dashboardModel
-  const trendTabs = Object.keys(trend.series)
-  const industryNames = Object.keys(industries)
-  const [industry, setIndustry] = useState(defaultIndustry)
-  const [trendTab, setTrendTab] = useState(trendTabs[0])
-  const [pageLoading, setPageLoading] = useState(true)
+
+  const industryNames = useMemo(() => [...SEGMENT_NAMES].sort(), [])
+  const [industry, setIndustry] = useState(() => getDefaultIndustry(user?.primarySegment))
+  const [trendTab, setTrendTab] = useState('Active Jobs')
   const [showHowItWorks, setShowHowItWorks] = useState(false)
-  const selected = industries[industry]
 
   useEffect(() => {
-    const apiTimer = window.setTimeout(() => setPageLoading(false), header.loadingDelay)
+    if (!user?.primarySegment) return
+    setIndustry(getDefaultIndustry(user.primarySegment))
+  }, [user?.primarySegment])
 
-    return () => {
-      window.clearTimeout(apiTimer)
-    }
-  }, [header.loadingDelay])
+  const selected = metrics?.segments?.[industry] || emptySelectedSegment()
+  const trendTabs = Object.keys(selected.trend)
+  const momentumRows = metrics?.momentumRows || industryNames.map((name) => ({
+    name,
+    value: 0,
+    isBaseline: true,
+    icon: 'briefcase',
+  }))
+  const axisValues = metrics?.axisValues || [-15, -10, -5, 0, 5, 10, 15]
+  const momentumScale = Math.max(...axisValues.map((value) => Math.abs(value)), 1)
 
   useEffect(() => {
     if (!showHowItWorks) return undefined
@@ -606,61 +558,99 @@ export default function CompanyDetails() {
     }
   }, [showHowItWorks])
 
-  const dateContext = useMemo(() => {
-    const end = parseLocalDate(filters.rangeEnd)
-    const start = shiftDate(end, -(filters.rangeDays - 1))
-    const previousEnd = shiftDate(start, -1)
-    const previousStart = shiftDate(previousEnd, -(filters.comparisonDays - 1))
+  const comparisonLabel = useMemo(() => {
+    if (!metrics?.hasPrevious) return 'vs baseline (0)'
+    return `vs previous scrape (${metrics.previousDate})`
+  }, [metrics])
 
-    return {
-      rangeLabel: formatDateRange(start, end),
-      comparisonLabel: `vs ${formatDate(previousStart)} – ${formatDate(previousEnd)}`,
-    }
-  }, [filters.comparisonDays, filters.rangeDays, filters.rangeEnd])
+  const periodLabel = useMemo(() => {
+    if (!metrics?.latestDate) return 'Awaiting scrape data'
+    if (!metrics.hasPrevious) return `Baseline · ${metrics.latestDate}`
+    return `${metrics.previousDate} → ${metrics.latestDate}`
+  }, [metrics])
 
-  const values = useMemo(() => {
-    const base = trend.series[trendTab]
-    return base.map(value => Math.round(value * selected.trendFactor))
-  }, [selected.trendFactor, trend.series, trendTab])
+  const values = selected.trend[trendTab] || [0]
+  const scrapeDates = metrics?.scrapeDates?.length
+    ? metrics.scrapeDates
+    : [metrics?.latestDate || new Date().toISOString().slice(0, 10)]
 
   const trendPointLabels = useMemo(
-    () => generateTimelineLabels(trend.startMonth, trend.endMonth, values.length),
-    [trend.endMonth, trend.startMonth, values.length],
+    () => scrapeDates.map((date) => {
+      try {
+        return new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }).format(parseLocalDate(date))
+      } catch {
+        return date
+      }
+    }),
+    [scrapeDates],
   )
 
   const trendYAxis = useMemo(
-    () => generateYAxis(values, trend.yAxisTickCount),
+    () => generateYAxis(values.length ? values : [0], trend.yAxisTickCount),
     [trend.yAxisTickCount, values],
   )
 
-  const momentumScale = useMemo(
-    () => Math.max(...momentum.axisValues.map(value => Math.abs(value))),
-    [momentum.axisValues],
-  )
+  const trendStart = scrapeDates[0]
+  const trendEnd = scrapeDates[scrapeDates.length - 1]
 
-  const kpiCards = useMemo(() => summary.cards.map(card => {
-    if (card.id === 'hottest') {
-      return {
-        ...card,
-        value: industry,
-        change: `+${selected.momentum}% momentum`,
+  const chartValues = values.length > 1 ? values : [values[0] || 0, values[0] || 0]
+  const chartLabels = trendPointLabels.length > 1
+    ? trendPointLabels
+    : [trendPointLabels[0] || trendStart, trendPointLabels[0] || trendEnd]
+
+  const kpiCards = useMemo(() => {
+    const s = metrics?.summary
+    return [
+      {
+        id: 'tracked',
+        icon: 'briefcase',
+        label: 'ACTIVE JOBS TRACKED',
+        value: formatCompactNumber(s?.totalActiveJobs || 0),
+        change: metrics?.isBaseline ? 'Baseline scrape' : periodLabel,
+        comparison: metrics?.latestDate ? `as of ${metrics.latestDate}` : null,
         showArrow: false,
-      }
-    }
-
-    return {
-      ...card,
-      value: card.id === 'tracked' ? formatCompactNumber(card.value) : formatNumber(card.value),
-      change: card.id === 'tracked' ? `${card.change.toFixed(1)}%` : formatNumber(card.change),
-      comparison: dateContext.comparisonLabel,
-      showArrow: true,
-    }
-  }), [dateContext.comparisonLabel, industry, selected.momentum, summary.cards])
+        sparkline: true,
+      },
+      {
+        id: 'growing',
+        icon: 'rising',
+        label: 'SEGMENTS GROWING',
+        value: formatNumber(s?.growing || 0),
+        change: metrics?.isBaseline ? 'N/A until next scrape' : `${formatNumber(s?.growing || 0)} up`,
+        comparison: comparisonLabel,
+        showArrow: !metrics?.isBaseline,
+        sparkline: true,
+      },
+      {
+        id: 'declining',
+        icon: 'falling',
+        label: 'SEGMENTS DECLINING',
+        value: formatNumber(s?.declining || 0),
+        change: metrics?.isBaseline ? 'N/A until next scrape' : `${formatNumber(s?.declining || 0)} down`,
+        comparison: comparisonLabel,
+        showArrow: !metrics?.isBaseline,
+        variant: 'pink',
+        sparkline: true,
+      },
+      {
+        id: 'hottest',
+        icon: 'flame',
+        label: 'HOTTEST SEGMENT',
+        value: s?.hottest || industry,
+        change: formatMomentumLabel(selected.momentum, selected.isBaseline),
+        showArrow: false,
+      },
+    ]
+  }, [comparisonLabel, industry, metrics, periodLabel, selected.isBaseline, selected.momentum])
 
   const filterControls = useMemo(() => [
-    { id: 'date', icon: 'calendar', label: dateContext.rangeLabel },
-    { id: 'location', icon: 'globe', label: filters.location },
-  ], [dateContext.rangeLabel, filters.location])
+    { id: 'date', icon: 'calendar', label: periodLabel },
+    { id: 'location', icon: 'globe', label: 'All Locations' },
+  ], [periodLabel])
 
   const handleIndustryChange = (event) => {
     setIndustry(event.target.value)
@@ -671,19 +661,19 @@ export default function CompanyDetails() {
   }
 
   const exportData = () => {
-    const metricLabels = snapshot.metrics.map(metric => metric.label)
+    const metricLabels = snapshot.metrics.map((metric) => metric.label)
     const rows = [
-      ['Industry', ...metricLabels, 'Momentum'],
+      ['Segment', ...metricLabels, 'Momentum'],
       [
         industry,
-        ...snapshot.metrics.map(metric => selected[metric.key]),
-        `${selected.momentum}%`,
+        ...snapshot.metrics.map((metric) => selected[metric.key]),
+        formatMomentumLabel(selected.momentum, selected.isBaseline),
       ],
     ]
-    const csv = rows.map(row => row.join(',')).join('\n')
+    const csv = rows.map((row) => row.join(',')).join('\n')
     const link = document.createElement('a')
     link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-    link.download = `${industry.toLowerCase()}-job-signals.csv`
+    link.download = `${industry.toLowerCase().replace(/\s+/g, '-')}-job-signals.csv`
     link.click()
     URL.revokeObjectURL(link.href)
   }
@@ -702,11 +692,29 @@ export default function CompanyDetails() {
     setShowHowItWorks(true)
   }
 
-  if (pageLoading) return (
-    <div className="page-wrappers" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 48px)' , gap:0}}>
-      <PageLoader />
-    </div>
-  )
+  if (loading) {
+    return (
+      <div className="page-wrappers" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 48px)', gap: 0 }}>
+        <PageLoader />
+      </div>
+    )
+  }
+
+  if (!isConfigured) {
+    return (
+      <div className="page-wrappers" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 48px)' }}>
+        <p style={{ color: '#91a0b4' }}>Airtable is not configured. Add VITE_AIRTABLE_* env vars to load Job Signals.</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="page-wrappers" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 48px)' }}>
+        <p style={{ color: '#ed1764' }}>Failed to load Job Signals: {error}</p>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -721,24 +729,24 @@ export default function CompanyDetails() {
               </div>
               <div className="company-header-actions">
                 <div className="company-top-buttons">
-                  {header.actions.map(action => (
+                  {header.actions.map((action) => (
                     <button
                       type="button"
                       key={action.id}
-                      className={action.id === 'dashboard' ? 'pill-btn company-dashboard-button' : undefined}
+                      className={action.id === 'dashboard' ? 'pill-btn' : 'pill-btn secondary'}
                       onClick={() => handleHeaderAction(action.id)}
                     >
-                      {action.id !== 'dashboard' && <Icon name={action.icon} size={18} />}
+                      {action.id !== 'dashboard' && <Icon name={action.icon} size={16} />}
                       {action.label}
                     </button>
                   ))}
                 </div>
                 <div className="company-filter-buttons">
-                  {filterControls.map(control => (
-                    <button type="button" key={control.id}>
-                      <Icon name={control.icon} size={19} />
+                  {filterControls.map((control) => (
+                    <button type="button" key={control.id} className="pill-btn secondary">
+                      <Icon name={control.icon} size={16} />
                       {control.label}
-                      <Icon name="chevron" size={17} />
+                      <Icon name="chevron" size={14} />
                     </button>
                   ))}
                 </div>
@@ -746,7 +754,7 @@ export default function CompanyDetails() {
             </header>
 
             <section className="company-kpi-grid" aria-label={summary.ariaLabel}>
-              {kpiCards.map(card => (
+              {kpiCards.map((card) => (
                 <KpiCard key={card.id} {...card} />
               ))}
             </section>
@@ -757,45 +765,61 @@ export default function CompanyDetails() {
                   <div className="company-panel-heading">
                     <div>
                       <h2>{momentum.title} <Icon name="info" size={16} /></h2>
-                      <p>{momentum.subtitle}</p>
+                      <p>{metrics?.isBaseline ? 'Baseline scrape — % change available after the next cycle' : momentum.subtitle}</p>
                     </div>
-                    <button type="button" className="company-select-button">{momentum.periodLabel} <Icon name="chevron" size={15} /></button>
+                    <button type="button" className="company-select-button">
+                      {periodLabel} <Icon name="chevron" size={15} />
+                    </button>
                   </div>
 
-                  <div className="company-momentum-chart is-ready">
+                  <div
+                    className={`company-momentum-chart is-ready${momentumRows.length > 10 ? ' company-momentum-chart--dense' : ''}`}
+                    style={{ '--momentum-rows': momentumRows.length }}
+                  >
                     <div className="company-industry-list">
-                      {momentum.rows.map(row => (
+                      {momentumRows.map((row) => (
                         <div className="company-industry-name" key={row.name}>
-                          <span className={row.value < 0 ? 'negative' : ''}><Icon name={row.icon} size={16} /></span>
-                          {row.name}
+                          <span className={`company-industry-icon${row.value < 0 ? ' negative' : ''}`}>
+                            <Icon name={row.icon} size={16} />
+                          </span>
+                          <span className="company-industry-label" title={row.name}>{row.name}</span>
                         </div>
                       ))}
                     </div>
                     <div className="company-bars">
                       <div className="company-zero-line" />
-                      {momentum.rows.map((row, index) => (
+                      {momentumRows.map((row, index) => (
                         <div
                           className="company-bar-row company-tooltip-target"
                           key={row.name}
-                          style={{ '--chart-delay': `${index * 70}ms` }}
+                          style={{ '--chart-delay': `${index * 40}ms` }}
                           tabIndex="0"
                           aria-describedby={`momentum-tooltip-${index}`}
                         >
                           <div className="company-bar-side negative">
-                            {row.value < 0 && <span style={{ width: `${Math.abs(row.value) / momentumScale * 100}%` }} />}
+                            {!row.isBaseline && row.value < 0 && (
+                              <span style={{ width: `${Math.abs(row.value) / momentumScale * 100}%` }} />
+                            )}
                           </div>
                           <div className="company-bar-side positive">
-                            {row.value > 0 && <span style={{ width: `${row.value / momentumScale * 100}%` }} />}
+                            {!row.isBaseline && row.value > 0 && (
+                              <span style={{ width: `${row.value / momentumScale * 100}%` }} />
+                            )}
                           </div>
-                          <strong>{row.value > 0 ? '+' : ''}{row.value.toFixed(1)}%</strong>
+                          <strong>{formatMomentumLabel(row.value, row.isBaseline)}</strong>
                           <span className="company-data-tooltip" id={`momentum-tooltip-${index}`} role="tooltip">
                             <strong>{row.name}</strong>
-                            <small>{row.value > 0 ? '+' : ''}{row.value.toFixed(1)}% · {momentum.axisTitle}</small>
+                            <small>
+                              {formatMomentumLabel(row.value, row.isBaseline)}
+                              {row.isBaseline ? ' · first scrape' : ` · ${momentum.axisTitle}`}
+                            </small>
                           </span>
                         </div>
                       ))}
                       <div className="company-axis">
-                        {momentum.axisValues.map(value => <span key={value}>{value > 0 ? '+' : ''}{value}%</span>)}
+                        {axisValues.map((value) => (
+                          <span key={value}>{value > 0 ? '+' : ''}{value}%</span>
+                        ))}
                       </div>
                       <div className="company-axis-title">{momentum.axisTitle}</div>
                     </div>
@@ -806,33 +830,37 @@ export default function CompanyDetails() {
                   <div className="company-panel-heading">
                     <h2>{trend.title} <Icon name="info" size={16} /></h2>
                     <select value={industry} onChange={handleIndustryChange} aria-label={trend.title}>
-                      {industryNames.map(name => <option key={name}>{name}</option>)}
+                      {industryNames.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="company-trend-tabs">
-                    {trendTabs.map(tab => (
-                      <button key={tab} type="button" className={trendTab === tab ? 'active' : ''} onClick={() => handleTrendChange(tab)}>{tab}</button>
+                    {trendTabs.map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        className={trendTab === tab ? 'active' : ''}
+                        onClick={() => handleTrendChange(tab)}
+                      >
+                        {tab}
+                      </button>
                     ))}
                   </div>
                   <div className="company-trend-chart is-ready">
                     <TrendChart
-                      key={`${industry}-${trendTab}`}
-                      values={values}
-                      labels={trendPointLabels}
+                      key={`${industry}-${trendTab}-${scrapeDates.join(',')}`}
+                      values={chartValues}
+                      labels={chartLabels}
                       ariaLabel={trend.chartAriaLabel}
                       industry={industry}
                       metricLabel={trendTab}
                       domainMaximum={trendYAxis.maximum}
-                      startDate={trend.startMonth}
-                      endDate={trend.endMonth}
+                      startDate={trendStart}
+                      endDate={trendEnd}
                     />
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex' }}>
-                      <p className="company-source">{source.label}: {source.detail} <Icon name="info" size={13} /></p>
-                    </div>
-                    <p className="company-trend-zoom-hint">{trend.zoomHint}</p>
-                  </div>
+                  <p className="company-trend-zoom-hint">{trend.zoomHint}</p>
                 </article>
               </div>
 
@@ -840,42 +868,58 @@ export default function CompanyDetails() {
                 <div className="company-panel-heading">
                   <h2>{snapshot.title}</h2>
                   <select value={industry} onChange={handleIndustryChange} aria-label={snapshot.title}>
-                    {industryNames.map(name => <option key={name}>{name}</option>)}
+                    {industryNames.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="company-snapshot-title">
                   <span><Icon name={selected.icon} size={28} /></span>
-                  <div><h3>{industry}</h3><p>{selected.status}</p></div>
+                  <div>
+                    <h3>{industry}</h3>
+                    <p>{selected.status}</p>
+                  </div>
                 </div>
                 <div className="company-snapshot-stats">
-                  {snapshot.metrics.map(metric => (
-                    <div key={metric.key}>
-                      <strong>{formatNumber(selected[metric.key])}</strong>
-                      <small>{metric.label}</small>
-                      <em>↑ {selected.changes[metric.changeKey].toFixed(1)}%</em>
-                      <span>{snapshot.comparisonLabel}</span>
-                    </div>
-                  ))}
+                  {snapshot.metrics.map((metric) => {
+                    const change = selected.changes[metric.changeKey]
+                    return (
+                      <div key={metric.key}>
+                        <strong>{formatNumber(selected[metric.key] || 0)}</strong>
+                        <small>{metric.label}</small>
+                        <em>
+                          {selected.isBaseline || change == null
+                            ? 'Baseline'
+                            : `${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}%`}
+                        </em>
+                        <span>{comparisonLabel}</span>
+                      </div>
+                    )
+                  })}
                 </div>
                 <div className="company-functions is-ready">
                   <h4>{snapshot.functionsTitle}</h4>
-                  {selected.functions.map((item, index) => (
-                    <div
-                      className="company-function-row company-tooltip-target"
-                      key={item.name}
-                      style={{ '--chart-delay': `${index * 80}ms` }}
-                      tabIndex="0"
-                      aria-describedby={`function-tooltip-${index}`}
-                    >
-                      <span>{item.name}</span>
-                      <div><i style={{ width: `${item.width}%` }} /></div>
-                      <strong>{formatNumber(item.value)}</strong>
-                      <span className="company-data-tooltip" id={`function-tooltip-${index}`} role="tooltip">
-                        <strong>{item.name}</strong>
-                        <small>{formatNumber(item.value)} {snapshot.functionMetricLabel}</small>
-                      </span>
-                    </div>
-                  ))}
+                  {selected.functions.length === 0 ? (
+                    <p className="company-source" style={{ marginTop: 12 }}>No Work Type data for this segment in the latest scrape.</p>
+                  ) : (
+                    selected.functions.map((item, index) => (
+                      <div
+                        className="company-function-row company-tooltip-target"
+                        key={item.name}
+                        style={{ '--chart-delay': `${index * 80}ms` }}
+                        tabIndex="0"
+                        aria-describedby={`function-tooltip-${index}`}
+                      >
+                        <span>{item.name}</span>
+                        <div><i style={{ width: `${item.width}%` }} /></div>
+                        <strong>{formatNumber(item.value)}</strong>
+                        <span className="company-data-tooltip" id={`function-tooltip-${index}`} role="tooltip">
+                          <strong>{item.name}</strong>
+                          <small>{formatNumber(item.value)} {snapshot.functionMetricLabel}</small>
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </article>
             </section>

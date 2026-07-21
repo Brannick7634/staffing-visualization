@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "refresh:job-signals": "node scripts/refresh-job-signals-cache.mjs"
   },
   "dependencies": {
     "@amcharts/amcharts5": "^5.14.4",
