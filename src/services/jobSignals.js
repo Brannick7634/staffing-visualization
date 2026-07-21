@@ -1,6 +1,9 @@
 import Airtable from 'airtable'
 import { SEGMENT_NAMES, normalizeSegment } from '../constants/segments.js'
-import { isAirtableConfigured } from './airtable.js'
+import {
+  fetchJobSignalsCache,
+  storeJobSignalsCache,
+} from './airtable.js'
 
 const base = new Airtable({
   apiKey: import.meta.env.VITE_AIRTABLE_API_KEY,
@@ -12,10 +15,8 @@ const JOBS_TABLE = import.meta.env.VITE_AIRTABLE_JOBS_TABLE || 'Linkedin Jobs'
 const COMPANY_URL_FIELD =
   import.meta.env.VITE_AIRTABLE_COMPANY_URL_FIELD || 'Sales Navigator Company URL'
 
-const CACHE_KEY = 'jobSignalsMetrics_v1'
-const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour browser cache (localStorage)
-const AIRTABLE_CACHE_TABLE =
-  import.meta.env.VITE_AIRTABLE_JOB_SIGNALS_CACHE_TABLE || 'JobSignalsCache'
+/** Background refresh cadence — same idea as homepage DashboardMetrices, but 7 days. */
+export const JOB_SIGNALS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 const SEGMENT_ICONS = {
   Admin: 'briefcase',
@@ -96,48 +97,6 @@ function topWorkTypes(workTypeMap, limit = 5) {
     value,
     width: Math.max(8, Math.round((value / max) * 100)),
   }))
-}
-
-function readCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed?.timestamp || !parsed?.metrics) return null
-    if (Date.now() - parsed.timestamp > CACHE_TTL_MS) {
-      localStorage.removeItem(CACHE_KEY)
-      return null
-    }
-    return parsed.metrics
-  } catch {
-    try {
-      localStorage.removeItem(CACHE_KEY)
-    } catch {
-      // ignore
-    }
-    return null
-  }
-}
-
-function writeCache(metrics) {
-  try {
-    localStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({ timestamp: Date.now(), metrics }),
-    )
-  } catch (error) {
-    if (error?.name === 'QuotaExceededError') {
-      try {
-        localStorage.removeItem(CACHE_KEY)
-        localStorage.setItem(
-          CACHE_KEY,
-          JSON.stringify({ timestamp: Date.now(), metrics }),
-        )
-      } catch {
-        // Ignore quota / private mode failures
-      }
-    }
-  }
 }
 
 async function fetchCompanyIdToSegment() {
@@ -307,65 +266,17 @@ export function computeJobSignalsMetrics(companyIdToSegment, jobs) {
 }
 
 /**
- * Load precomputed metrics from Airtable JobSignalsCache (1 record).
- * Same pattern as DashboardMetrices on the homepage.
+ * Load precomputed Job Signals metrics from DashboardMetrices (type=job_signals).
  */
-export async function fetchCachedMetricsFromAirtable() {
-  try {
-    const records = await base(AIRTABLE_CACHE_TABLE)
-      .select({
-        maxRecords: 1,
-        fields: ['metrics', 'computed_at'],
-        sort: [{ field: 'computed_at', direction: 'desc' }],
-      })
-      .firstPage()
-
-    if (!records.length) return null
-    const raw = records[0].get('metrics')
-    const computedAt = records[0].get('computed_at')
-    if (!raw) return null
-
-    const metrics = typeof raw === 'string' ? JSON.parse(raw) : raw
-    return {
-      ...metrics,
-      computedAt: computedAt || metrics.computedAt || null,
-      fromAirtableCache: true,
-    }
-  } catch (err) {
-    console.warn('[jobSignals] Airtable cache unavailable:', err.message)
-    return null
-  }
+export async function fetchJobSignalsMetrics() {
+  return fetchJobSignalsCache()
 }
 
 /**
- * Upsert precomputed metrics into Airtable JobSignalsCache.
- * Creates the first record if none exist. Fails softly if table is missing.
+ * Upsert Job Signals metrics into DashboardMetrices (type=job_signals).
  */
-export async function storeJobSignalsMetricsCache(metrics) {
-  const payload = {
-    ...metrics,
-    computedAt: new Date().toISOString(),
-  }
-  const fields = {
-    metrics: JSON.stringify(payload),
-    computed_at: payload.computedAt,
-  }
-
-  try {
-    const existing = await base(AIRTABLE_CACHE_TABLE)
-      .select({ maxRecords: 1, fields: ['computed_at'] })
-      .firstPage()
-
-    if (existing.length) {
-      await base(AIRTABLE_CACHE_TABLE).update(existing[0].id, fields)
-    } else {
-      await base(AIRTABLE_CACHE_TABLE).create([{ fields }])
-    }
-    return { success: true }
-  } catch (err) {
-    console.warn('[jobSignals] Failed to store Airtable cache:', err.message)
-    return { success: false, error: err.message }
-  }
+export async function storeJobSignalsMetrics(metrics) {
+  return storeJobSignalsCache(metrics)
 }
 
 /**
@@ -383,46 +294,10 @@ export async function computeJobSignalsMetricsLive() {
   return metrics
 }
 
-/**
- * Fetch Job Signals metrics — same pattern as homepage:
- * localStorage → Airtable JobSignalsCache → live compute from Airtable.
- */
-export async function fetchJobSignalsMetrics({ forceRefresh = false } = {}) {
-  if (!isAirtableConfigured()) {
-    throw new Error('Airtable is not configured')
-  }
-
-  if (!forceRefresh) {
-    const cached = readCache()
-    if (cached) return { ...cached, fromCache: true }
-  }
-
-  let metrics = forceRefresh ? null : await fetchCachedMetricsFromAirtable()
-
-  if (!metrics) {
-    metrics = await computeJobSignalsMetricsLive()
-    metrics.fromCache = false
-    await storeJobSignalsMetricsCache(metrics)
-  } else {
-    metrics = { ...metrics, fromCache: true }
-    const computedAt = metrics.computedAt ? new Date(metrics.computedAt) : null
-    const hoursSinceComputed = computedAt
-      ? (Date.now() - computedAt.getTime()) / (1000 * 60 * 60)
-      : Infinity
-
-    // Stale Airtable cache: refresh in background like homepage (>7h)
-    if (hoursSinceComputed > 7) {
-      computeJobSignalsMetricsLive()
-        .then(async (fresh) => {
-          writeCache(fresh)
-          await storeJobSignalsMetricsCache(fresh)
-        })
-        .catch(() => {})
-    }
-  }
-
-  writeCache(metrics)
-  return metrics
+export function isJobSignalsCacheStale(computedAt) {
+  if (!computedAt) return true
+  const ageMs = Date.now() - new Date(computedAt).getTime()
+  return !Number.isFinite(ageMs) || ageMs > JOB_SIGNALS_CACHE_TTL_MS
 }
 
 export function getDefaultIndustry(userSegment) {
@@ -432,4 +307,4 @@ export function getDefaultIndustry(userSegment) {
   return [...SEGMENT_NAMES].sort()[0]
 }
 
-export { SEGMENT_ICONS, CACHE_KEY, AIRTABLE_CACHE_TABLE }
+export { SEGMENT_ICONS }

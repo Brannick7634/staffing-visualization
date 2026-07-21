@@ -25,11 +25,18 @@ const COMPANY_VIEW_ID = import.meta.env.VITE_AIRTABLE_COMPANY_VIEW || 'Grid view
 const DASHBOARD_METRICS_TABLE = 'DashboardMetrices'
 const DASHBOARD_METRICS_VIEW = 'Grid view'  // View name for DashboardMetrices table
 
+/** Differentiates cache rows in DashboardMetrices (add a Single line text `type` field in Airtable). */
+export const METRICS_CACHE_TYPE = {
+  DASHBOARD: 'dashboard',
+  JOB_SIGNALS: 'job_signals',
+}
+
 // Size filters for heatmap — order must stay in sync with heatmap_data_1..10 fields
 const HEATMAP_SIZE_FILTERS = ['all', '1-5', '6-10', '11-20', '21-50', '51-100', '101-250', '251-500', '501-1000', '>1000']
 
 // Field names in DashboardMetrices table
 const METRICS_FIELDS = {
+  TYPE: 'type',                // Single line text - 'dashboard' | 'job_signals'
   SEGMENT: 'segment',          // Single line text - segment name
   STATS: 'stats',              // Long text - segment stats and rankings (NO tableFirms)
   HEATMAP_DATA_1:  'heatmap_data_1',   // size=all
@@ -74,6 +81,16 @@ const METRICS_FIELDS = {
   COUNTY_DATA_26: 'county_data_26',
   COMPUTED_AT: 'computed_at',
   IS_RECOMPUTING: 'is_recomputing'
+}
+
+function normalizeCacheType(type) {
+  return String(type || '').trim().toLowerCase()
+}
+
+function isDashboardCacheRecord(record) {
+  const type = normalizeCacheType(record.get(METRICS_FIELDS.TYPE))
+  // Treat blank/missing type as dashboard for backwards compatibility
+  return !type || type === METRICS_CACHE_TYPE.DASHBOARD
 }
 
 // State split for table_state_1 (26 states: AL–MO)
@@ -723,7 +740,8 @@ export async function computeDashboardMetrics() {
 }
 
 /**
- * Store dashboard metrics in Airtable DashboardMetrices table (one row per segment)
+ * Store dashboard metrics in Airtable DashboardMetrices table (one row per segment).
+ * Only replaces `type=dashboard` rows — job_signals cache rows are preserved.
  */
 export async function storeDashboardMetrics(metrics) {
   try {
@@ -731,9 +749,10 @@ export async function storeDashboardMetrics(metrics) {
     const segments = Object.keys(metrics.segmentStats)
     
     const allExistingRecords = await base(DASHBOARD_METRICS_TABLE).select().all()
+    const dashboardRecords = allExistingRecords.filter(isDashboardCacheRecord)
     
-    if (allExistingRecords.length > 0) {
-      const idsToDelete = allExistingRecords.map(r => r.id)
+    if (dashboardRecords.length > 0) {
+      const idsToDelete = dashboardRecords.map(r => r.id)
       for (let i = 0; i < idsToDelete.length; i += 10) {
         const batch = idsToDelete.slice(i, i + 10)
         await base(DASHBOARD_METRICS_TABLE).destroy(batch)
@@ -780,6 +799,7 @@ export async function storeDashboardMetrics(metrics) {
       )
 
       const fields = {
+        [METRICS_FIELDS.TYPE]: METRICS_CACHE_TYPE.DASHBOARD,
         [METRICS_FIELDS.SEGMENT]: segment,
         [METRICS_FIELDS.STATS]: statsJson,
         ...heatmapFields,
@@ -830,13 +850,16 @@ export async function storeDashboardMetrics(metrics) {
 }
 
 /**
- * Fetch dashboard metrics from Airtable DashboardMetrices table (one row per segment)
+ * Fetch dashboard metrics from Airtable DashboardMetrices table (one row per segment).
+ * Ignores job_signals cache rows.
  */
 export async function fetchDashboardMetrics() {
   try {
-    const records = await base(DASHBOARD_METRICS_TABLE).select({
+    const allRecords = await base(DASHBOARD_METRICS_TABLE).select({
       view: DASHBOARD_METRICS_VIEW
     }).all()
+
+    const records = allRecords.filter(isDashboardCacheRecord)
     
     if (records.length === 0) {
       return null
@@ -959,13 +982,26 @@ export async function fetchDashboardMetrics() {
  */
 export async function markDashboardRecomputing(isRecomputing) {
   try {
-    const existingRecords = await base(DASHBOARD_METRICS_TABLE).select({
-      maxRecords: 1,
-      sort: [{ field: METRICS_FIELDS.COMPUTED_AT, direction: 'desc' }]
-    }).firstPage()
+    // Prefer an explicit dashboard row — never touch job_signals
+    let dashboardRecord = null
+    try {
+      const filtered = await base(DASHBOARD_METRICS_TABLE).select({
+        maxRecords: 1,
+        filterByFormula: `OR({${METRICS_FIELDS.TYPE}} = '${METRICS_CACHE_TYPE.DASHBOARD}', {${METRICS_FIELDS.TYPE}} = '')`,
+        sort: [{ field: METRICS_FIELDS.COMPUTED_AT, direction: 'desc' }],
+      }).firstPage()
+      dashboardRecord = filtered[0] || null
+    } catch {
+      // Fallback if type formula fails (older bases): scan recent rows
+      const existingRecords = await base(DASHBOARD_METRICS_TABLE).select({
+        maxRecords: 50,
+        sort: [{ field: METRICS_FIELDS.COMPUTED_AT, direction: 'desc' }],
+      }).firstPage()
+      dashboardRecord = existingRecords.find(isDashboardCacheRecord) || null
+    }
     
-    if (existingRecords.length > 0) {
-      await base(DASHBOARD_METRICS_TABLE).update(existingRecords[0].id, {
+    if (dashboardRecord) {
+      await base(DASHBOARD_METRICS_TABLE).update(dashboardRecord.id, {
         [METRICS_FIELDS.IS_RECOMPUTING]: isRecomputing ? 'true' : 'false'
       })
     }
@@ -973,5 +1009,81 @@ export async function markDashboardRecomputing(isRecomputing) {
     return { success: true }
   } catch (error) {
     return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Load Job Signals metrics from DashboardMetrices (type=job_signals).
+ */
+export async function fetchJobSignalsCache() {
+  try {
+    const records = await base(DASHBOARD_METRICS_TABLE)
+      .select({
+        maxRecords: 5,
+        fields: [METRICS_FIELDS.TYPE, METRICS_FIELDS.STATS, METRICS_FIELDS.COMPUTED_AT, METRICS_FIELDS.SEGMENT],
+        sort: [{ field: METRICS_FIELDS.COMPUTED_AT, direction: 'desc' }],
+        filterByFormula: `{${METRICS_FIELDS.TYPE}} = '${METRICS_CACHE_TYPE.JOB_SIGNALS}'`,
+      })
+      .firstPage()
+
+    if (!records.length) return null
+    const raw = records[0].get(METRICS_FIELDS.STATS)
+    const computedAt = records[0].get(METRICS_FIELDS.COMPUTED_AT)
+    if (!raw) return null
+
+    const metrics = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return {
+      ...metrics,
+      computedAt: computedAt || metrics.computedAt || null,
+      fromAirtableCache: true,
+    }
+  } catch (err) {
+    console.warn('[jobSignals] Airtable cache unavailable:', err.message)
+    return null
+  }
+}
+
+/**
+ * Upsert Job Signals metrics into DashboardMetrices as a single type=job_signals row.
+ */
+export async function storeJobSignalsCache(metrics) {
+  const computedAt = new Date().toISOString()
+  const payload = {
+    ...metrics,
+    computedAt,
+  }
+  const fields = {
+    [METRICS_FIELDS.TYPE]: METRICS_CACHE_TYPE.JOB_SIGNALS,
+    [METRICS_FIELDS.SEGMENT]: 'Job Signals',
+    [METRICS_FIELDS.STATS]: JSON.stringify(payload),
+    [METRICS_FIELDS.COMPUTED_AT]: computedAt,
+    [METRICS_FIELDS.IS_RECOMPUTING]: 'false',
+  }
+
+  try {
+    const existing = await base(DASHBOARD_METRICS_TABLE)
+      .select({
+        maxRecords: 5,
+        fields: [METRICS_FIELDS.TYPE, METRICS_FIELDS.COMPUTED_AT],
+        filterByFormula: `{${METRICS_FIELDS.TYPE}} = '${METRICS_CACHE_TYPE.JOB_SIGNALS}'`,
+      })
+      .firstPage()
+
+    if (existing.length) {
+      await base(DASHBOARD_METRICS_TABLE).update(existing[0].id, fields)
+      // Clean up any duplicate job_signals rows
+      if (existing.length > 1) {
+        const extras = existing.slice(1).map((r) => r.id)
+        for (let i = 0; i < extras.length; i += 10) {
+          await base(DASHBOARD_METRICS_TABLE).destroy(extras.slice(i, i + 10))
+        }
+      }
+    } else {
+      await base(DASHBOARD_METRICS_TABLE).create([{ fields }])
+    }
+    return { success: true, computedAt }
+  } catch (err) {
+    console.warn('[jobSignals] Failed to store Airtable cache:', err.message)
+    return { success: false, error: err.message }
   }
 }
