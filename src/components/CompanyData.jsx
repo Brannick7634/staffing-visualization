@@ -703,7 +703,7 @@ export default function CompanyDetails() {
   if (!isConfigured) {
     return (
       <div className="page-wrappers" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 48px)' }}>
-        <p style={{ color: '#91a0b4' }}>Airtable is not configured. Add VITE_AIRTABLE_* env vars to load Job Signals.</p>
+        <p style={{ color: '#91a0b4' }}>Job Signals data isn't available right now. Check the server's Airtable configuration.</p>
       </div>
     )
   }

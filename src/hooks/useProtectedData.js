@@ -84,8 +84,10 @@ export function useProtectedData(user) {
   useEffect(() => {
     async function loadData() {
       setLoading(true)
-      const hasAirtableConfig = import.meta.env.VITE_AIRTABLE_API_KEY && 
-                                import.meta.env.VITE_AIRTABLE_BASE_ID
+      // Configuration now lives server-side (api/_lib/airtableServer.js) — the
+      // client can't check it directly. Always attempt the fetch; the API
+      // returns an empty array if the server itself isn't configured.
+      const hasAirtableConfig = true
       setIsConfigured(hasAirtableConfig)
       if (hasAirtableConfig && user) {
         const cachedData = getCachedData(user)
