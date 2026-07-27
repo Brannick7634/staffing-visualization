@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     // Signal count only — no company names, no signal detail. That level of
     // specificity is Marketing Machine / Airtable territory, not this page.
     const signalCount = await client.query(
-      `SELECT COUNT(*) AS n FROM signal_events WHERE signal_date >= (CURRENT_DATE - INTERVAL '30 days')`
+      `SELECT COUNT(*) AS n FROM signal_events WHERE signal_date::date >= (CURRENT_DATE - INTERVAL '30 days')`
     )
 
     res.status(200).json({
