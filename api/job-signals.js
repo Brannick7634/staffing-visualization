@@ -1,7 +1,9 @@
 import { fetchJobSignalsCache, storeJobSignalsCache, computeJobSignalsMetricsLive } from './_lib/airtableServer.js'
 import { computeJobSignalsMetrics } from '../src/utils/jobSignalsCompute.js'
+import { requireAuth } from './_lib/auth.js'
 
 export default async function handler(req, res) {
+  if (!requireAuth(req, res)) return
   if (req.method === 'GET') {
     try {
       const metrics = await fetchJobSignalsCache()

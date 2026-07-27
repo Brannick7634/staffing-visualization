@@ -8,7 +8,10 @@ export function useMarketIntel() {
 
     async function load() {
       try {
-        const response = await fetch('/api/jsearch-metrics')
+        const token = window.localStorage.getItem('authToken')
+        const response = await fetch('/api/jsearch-metrics', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
         if (!response.ok) {
           const body = await response.json().catch(() => ({}))
           throw new Error(body.error || `Request failed (${response.status})`)

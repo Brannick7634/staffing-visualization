@@ -4,6 +4,7 @@
 // Company Details), matching the existing Job Signals feature's same
 // "no individual firm names to end users" boundary.
 import pg from 'pg'
+import { requireAuth } from './_lib/auth.js'
 
 const { Pool } = pg
 let pool
@@ -16,6 +17,7 @@ function getPool() {
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  if (!requireAuth(req, res)) return
   const client = await getPool().connect()
   try {
     const summary = await client.query(`

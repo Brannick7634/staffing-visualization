@@ -3,17 +3,22 @@
 // Exported names/signatures match the old direct-Airtable version exactly,
 // so no consuming component needs to change.
 
+function authHeaders() {
+  const token = window.localStorage.getItem('authToken')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 async function postJson(url, body) {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   })
   return res.json()
 }
 
 async function getJson(url) {
-  const res = await fetch(url)
+  const res = await fetch(url, { headers: { ...authHeaders() } })
   return res.json()
 }
 

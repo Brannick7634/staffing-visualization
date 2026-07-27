@@ -9,14 +9,19 @@ export {
   JOB_SIGNALS_CACHE_TTL_MS,
 } from '../utils/jobSignalsCompute.js'
 
+function authHeaders() {
+  const token = window.localStorage.getItem('authToken')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export async function fetchJobSignalsMetrics() {
-  const res = await fetch('/api/job-signals')
+  const res = await fetch('/api/job-signals', { headers: authHeaders() })
   const data = await res.json()
   return data.metrics
 }
 
 export async function computeJobSignalsMetricsLive() {
-  const res = await fetch('/api/job-signals', { method: 'POST' })
+  const res = await fetch('/api/job-signals', { method: 'POST', headers: authHeaders() })
   const data = await res.json()
   return data.metrics
 }

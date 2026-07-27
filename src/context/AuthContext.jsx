@@ -15,11 +15,6 @@ export const useAuth = () => {
   return context
 }
 
-// Generate a simple token
-const generateToken = () => {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36)
-}
-
 // Check if token is expired
 const isTokenExpired = (expiryTime) => {
   return Date.now() > expiryTime
@@ -54,7 +49,7 @@ export const AuthProvider = ({ children }) => {
       const result = await verifyCredentials(email, password)
       
       if (result.success) {
-        const token = generateToken()
+        const token = result.token
         const expiryTime = Date.now() + TOKEN_EXPIRY_MS
         
         const userSession = {
