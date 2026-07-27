@@ -27,7 +27,7 @@ import {
 import { statesMatch, getFirmStateName } from '../utils/stateNormalization'
 
 // Protected Header Component
-function ProtectedHeader({ user, onLogout, onCompanyData, onHomeClick }) {
+function ProtectedHeader({ user, onLogout, onCompanyData, onMarketIntel, onHomeClick }) {
   return (
     <header className="top-bar">
       <div className="top-bar-left">
@@ -51,6 +51,9 @@ function ProtectedHeader({ user, onLogout, onCompanyData, onHomeClick }) {
         </button>
         <button className="pill-btn" onClick={onCompanyData}>
           Company Data
+        </button>
+        <button className="pill-btn" onClick={onMarketIntel}>
+          Market Intel
         </button>
         <button className="pill-btn secondary" onClick={onLogout}>
           Log out
@@ -1162,6 +1165,7 @@ function ProtectedDashboard() {
           user={user}
           onLogout={handleLogout}
           onCompanyData={() => navigate('/company-data')}
+          onMarketIntel={() => navigate('/market-intel')}
           onHomeClick={() => navigate('/')}
         />
 

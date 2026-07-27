@@ -6,6 +6,7 @@ import Signup from './components/Signup'
 import Dashboard from './components/Dashboard'
 import ProtectedDashboard from './components/ProtectedDashboard'
 import CompanyData from './components/CompanyData'
+import MarketIntel from './components/MarketIntel'
 
 function App() {
   return (
@@ -27,6 +28,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProtectedDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/market-intel"
+            element={
+              <ProtectedRoute>
+                <MarketIntel />
               </ProtectedRoute>
             }
           />

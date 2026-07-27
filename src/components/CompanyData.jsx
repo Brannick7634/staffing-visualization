@@ -16,6 +16,7 @@ const dashboardModel = {
     actions: [
       { id: 'help', label: 'How it works', icon: 'info' },
       { id: 'export', label: 'Export', icon: 'download' },
+      { id: 'market-intel', label: 'Market Intelligence', icon: 'globe' },
       { id: 'dashboard', label: 'Go to Dashboard', icon: 'screen' },
     ],
   },
@@ -681,6 +682,11 @@ export default function CompanyDetails() {
   const handleHeaderAction = (actionId) => {
     if (actionId === 'dashboard') {
       navigate('/dashboard')
+      return
+    }
+
+    if (actionId === 'market-intel') {
+      navigate('/market-intel')
       return
     }
 
