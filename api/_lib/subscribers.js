@@ -37,7 +37,7 @@ export function loadConfig(env = process.env, { needMail = false } = {}) {
     ok: true,
     cfg: {
       apiKey: env.AIRTABLE_API_KEY,
-      base: env.SIGNAL_SUBSCRIBERS_BASE || env.AIRTABLE_BASE_ID || DEFAULT_BASE,
+      base: env.SIGNAL_SUBSCRIBERS_BASE || DEFAULT_BASE, // field IDs below belong to this base
       table: env.SIGNAL_SUBSCRIBERS_TABLE || DEFAULT_TABLE,
       secret,
       site,
