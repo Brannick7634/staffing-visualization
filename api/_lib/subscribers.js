@@ -135,12 +135,17 @@ async function at(cfg, fetchImpl, path, { method = 'GET', body } = {}) {
     headers: { Authorization: `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body)
   })
-  if (!res.ok) throw new Error(`airtable_${res.status}`)
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    console.error(`[subscribers] airtable ${method} ${res.status} ${detail?.error?.type || ''}`)
+    throw new Error(`airtable_${res.status}`)
+  }
   return res.json()
 }
 
 export async function findByEmail(cfg, fetchImpl, email) {
-  const formula = `LOWER({${F.email}})="${escapeFormulaString(normalizeEmail(email))}"`
+  // Formulas reference fields by NAME (field IDs are not valid inside {}).
+  const formula = `LOWER({Email})="${escapeFormulaString(normalizeEmail(email))}"`
   const q = new URLSearchParams({ filterByFormula: formula, maxRecords: '1', returnFieldsByFieldId: 'true' })
   const data = await at(cfg, fetchImpl, `?${q}`)
   return Array.isArray(data.records) && data.records[0] ? data.records[0] : null
