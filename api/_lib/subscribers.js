@@ -138,7 +138,7 @@ async function at(cfg, fetchImpl, path, { method = 'GET', body } = {}) {
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
     console.error(`[subscribers] airtable ${method} ${res.status} ${detail?.error?.type || ''}`)
-    throw new Error(`airtable_${res.status}_${method}_${detail?.error?.type || ""}`)
+    throw new Error(`airtable_${res.status}`)
   }
   return res.json()
 }
