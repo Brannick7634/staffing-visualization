@@ -17,7 +17,7 @@ export function createSubscribeHandler({ env = process.env, fetchImpl = globalTh
     try {
       await upsertSubscriber(conf.cfg, fetchImpl, checked.value, at)
     } catch (e) {
-      res.setHeader('X-Signal-Debug', String(e && e.message || '').slice(0, 40))
+      res.setHeader('X-Signal-Debug', String(e && e.message || '').slice(0, 90))
       return sendError(res, 502, 'save_failed', 'We could not save your signup. Please try again.')
     }
     try {
