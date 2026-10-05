@@ -23,7 +23,7 @@ import { evaluatePublication } from './privacy.js'
 
 export const SNAPSHOT_FORMAT = 'staffing-signal-aggregate-snapshot'
 export const SNAPSHOT_SCHEMA_VERSION = 1
-export const KNOWN_CALC_VERSIONS = Object.freeze(['signal-agg-1.0.0'])
+export const KNOWN_CALC_VERSIONS = Object.freeze(['signal-agg-1.0.0', 'signal-agg-1.1.0'])
 export const MAX_AGE_DAYS = 10
 export const DEFAULT_SNAPSHOT_PATH = fileURLToPath(new URL('./data/signal-snapshot.json', import.meta.url))
 

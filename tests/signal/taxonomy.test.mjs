@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import {
-  SECTORS, ROLES, TAXONOMY_NOTE, EXAMPLE_ROLES, DEFAULT_EXAMPLE,
+  SECTORS, ROLES, ROLE_GROUPS, TAXONOMY_NOTE, EXAMPLE_ROLES, DEFAULT_EXAMPLE,
   roleByKey, rolesForSector, sectorForRole, sectorByKey
 } from '../../shared/signal/taxonomy.js'
 import { parseHourlyRate } from '../../shared/signal/money.js'
@@ -30,7 +30,7 @@ describe('taxonomy integrity', () => {
   })
 
   test('every role has the documented shape and an existing sector', () => {
-    const allowed = new Set(['key', 'label', 'sectorKey', 'specialtyOf', 'kind'])
+    const allowed = new Set(['key', 'label', 'sectorKey', 'group', 'specialtyOf', 'kind'])
     for (const role of ROLES) {
       for (const field of Object.keys(role)) assert.ok(allowed.has(field), `${role.key}.${field}`)
       assert.equal(typeof role.label, 'string')
@@ -82,19 +82,45 @@ describe('taxonomy integrity', () => {
     }
   })
 
-  test('healthcare carries Registered Nurse plus the seven required nurse specialties', () => {
+  test('healthcare carries Registered Nurse first plus its nurse specialties', () => {
     const healthcare = rolesForSector('healthcare')
     assert.equal(healthcare[0].key, 'registered-nurse')
     const specialties = healthcare.filter((role) => role.specialtyOf === 'registered-nurse')
     assert.deepEqual(specialties.map((role) => role.label), [
-      'ICU Registered Nurse', 'OR Nurse', 'ER Nurse', 'Med-Surg Nurse', 'Telemetry Nurse', 'Labor & Delivery Nurse', 'Home Health Nurse'
+      'Cath Lab Nurse', 'ER Nurse', 'Home Health Nurse', 'ICU Registered Nurse', 'Long-Term Care Nurse', 'Med-Surg Nurse',
+      'Nurse Case Manager', 'Oncology Nurse', 'OR Nurse', 'PACU Nurse', 'Telemetry Nurse'
     ])
+    assert.equal(healthcare.length, 42)
+  })
+
+  test('healthcare roles are grouped; other sectors are flat', () => {
+    for (const role of ROLES) {
+      if (role.sectorKey === 'healthcare') assert.ok(ROLE_GROUPS.includes(role.group), role.key)
+      else assert.equal(role.group, undefined, role.key)
+    }
+    const groups = rolesForSector('healthcare').map((role) => role.group)
+    const order = groups.filter((group, index) => groups.indexOf(group) === index)
+    assert.deepEqual(order, [...ROLE_GROUPS], 'each group is contiguous and in ROLE_GROUPS order')
+  })
+
+  test('display order: alphabetical by label within a group (Registered Nurse first)', () => {
+    for (const sector of SECTORS) {
+      const roles = rolesForSector(sector.key).filter((role) => role.key !== 'registered-nurse')
+      for (let i = 1; i < roles.length; i++) {
+        if (roles[i].group !== roles[i - 1].group) continue
+        assert.ok(roles[i - 1].label.localeCompare(roles[i].label, 'en') < 0, `${roles[i - 1].label} < ${roles[i].label}`)
+      }
+    }
   })
 
   test('sector role lists', () => {
-    assert.deepEqual(rolesForSector('light-industrial').map((role) => role.key), ['warehouse-associate', 'forklift-operator', 'cnc-machinist'])
-    assert.deepEqual(rolesForSector('it').map((role) => role.key), ['software-engineer'])
-    assert.deepEqual(rolesForSector('professional'), [])
+    assert.deepEqual(rolesForSector('light-industrial').map((role) => role.label), [
+      'Assembler / Production Worker', 'CNC Machinist', 'Forklift Operator', 'Janitor / Sanitation Worker',
+      'Machine Operator', 'Packer / Packaging Operator', 'Quality Inspector', 'Warehouse Associate'
+    ])
+    assert.deepEqual(Object.fromEntries(SECTORS.map((sector) => [sector.key, rolesForSector(sector.key).length])), {
+      healthcare: 42, 'light-industrial': 8, construction: 7, 'skilled-trades': 8, transportation: 6, hospitality: 4, it: 10, professional: 14
+    })
     assert.deepEqual(rolesForSector('unknown'), [])
     assert.deepEqual(rolesForSector(undefined), [])
   })

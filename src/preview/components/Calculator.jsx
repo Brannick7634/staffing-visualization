@@ -39,6 +39,17 @@ function firstBenchmarkedRole(sectorKey, benchmarked) {
   return (withBenchmark || roles[0] || null)?.key || null
 }
 
+function groupRoles(roles) {
+  const groups = []
+  for (const role of roles) {
+    const group = role.group || null
+    const last = groups[groups.length - 1]
+    if (last && last.group === group) last.roles.push(role)
+    else groups.push({ group, roles: [role] })
+  }
+  return groups
+}
+
 function Field({ id, label, error, children, className = '' }) {
   return (
     <div className={`ssp-field${error ? ' has-error' : ''}${className ? ` ${className}` : ''}`}>
@@ -76,8 +87,14 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
   const knowsBenchmarks = benchmarked.size > 0
 
   const sectorRoles = rolesForSector(selection.sectorKey)
-  const topRoles = sectorRoles.filter((role) => !role.specialtyOf)
-  const specialties = sectorRoles.filter((role) => role.specialtyOf)
+  // Long lists (Healthcare) carry a `group` per role: render one <optgroup>
+  // per group, in the order rolesForSector returns them.
+  const roleGroups = groupRoles(sectorRoles)
+  const roleOption = (role) => (
+    <option key={role.key} value={role.key}>
+      {role.label}{knowsBenchmarks && !benchmarked.has(role.key) ? ' (no benchmark yet)' : ''}
+    </option>
+  )
   const cities = selection.state ? citiesForState(selection.state) : []
 
   // Open the local fields if the visitor already chose a state.
@@ -205,20 +222,9 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
               aria-describedby={describe(errors.role && `${id('role')}-error`)}
             >
               {sectorRoles.length === 0 && <option value="">No job titles available yet</option>}
-              {topRoles.map((role) => (
-                <option key={role.key} value={role.key}>
-                  {role.label}{knowsBenchmarks && !benchmarked.has(role.key) ? ' (no benchmark yet)' : ''}
-                </option>
-              ))}
-              {specialties.length > 0 && (
-                <optgroup label="Nurse specialties">
-                  {specialties.map((role) => (
-                    <option key={role.key} value={role.key}>
-                      {role.label}{knowsBenchmarks && !benchmarked.has(role.key) ? ' (no benchmark yet)' : ''}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
+              {roleGroups.map(({ group, roles }) => (group
+                ? <optgroup key={group} label={group}>{roles.map(roleOption)}</optgroup>
+                : roles.map(roleOption)))}
             </select>
           </span>
         </Field>

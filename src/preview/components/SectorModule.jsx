@@ -83,8 +83,12 @@ function RolesCard({ sector, onPickRole }) {
   )
 }
 
+const PAY_ROWS_SHOWN = 10
+
 function PayCard({ sector, nationalPay, mode }) {
+  const [showAll, setShowAll] = useState(false)
   const rows = payRowsFor(sector, nationalPay)
+  const shown = showAll ? rows : rows.slice(0, PAY_ROWS_SHOWN)
   const titleId = `ssp-sector-${sector.key}-pay`
   const typicalLabel = rows.find((row) => row.typicalLabel)?.typicalLabel || 'Typical advertised rate'
 
@@ -97,8 +101,8 @@ function PayCard({ sector, nationalPay, mode }) {
       {rows.length > 0 ? (
         <>
           <p className="ssp-sector__note ssp-muted">{typicalLabel}, per hour. Only roles with a national benchmark are listed.</p>
-          <ul className="ssp-payrows">
-            {rows.map((row) => (
+          <ul className="ssp-payrows" id={`${titleId}-list`}>
+            {shown.map((row) => (
               <li key={row.roleKey} className="ssp-payrows__row">
                 <span className="ssp-payrows__role">{row.roleLabel}</span>
                 <span className="ssp-payrows__value ssp-num">
@@ -112,6 +116,17 @@ function PayCard({ sector, nationalPay, mode }) {
               </li>
             ))}
           </ul>
+          {rows.length > PAY_ROWS_SHOWN && (
+            <button
+              type="button"
+              className="ssp-linkbtn"
+              aria-expanded={showAll}
+              aria-controls={`${titleId}-list`}
+              onClick={() => setShowAll((value) => !value)}
+            >
+              {showAll ? 'Show fewer' : `Show all ${rows.length} roles`}
+            </button>
+          )}
           <p className="ssp-sector__foot ssp-muted">Staffing-firm postings only. Advertised pay, not actual pay.</p>
         </>
       ) : (

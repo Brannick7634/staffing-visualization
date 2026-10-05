@@ -24,7 +24,7 @@
 //
 // Server-only.
 import { CONTRACT_VERSION, COVERAGE, ACCESS, FRESHNESS, DATA_MODE } from '../../../shared/signal/contract.js'
-import { SECTORS, ROLES, roleByKey } from '../../../shared/signal/taxonomy.js'
+import { SECTORS, ROLES, roleByKey, rolesForSector } from '../../../shared/signal/taxonomy.js'
 import { stateByCode, cityByKey } from '../../../shared/signal/geography.js'
 import { formatCents } from '../../../shared/signal/money.js'
 import { evaluatePublication, evaluatePayCell, PRIVACY_REASON } from './privacy.js'
@@ -430,14 +430,17 @@ function buildIssueCards({ issueCards, rankedCities, momentumRows, momentum, nat
 function buildSectors({ places, nationalPay }) {
   const withBenchmark = new Set(nationalPay.map((e) => e.roleKey))
   return places.sectors.map((sector) => {
+    const order = new Map(rolesForSector(sector.key).map((role, index) => [role.key, index]))
     const out = {
       key: sector.key,
       label: sector.label,
       roles: places.roles
         .filter((role) => role.sectorKey === sector.key)
+        .sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity))
         .map((role) => {
           const r = { key: role.key, label: role.label }
           if (role.specialtyOf) r.specialtyOf = role.specialtyOf
+          if (role.group) r.group = role.group
           r.hasNationalBenchmark = withBenchmark.has(role.key)
           return r
         })

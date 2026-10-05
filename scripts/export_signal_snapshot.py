@@ -44,7 +44,7 @@ from collections import Counter, defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
-CALC_VERSION = "signal-agg-1.0.0"
+CALC_VERSION = "signal-agg-1.1.0"  # 1.1.0 (2026-10-04): expanded role mapping
 SCHEMA_VERSION = 1
 FORMAT = "staffing-signal-aggregate-snapshot"
 MIN_FIRMS = 5
@@ -61,10 +61,22 @@ DEFAULT_PIPELINE = Path(os.path.expanduser("~")) / (
     "Claude Project/Updated Claude Docs/Workstation Docs/jsearch-pipeline-v2-remediated")
 
 # --------------------------------------------------------------- role mapping
-# Role keys = shared/signal/taxonomy.js. Occupation-based roles reproduce the
-# supplied October fixture; the rest match real posting titles (first match
-# wins, in this order). Titles containing EXCLUDE words never map to a
-# title-based role (they are managers, engineers, sales, recruiters...).
+# Role keys = shared/signal/taxonomy.js. A posting maps to AT MOST ONE role;
+# the first rule that matches wins, in this precedence:
+#   1. RN occupation: the pipeline's nurse specialty (OCC_ROLES). A General RN
+#      posting whose title names a specialty the pipeline does not track
+#      (Telemetry, PACU, Cath Lab, Oncology, Case Manager) goes to that
+#      specialty (RN_TITLE_SPECIALTIES); an LPN / NP / CRNA / CNA title filed
+#      under RN goes to that role (NOT_RN); otherwise Registered Nurse.
+#   2. Exact occupation roles (OCC_ROLES) - these reproduce the October fixture.
+#   3. Clinical titles (CLINICAL_TITLE_ROLES; CLINICAL_EXCLUDE words).
+#   4. Trade / industrial / hospitality titles (TITLE_ROLES; EXCLUDE words).
+#   5. Office and IT titles (OFFICE_TITLE_ROLES; LEAD_EXCLUDE words).
+#   6. Clean pipeline occupations (OCC_FALLBACK) for anything still unmapped.
+# Only roles whose nationwide cell passed the privacy rule with >= 20 pay
+# observations in the 2026-10-04 analysis are mapped. Candidates that failed
+# (Travel Nurse and L&D Nurse: one firm > 50%; NICU / School / Dialysis Nurse, Dentist,
+# Flagger, Material Handler, Dishwasher...) are deliberately not mapped.
 RN = "Registered Nurse (RN)"
 OCC_ROLES = {
     ("Warehouse Associate", None): "warehouse-associate",
@@ -76,13 +88,54 @@ OCC_ROLES = {
     (RN, "ER / Emergency"): "er-nurse",
     (RN, "Med-Surg"): "med-surg-nurse",
     (RN, "Telemetry / PCU"): "telemetry-nurse",
-    (RN, "Labor & Delivery"): "labor-delivery-nurse",
     (RN, "Home Health / Hospice"): "home-health-nurse",
+    (RN, "Long-Term Care"): "long-term-care-nurse",
 }
+RN_TITLE_SPECIALTIES = [
+    ("telemetry-nurse", r"telemetry|\btele\b|step.?down|\bpcu\b|progressive care"),
+    ("pacu-nurse", r"\bpacu\b|post.?anesthesia"),
+    ("cath-lab-nurse", r"cath(eterization)? lab|\bcvl\b|interventional"),
+    ("oncology-nurse", r"oncology|chemo|infusion"),
+    ("nurse-case-manager", r"case manag|utilization review|care manag"),
+]
+CLINICAL_EXCLUDE = re.compile(r"manager|director|supervisor|sales|recruit|educator|instructor|professor|"
+                              r"\bvp\b|vice president|chief|head of|account", re.I)
+CLINICAL_TITLE_ROLES = [
+    ("crna", r"\bcrna\b|nurse anesthetist"),
+    ("nurse-practitioner", r"nurse practitioner|\b(a?np|aprn|fnp|pmhnp|agnp)\b"),
+    ("physician-assistant", r"physician assistant|\bpa-c\b"),
+    ("physician", r"\bphysician\b|hospitalist|psychiatrist|anesthesiologist"),
+    ("lpn-lvn", r"\blpn\b|\blvn\b|licensed (practical|vocational)"),
+    ("cna", r"\bcna\b|nurs(e|ing) (aide|assistant)|patient care (tech|assistant)|\bpct\b"),
+    ("medical-assistant", r"medical assistant|\bcma\b"),
+    ("phlebotomist", r"phlebotom"),
+    ("ct-technologist", r"\bct (tech|technologist|scan)|cat scan|computed tomography"),
+    ("mri-technologist", r"\bmri\b"),
+    ("ultrasound-technologist", r"ultrasound|sonograph"),
+    ("radiologic-technologist", r"radiolog(ic|y) (tech|technologist|technician)|rad tech|x.?ray tech|radiographer"),
+    ("respiratory-therapist", r"respiratory therap|\brrt\b"),
+    ("physical-therapist-assistant", r"physical therap\w* assist|\bpta\b"),
+    ("physical-therapist", r"physical therap|\bdpt\b"),
+    ("occupational-therapy-assistant", r"occupational therap\w* assist|\bcota\b"),
+    ("occupational-therapist", r"occupational therap"),
+    ("speech-language-pathologist", r"speech.?language|speech therap|\bslp\b"),
+    ("surgical-technologist", r"surgical tech|scrub tech|\bcst\b"),
+    ("sterile-processing-tech", r"sterile process|central (sterile|service)"),
+    ("pharmacy-technician", r"pharmacy tech|pharm tech|\bcpht\b"),
+    ("pharmacist", r"pharmacist|pharmd"),
+    ("dental-hygienist", r"hygienist"),
+    ("medical-lab-technologist", r"medical (lab(oratory)? )?(technologist|technician|scientist)|\bmls\b|\bmlt\b|clinical lab"),
+    ("school-psychologist", r"psychologist"),
+    ("bcba", r"\bbcba\b|behavior analyst"),
+    ("behavior-technician", r"\brbt\b|behavior(al)? tech|aba therapist"),
+    ("social-worker", r"social worker|\blcsw\b|\blmsw\b"),
+    ("mental-health-therapist", r"counselor|\blpc\b|\blmhc\b|\blmft\b|(mental|behavioral) health (therapist|clinician)"),
+    ("medical-biller-coder", r"medical (coder|coding|billing|biller)|\bcpc\b|coding specialist"),
+]
 EXCLUDE = re.compile(r"engineer|manager|director|supervisor|sales|recruit|nurse|software|estimator|designer|coordinator", re.I)
 TITLE_ROLES = [
     ("banquet-staff", r"banquet|catering|event staff"),
-    ("server", r"\bserver\b|waiter|waitress|bartend"),
+    ("server", r"(?<!sql )(?<!windows )\bserver\b|waiter|waitress|bartend"),
     ("line-cook", r"\bcook\b|line cook|prep cook|\bchef\b"),
     ("housekeeper", r"housekeep|room attendant"),
     ("construction-superintendent", r"superintendent"),
@@ -96,29 +149,93 @@ TITLE_ROLES = [
     ("cnc-machinist", r"\bcnc\b|machinist"),
     ("heavy-equipment-operator", r"heavy equipment|equipment operator|excavator|backhoe|loader operator|dozer"),
     ("concrete-finisher", r"concrete|cement mason"),
-    ("roofer", r"\broofer\b|\broofing (installer|laborer|tech)"),
     ("carpenter", r"\bcarpent"),
     ("delivery-driver", r"delivery driver|route driver|courier|box truck|non.?cdl|class b"),
     ("cdl-class-a-driver", r"\bcdl|class a|truck driver|tractor.?trailer|\botr\b"),
     ("dispatcher", r"dispatch"),
     ("general-laborer", r"\blabou?rer\b"),
+    ("packer", r"\bpackers?\b|packag(ing|e) (operator|associate|technician|tech|worker)"),
+    ("janitor", r"janitor|custodian|sanitation (worker|tech|associate|crew)|\bcleaner\b"),
+    ("landscaper", r"landscap|groundskeep"),
 ]
+LEAD_EXCLUDE = re.compile(r"manager|director|supervisor|\bvp\b|vice president|chief|head of|\bintern\b", re.I)
+OFFICE_TITLE_ROLES = [
+    ("safety-specialist", r"safety (tech|technician|specialist|coordinator|officer|representative)"),
+    ("logistics-coordinator", r"logistics (coordinator|specialist|associate)|shipping coordinator"),
+    ("supply-chain-analyst", r"supply chain (analyst|planner|specialist)|demand planner"),
+    ("database-administrator", r"database admin|\bdba\b"),
+    ("business-analyst", r"business (systems )?analyst"),
+    ("executive-assistant", r"executive (administrative )?assistant"),
+    ("administrative-assistant", r"admin(istrative)? assistant|office assistant"),
+    ("receptionist", r"receptionist|front desk"),
+    ("data-entry-clerk", r"data entry"),
+    ("payroll-specialist", r"payroll"),
+    ("accounts-payable-receivable", r"accounts (payable|receivable)|\b(ap|ar) (specialist|clerk)"),
+    ("financial-analyst", r"financial analyst|fp&a analyst"),
+    ("accountant", r"accountant"),
+    ("bookkeeper", r"bookkeep"),
+    ("customer-service-rep", r"customer (service|support|care|experience) (rep|specialist|associate|agent|advocate)|call center"),
+    ("paralegal", r"paralegal|legal assistant"),
+    ("attorney", r"attorney|lawyer|\bcounsel\b"),
+    ("hr-generalist", r"human resources (generalist|specialist|coordinator|assistant)|\bhr (generalist|specialist|coordinator|assistant)"),
+    ("recruiter", r"recruiter|talent acquisition (specialist|partner)|sourcer"),
+]
+NOT_RN = {"crna", "nurse-practitioner", "lpn-lvn", "cna"}
+OCC_FALLBACK = {
+    "General Labor": "general-laborer",
+    "Assembler / Production Worker": "assembler",
+    "Machine Operator / CNC": "machine-operator",
+    "Quality Inspector": "quality-inspector",
+    "Field Service Technician": "field-service-technician",
+    "Cable / Low Voltage Tech": "low-voltage-technician",
+    "Data Engineer / Analyst / Scientist": "data-engineer-analyst",
+    "DevOps / Cloud / SRE": "devops-cloud-engineer",
+    "Systems / Network Admin": "systems-network-administrator",
+    "Help Desk / Desktop Support": "help-desk-technician",
+    "QA / Test Engineer": "qa-test-engineer",
+    "Cybersecurity": "cybersecurity-analyst",
+    "IT Project / Product Manager": "it-project-manager",
+}
+RN_TITLE_SPECIALTIES = [(k, re.compile(rx, re.I)) for k, rx in RN_TITLE_SPECIALTIES]
+CLINICAL_TITLE_ROLES = [(k, re.compile(rx, re.I)) for k, rx in CLINICAL_TITLE_ROLES]
 TITLE_ROLES = [(k, re.compile(rx, re.I)) for k, rx in TITLE_ROLES]
+OFFICE_TITLE_ROLES = [(k, re.compile(rx, re.I)) for k, rx in OFFICE_TITLE_ROLES]
 
 
-def role_for(occupation, detail, title):
-    if occupation == RN:
-        return OCC_ROLES.get((RN, detail or "General"))
-    key = OCC_ROLES.get((occupation, None))
-    if key:
-        return key
-    title = title or ""
-    if EXCLUDE.search(title):
-        return None
-    for role, rx in TITLE_ROLES:
+def _first(rules, title):
+    for role, rx in rules:
         if rx.search(title):
             return role
     return None
+
+
+def role_for(occupation, detail, title):
+    title = title or ""
+    if occupation == RN:
+        key = OCC_ROLES.get((RN, detail or "General"))
+        if key == "registered-nurse":
+            # The pipeline files some LPN / NP / CRNA / CNA titles under RN.
+            other = None if CLINICAL_EXCLUDE.search(title) else _first(CLINICAL_TITLE_ROLES, title)
+            if other in NOT_RN:
+                return other
+            return _first(RN_TITLE_SPECIALTIES, title) or key
+        return key
+    key = OCC_ROLES.get((occupation, None))
+    if key:
+        return key
+    if not CLINICAL_EXCLUDE.search(title):
+        key = _first(CLINICAL_TITLE_ROLES, title)
+        if key:
+            return key
+    if not EXCLUDE.search(title):
+        key = _first(TITLE_ROLES, title)
+        if key:
+            return key
+    if not LEAD_EXCLUDE.search(title):
+        key = _first(OFFICE_TITLE_ROLES, title)
+        if key:
+            return key
+    return OCC_FALLBACK.get(occupation)
 
 
 # ----------------------------------------------------------------- geography

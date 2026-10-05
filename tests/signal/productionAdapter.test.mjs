@@ -150,6 +150,13 @@ describe('exported snapshot file', { skip: existsSync(DEFAULT_SNAPSHOT_PATH) ? f
     assert.ok(!raw.data.pay.some((c) => c.roleKey === 'forklift-operator' && c.city === 'TX:houston'))
   })
 
+  test('every taxonomy role publishes a nationwide pay range (only diesel-mechanic is withheld)', () => {
+    const nationwide = new Set(raw.data.pay.filter((c) => c.level === 'nationwide').map((c) => c.roleKey))
+    const missing = ROLES.map((r) => r.key).filter((key) => !nationwide.has(key))
+    assert.deepEqual(missing, ['diesel-mechanic'])
+    assert.equal(raw.roleCoverage['diesel-mechanic'].nationwide, 'withheld')
+  })
+
   test('every new-sector role is accounted for in roleCoverage or reported as no data', () => {
     const newSectors = new Set(['construction', 'skilled-trades', 'transportation', 'hospitality'])
     const covered = ROLES.filter((r) => newSectors.has(r.sectorKey) && raw.roleCoverage[r.key]?.nationwide === 'publishable')
