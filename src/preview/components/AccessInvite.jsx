@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
+import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import { geographyLabel } from '../../../shared/signal/geography.js'
 import { roleByKey } from '../../../shared/signal/taxonomy.js'
 import SignupForm from './SignupForm.jsx'
@@ -82,6 +82,9 @@ export default function AccessInvite({ context = null, signedUp = false }) {
                 )}
                 <SignupForm idPrefix="invite" context={context} />
                 <p className="ssp-invite__next ssp-muted">Next, you can choose the sectors and markets you follow.</p>
+                <p className="ssp-invite__next ssp-muted">
+                  Already have free access? <Link to={`${basePath(site)}/sign-in`} className="ssp-link">Sign in</Link>
+                </p>
               </>
             )}
           </div>

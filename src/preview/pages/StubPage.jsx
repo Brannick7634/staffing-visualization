@@ -27,7 +27,7 @@ const PAGES = {
   about: {
     title: 'About',
     holds: 'Who publishes The Staffing Signal and why.',
-    draft: 'Brought to you by Andy Kohler, who works in commercial insurance for staffing firms. The Staffing Signal is a free publication, not an insurance offer.'
+    draft: 'The Staffing Signal is a free publication for staffing-firm owners and managers, not an insurance offer.'
   },
   privacy: {
     title: 'Privacy',

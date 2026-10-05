@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ACCESS } from '../../../shared/signal/contract.js'
-import { usePreview } from '../PreviewContext.jsx'
+import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 
 // Result of the emailed sign-in link. api/_lib/routes/verify.js redirects to
 // "/?signin=ok|expired|used|error". Whether the visitor is actually signed in
 // comes from the server (snapshot viewer.access), never from this parameter.
 const MESSAGES = {
-  expired: 'That sign-in link has expired. Request a new one from the free-access form.',
-  used: 'That sign-in link was already used. Request a new one from the free-access form.',
+  expired: 'That sign-in link has expired.',
+  used: 'That sign-in link was already used.',
   error: 'We could not sign you in just now. Please try the link again.'
 }
 
 export default function SignInNotice() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { access, snapshotState } = usePreview()
+  const { access, snapshotState, site: siteMount } = usePreview()
+  const site = FORCE_SITE || siteMount
   const [status, setStatus] = useState(null)
 
   useEffect(() => {
@@ -35,10 +36,12 @@ export default function SignInNotice() {
   } else {
     text = MESSAGES[status] || MESSAGES.error
   }
+  const offerNewLink = status === 'expired' || status === 'used'
   return (
     <div className="ssp-container">
       <p className="ssp-card" role="status" style={{ margin: '16px 0' }}>
         {text}{' '}
+        {offerNewLink && <><Link to={`${basePath(site)}/sign-in`} className="ssp-link">Get a new sign-in link</Link>{' · '}</>}
         <button type="button" className="ssp-link" onClick={() => setStatus(null)}>Dismiss</button>
       </p>
     </div>

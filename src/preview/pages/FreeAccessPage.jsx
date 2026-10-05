@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { cityByKey, stateByCode } from '../../../shared/signal/geography.js'
 import { roleByKey } from '../../../shared/signal/taxonomy.js'
 import SignupForm from '../components/SignupForm.jsx'
-import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
+import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 
 // Standalone signup route, also reachable from contextual gates. After a
 // simulated signup the visitor returns to the exact comparison they asked for
@@ -80,6 +80,9 @@ export default function FreeAccessPage() {
               )}
               <SignupForm idPrefix="page" context={pendingReturn} onSuccess={onSuccess} />
               <p className="ssp-muted ssp-freeaccess__next">Next, you can choose the sectors and markets you follow.</p>
+              <p className="ssp-muted ssp-freeaccess__next">
+                Already have free access? <Link to={`${basePath(site)}/sign-in`} className="ssp-link">Sign in</Link>
+              </p>
             </>
           )}
         </div>

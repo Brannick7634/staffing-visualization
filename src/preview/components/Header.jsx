@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ACCESS } from '../../../shared/signal/contract.js'
-import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
+import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import { EVENTS, track } from '../lib/track.js'
 import Wordmark from './Wordmark.jsx'
 
@@ -47,6 +47,7 @@ export default function Header() {
 
   const authorized = access === ACCESS.AUTHORIZED
   const context = payCheck.selection && !payCheck.isExample ? payCheck.selection : null
+  const signInPath = `${basePath(site)}/sign-in`
 
   return (
     <header className={`ssp-header${open ? ' is-open' : ''}`}>
@@ -88,6 +89,12 @@ export default function Header() {
                 )}
               </li>
             ))}
+            {!authorized && (
+              // Phone menu only; on wider screens "Sign in" sits beside the button.
+              <li className="ssp-header__nav-signin">
+                <NavLink to={signInPath}>Sign in</NavLink>
+              </li>
+            )}
           </ul>
         </nav>
 
@@ -107,13 +114,16 @@ export default function Header() {
               )}
             </>
           ) : (
-            <button
-              type="button"
-              className="ssp-btn ssp-btn--primary ssp-header__cta"
-              onClick={() => requestFreeAccess(context)}
-            >
-              Get free access
-            </button>
+            <div className="ssp-header__signedout">
+              <Link to={signInPath} className="ssp-header__signin">Sign in</Link>
+              <button
+                type="button"
+                className="ssp-btn ssp-btn--primary ssp-header__cta"
+                onClick={() => requestFreeAccess(context)}
+              >
+                Get free access
+              </button>
+            </div>
           )}
         </div>
       </div>

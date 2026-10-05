@@ -129,6 +129,9 @@ export async function signup(input) {
 }
 
 export async function requestMagicLink(email) {
+  // Dev preview without real signup: nothing to email, so simulate the
+  // server's neutral answer.
+  if (!REAL_SIGNUP) return { ok: true, simulated: true, message: 'If that email is signed up, a sign-in link is on its way.' }
   return request('/api/auth/magic-link', { method: 'POST', body: { email } })
 }
 

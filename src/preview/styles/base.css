@@ -732,6 +732,33 @@ body.ssp-body {
   font-weight: 600;
 }
 
+/* Signed-out header: "Sign in" text link beside the primary button. */
+.ssp-header__signedout {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.ssp .ssp-header__signin {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--primary);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ssp .ssp-header__signin:hover {
+  text-decoration: underline;
+}
+
+/* The menu copy of "Sign in" is for phones only. */
+.ssp-header__nav-signin {
+  display: none;
+}
+
 /* Nav item for a page that is not built yet: visible, not clickable. */
 .ssp-header__soon {
   display: inline-flex;
@@ -2028,6 +2055,14 @@ body.ssp-body {
     padding: 0 4px;
     border-bottom: 1px solid #EEF2F6;
     font-size: 16px;
+  }
+
+  .ssp-header__nav-signin {
+    display: block;
+  }
+
+  .ssp .ssp-header__signin {
+    display: none;
   }
 
   .ssp .ssp-header__nav a::after {

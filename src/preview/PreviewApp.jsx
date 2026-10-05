@@ -8,6 +8,7 @@ import MethodologyPage from './pages/MethodologyPage.jsx'
 import PreferencesPage from './pages/PreferencesPage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
 import ReportPage from './pages/ReportPage.jsx'
+import SignInPage from './pages/SignInPage.jsx'
 
 const REPORT_ON = import.meta.env.DEV || import.meta.env.VITE_SIGNAL_REPORT === '1'
 import SignInNotice from './components/SignInNotice.jsx'
@@ -123,6 +124,7 @@ export default function PreviewApp({ site = false }) {
             <Routes>
               <Route index element={<HomePage variant="b" />} />
               <Route path="free-access" element={<FreeAccessPage />} />
+              <Route path="sign-in" element={<SignInPage />} />
               <Route path="preferences" element={<PreferencesPage />} />
               <Route path="email-preferences" element={<Navigate to="/preferences" replace />} />
               <Route path="methodology" element={<MethodologyPage />} />
@@ -138,6 +140,7 @@ export default function PreviewApp({ site = false }) {
             <Route index element={<HomePage variant="a" />} />
             <Route path="b" element={<HomePage variant="b" />} />
             <Route path="free-access" element={<FreeAccessPage />} />
+            <Route path="sign-in" element={<SignInPage />} />
             <Route path="preferences" element={<PreferencesPage />} />
             <Route path="methodology" element={<MethodologyPage />} />
             <Route path="states" element={<StatesLabPage />} />

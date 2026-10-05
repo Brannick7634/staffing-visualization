@@ -34,7 +34,6 @@ export default function Footer() {
             ))}
           </ul>
         </nav>
-        <p className="ssp-footer__sponsor">Brought to you by Andy Kohler.</p>
       </div>
       <div className="ssp-container">
         <p className="ssp-footer__fine">
