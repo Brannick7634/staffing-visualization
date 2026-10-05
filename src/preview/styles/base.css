@@ -732,6 +732,30 @@ body.ssp-body {
   font-weight: 600;
 }
 
+/* Nav item for a page that is not built yet: visible, not clickable. */
+.ssp-header__soon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: 14.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.ssp-header__soon-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .ssp-header__action {
   display: flex;
   flex-direction: column;
@@ -1996,6 +2020,14 @@ body.ssp-body {
 
   .ssp .ssp-header__nav li:last-child a {
     border-bottom: 0;
+  }
+
+  .ssp-header__soon {
+    display: flex;
+    min-height: 48px;
+    padding: 0 4px;
+    border-bottom: 1px solid #EEF2F6;
+    font-size: 16px;
   }
 
   .ssp .ssp-header__nav a::after {

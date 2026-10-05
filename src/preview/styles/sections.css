@@ -31,6 +31,13 @@
   padding: 6px 0;
 }
 
+.ssp-sechead__soon {
+  flex: none;
+  padding: 6px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .ssp-sechead--tabs {
   align-items: flex-end;
 }

@@ -97,13 +97,17 @@ export default function IssueStrip({ snapshot }) {
             <h2 id="ssp-issue-title" className="ssp-h2">The issue in 30 seconds.</h2>
             <p className="ssp-lede">A quick look at observed staffing demand and advertised pay.</p>
           </div>
-          <Link
-            to={site ? '/dashboard' : '/preview/market-report'}
-            className="ssp-link ssp-sechead__link"
-            onClick={() => track(EVENTS.MARKET_REPORT_OPENED, { variant })}
-          >
-            Read the full market report <span aria-hidden="true">→</span>
-          </Link>
+          {site ? (
+            <span className="ssp-sechead__soon">Full market report coming soon</span>
+          ) : (
+            <Link
+              to="/preview/market-report"
+              className="ssp-link ssp-sechead__link"
+              onClick={() => track(EVENTS.MARKET_REPORT_OPENED, { variant })}
+            >
+              Read the full market report <span aria-hidden="true">→</span>
+            </Link>
+          )}
         </div>
 
         {cards.length > 0 ? (

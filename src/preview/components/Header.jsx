@@ -14,9 +14,10 @@ const PREVIEW_PAGES = [
   { to: '/preview/about', label: 'About' }
 ]
 
-// Production nav: real pages only.
+// Production nav: real pages only. Market Report is shown but not linked
+// until the new report page is built (it used to open the old /dashboard).
 const SITE_PAGES = [
-  { to: '/dashboard', label: 'Market Report', event: EVENTS.MARKET_REPORT_OPENED },
+  { label: 'Market Report', comingSoon: true },
   { to: '/methodology', label: 'How We Count' }
 ]
 
@@ -72,13 +73,19 @@ export default function Header() {
               <Link to={{ pathname: homePath, hash: '#pay-check' }}>Pay Check</Link>
             </li>
             {PAGES.map((page) => (
-              <li key={page.to}>
-                <NavLink
-                  to={page.to}
-                  onClick={() => page.event && track(page.event, { variant })}
-                >
-                  {page.label}
-                </NavLink>
+              <li key={page.label}>
+                {page.comingSoon ? (
+                  <span className="ssp-header__soon">
+                    {page.label} <span className="ssp-header__soon-tag">Soon</span>
+                  </span>
+                ) : (
+                  <NavLink
+                    to={page.to}
+                    onClick={() => page.event && track(page.event, { variant })}
+                  >
+                    {page.label}
+                  </NavLink>
+                )}
               </li>
             ))}
           </ul>

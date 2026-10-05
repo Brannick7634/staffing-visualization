@@ -187,13 +187,17 @@ export default function MarketPreview({ snapshot, access, onUnlock }) {
               compared with the change across all observed states. They answer different questions.
             </p>
           </div>
-          <Link
-            to={site ? '/dashboard' : '/preview/market-report'}
-            className="ssp-link ssp-sechead__link"
-            onClick={() => track(EVENTS.MARKET_REPORT_OPENED, { variant })}
-          >
-            See the full market report <span aria-hidden="true">→</span>
-          </Link>
+          {site ? (
+            <span className="ssp-sechead__soon">Full market report coming soon</span>
+          ) : (
+            <Link
+              to="/preview/market-report"
+              className="ssp-link ssp-sechead__link"
+              onClick={() => track(EVENTS.MARKET_REPORT_OPENED, { variant })}
+            >
+              See the full market report <span aria-hidden="true">→</span>
+            </Link>
+          )}
         </div>
 
         <div className="ssp-market__grid">
