@@ -7,6 +7,10 @@ import Hero, { Freshness } from '../components/Hero.jsx'
 import IssueStrip from '../components/IssueStrip.jsx'
 import MarketPreview from '../components/MarketPreview.jsx'
 import MonthlySignal from '../components/MonthlySignal.jsx'
+
+// The monthly report stays hidden in production until VITE_SIGNAL_REPORT=1
+// (first trustworthy comparison: October vs September, early November).
+const REPORT_ON = import.meta.env.DEV || import.meta.env.VITE_SIGNAL_REPORT === '1'
 import ResultCard from '../components/ResultCard.jsx'
 import SectorModule from '../components/SectorModule.jsx'
 import SignupForm from '../components/SignupForm.jsx'
@@ -134,7 +138,7 @@ export default function HomePage({ variant = 'a' }) {
             </div>
           </div>
         </section>
-        <div id="monthly-signal" className="ssp-anchor"><MonthlySignal /></div>
+        {REPORT_ON && <div id="monthly-signal" className="ssp-anchor"><MonthlySignal /></div>}
         {issue}
         {invite}
         {market}
@@ -156,7 +160,7 @@ export default function HomePage({ variant = 'a' }) {
           </div>
         </div>
       </section>
-      <div id="monthly-signal" className="ssp-anchor"><MonthlySignal /></div>
+      {REPORT_ON && <div id="monthly-signal" className="ssp-anchor"><MonthlySignal /></div>}
       {issue}
       {coverage}
       {market}

@@ -8,6 +8,8 @@ import MethodologyPage from './pages/MethodologyPage.jsx'
 import PreferencesPage from './pages/PreferencesPage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
 import ReportPage from './pages/ReportPage.jsx'
+
+const REPORT_ON = import.meta.env.DEV || import.meta.env.VITE_SIGNAL_REPORT === '1'
 import SignInNotice from './components/SignInNotice.jsx'
 import { PreviewProvider } from './PreviewContext.jsx'
 import './styles/base.css'
@@ -139,8 +141,8 @@ export default function PreviewApp({ site = false }) {
             <Route path="preferences" element={<PreferencesPage />} />
             <Route path="methodology" element={<MethodologyPage />} />
             <Route path="states" element={<StatesLabPage />} />
-            <Route path="report" element={<ReportPage />} />
-            <Route path="report/:month" element={<ReportPage />} />
+            {REPORT_ON && <Route path="report" element={<ReportPage />} />}
+            {REPORT_ON && <Route path="report/:month" element={<ReportPage />} />}
             {STUBS.map((slug) => (
               <Route key={slug} path={slug} element={<StubPage />} />
             ))}
