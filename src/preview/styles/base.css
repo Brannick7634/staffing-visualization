@@ -2272,15 +2272,3 @@ body.ssp-body {
   }
 }
 
-.ssp-wordmark__logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  object-fit: cover;
-  flex: none;
-}
-.ssp-wordmark--compact .ssp-wordmark__logo {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-}
