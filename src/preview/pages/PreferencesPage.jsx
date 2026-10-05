@@ -16,7 +16,7 @@ function initialPrefs(selection) {
   const states = selection?.state && stateByCode(selection.state) ? [selection.state] : []
   const city = selection?.city ? cityByKey(selection.city) : null
   const cities = city && states.includes(city.state) ? [city.key] : []
-  return { sectors, states, cities, newsletter: false, alerts: 'off' }
+  return { sectors, states, cities, newsletter: false, alerts: 'off', homeState: states[0] || '', homeCity: city ? city.name : '' }
 }
 
 function toggle(list, value, on) {
@@ -35,6 +35,7 @@ function savedSummary(saved) {
     `Sectors: ${sectors.length ? sectors.join(', ') : 'none'}`,
     `States: ${states.length ? states.join(', ') : 'none'}`,
     `Cities: ${cities.length ? cities.join(', ') : 'none'}`,
+    `Your area: ${saved.homeState ? `${saved.homeCity ? `${saved.homeCity}, ` : ''}${stateByCode(saved.homeState)?.name || saved.homeState}` : 'not set'}`,
     `The Monthly Signal: ${saved.newsletter ? 'yes' : 'no'}`,
     `Alerts: ${saved.alerts === 'weekly' ? 'weekly digest' : 'off'}`
   ]
@@ -72,7 +73,9 @@ function PreferencesForm({ selection, variant, site: siteProp }) {
       states: prefs.states,
       cities: prefs.cities.filter((key) => prefs.states.includes(cityByKey(key)?.state)),
       newsletter: prefs.newsletter,
-      alerts: prefs.alerts
+      alerts: prefs.alerts,
+      homeState: prefs.homeState || '',
+      homeCity: prefs.homeState ? prefs.homeCity.trim().slice(0, 80) : ''
     }
     try {
       const result = await savePreferences(payload)
@@ -87,6 +90,27 @@ function PreferencesForm({ selection, variant, site: siteProp }) {
 
   return (
     <form className="ssp-card ssp-prefs__form" onSubmit={onSubmit} noValidate>
+      <fieldset className="ssp-prefs__group">
+        <legend className="ssp-prefs__legend">Your area</legend>
+        <p className="ssp-muted ssp-prefs__hint">Your monthly report and email lead with this state and city. If your city has too little data in a month, we show your state, then national.</p>
+        <div className="ssp-prefs__add">
+          <div className="ssp-field">
+            <label htmlFor="ssp-prefs-home-state" className="ssp-field__label">State</label>
+            <select id="ssp-prefs-home-state" className="ssp-input" value={prefs.homeState}
+              onChange={(e) => update({ homeState: e.target.value, ...(e.target.value ? {} : { homeCity: '' }) })}>
+              <option value="">Not set</option>
+              {STATES.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="ssp-field">
+            <label htmlFor="ssp-prefs-home-city" className="ssp-field__label">City</label>
+            <input id="ssp-prefs-home-city" className="ssp-input" type="text" maxLength={80} autoComplete="address-level2"
+              value={prefs.homeCity} disabled={!prefs.homeState} placeholder={prefs.homeState ? 'e.g. Houston' : 'Choose a state first'}
+              onChange={(e) => update({ homeCity: e.target.value })} />
+          </div>
+        </div>
+      </fieldset>
+
       <fieldset className="ssp-prefs__group">
         <legend className="ssp-prefs__legend">Sectors you follow</legend>
         <ul className="ssp-prefs__checks">

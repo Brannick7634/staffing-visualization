@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import { signup } from '../api.js'
+import { STATES, stateByCode } from '../../../shared/signal/geography.js'
 import { EVENTS, track } from '../lib/track.js'
 
 // Name + Work email + newsletter choice. Simulated in this preview: the dev
@@ -43,6 +44,9 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [newsletter, setNewsletter] = useState(true)
+  // Optional area: leads the monthly report and email with local trends.
+  const [areaState, setAreaState] = useState(context?.state && stateByCode(context.state) ? context.state : '')
+  const [areaCity, setAreaCity] = useState('')
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -73,7 +77,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
     setSubmitting(true)
     let result
     try {
-      result = await signup({ name: name.trim(), email: email.trim(), newsletter, context })
+      result = await signup({ name: name.trim(), email: email.trim(), newsletter, context, state: areaState, city: areaState ? areaCity.trim().slice(0, 80) : '' })
     } catch (err) {
       setSubmitting(false)
       const fieldErrs = serverFieldErrors(err)
@@ -88,6 +92,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
     track(EVENTS.SIGNUP_COMPLETED, { variant, roleKey: context?.roleKey || undefined })
     setName('')
     setEmail('')
+    setAreaCity('')
     markSignedUp()
     await reloadSnapshot()
     setSubmitting(false)
@@ -148,6 +153,21 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
           />
           {errors.email && <p id={id('email-error')} className="ssp-field-error"><span aria-hidden="true">!</span> {errors.email}</p>}
         </div>
+        <div className="ssp-field">
+          <label htmlFor={id('state')} className="ssp-field__label">State <span className="ssp-muted">(optional)</span></label>
+          <select id={id('state')} className="ssp-input" value={areaState} autoComplete="address-level1"
+            onChange={(e) => { setAreaState(e.target.value); if (!e.target.value) setAreaCity('') }}>
+            <option value="">Choose your state</option>
+            {STATES.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+          </select>
+        </div>
+        <div className="ssp-field">
+          <label htmlFor={id('city')} className="ssp-field__label">City <span className="ssp-muted">(optional)</span></label>
+          <input id={id('city')} className="ssp-input" type="text" autoComplete="address-level2" maxLength={80}
+            value={areaCity} disabled={!areaState} placeholder={areaState ? 'e.g. Houston' : 'Choose a state first'}
+            onChange={(e) => setAreaCity(e.target.value)} aria-describedby={id('area-hint')} />
+        </div>
+        <p id={id('area-hint')} className="ssp-muted ssp-signup__hint">Add your area and The Monthly Signal leads with your local trends.</p>
       </div>
 
       <div className="ssp-check">

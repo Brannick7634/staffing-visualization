@@ -6,6 +6,7 @@ import CoverageStrip from '../components/CoverageStrip.jsx'
 import Hero, { Freshness } from '../components/Hero.jsx'
 import IssueStrip from '../components/IssueStrip.jsx'
 import MarketPreview from '../components/MarketPreview.jsx'
+import MonthlySignal from '../components/MonthlySignal.jsx'
 import ResultCard from '../components/ResultCard.jsx'
 import SectorModule from '../components/SectorModule.jsx'
 import SignupForm from '../components/SignupForm.jsx'
@@ -133,6 +134,7 @@ export default function HomePage({ variant = 'a' }) {
             </div>
           </div>
         </section>
+        <div id="monthly-signal" className="ssp-anchor"><MonthlySignal /></div>
         {issue}
         {invite}
         {market}
@@ -154,6 +156,7 @@ export default function HomePage({ variant = 'a' }) {
           </div>
         </div>
       </section>
+      <div id="monthly-signal" className="ssp-anchor"><MonthlySignal /></div>
       {issue}
       {coverage}
       {market}

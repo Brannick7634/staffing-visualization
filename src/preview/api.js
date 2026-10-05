@@ -117,7 +117,13 @@ export async function signup(input) {
   if (!REAL_SIGNUP) return simSignup(input)
   const data = await request('/api/subscribe', {
     method: 'POST',
-    body: { name: input.name, email: input.email, newsletter: Boolean(input.newsletter), source: 'pay-first' }
+    body: {
+      name: input.name,
+      email: input.email,
+      newsletter: Boolean(input.newsletter),
+      source: 'pay-first',
+      ...(input.state ? { state: input.state, city: input.city || '' } : {})
+    }
   })
   return { ...data, simulated: false }
 }
@@ -129,4 +135,15 @@ export async function requestMagicLink(email) {
 export async function savePreferences(prefs) {
   if (!REAL_SIGNUP) return simPreferences(prefs)
   return request('/api/preferences', { method: 'POST', body: prefs })
+}
+
+// GET /api/signal/report?month=YYYY-MM (latest when omitted). State/city are
+// only honored for signed-in readers (they pick which local section leads).
+export async function fetchReport({ month, state, city } = {}) {
+  const params = new URLSearchParams()
+  if (month) params.set('month', month)
+  if (state) params.set('state', state)
+  if (state && city) params.set('city', city)
+  const qs = params.toString()
+  return request(`/api/signal/report${qs ? `?${qs}` : ''}`)
 }

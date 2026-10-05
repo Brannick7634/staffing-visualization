@@ -1,6 +1,7 @@
 // Signal Subscribers table (Airtable REST via fetch, field IDs only) plus the
 // validation, config, Resend and response helpers for the signup endpoints.
 import { sessionSecret, loginToken, unsubscribeToken } from './signalSession.js'
+import { stateByCode } from '../../shared/signal/geography.js'
 
 export const F = {
   email: 'fldSis1UQ5WwDbq9R',
@@ -14,7 +15,8 @@ export const F = {
   lastSignInAt: 'fldnajuFL4vN81qTp',
   sectors: 'fld0K11cHOv596h0A',
   states: 'fldUVhSgbxpWiYWdj',
-  source: 'fldPEkhn5c7rf5wVG'
+  source: 'fldPEkhn5c7rf5wVG',
+  city: 'fldlcjpoi2omNmM18'
 }
 const DEFAULT_TABLE = 'tbl3V33K9WVjadzMQ'
 const DEFAULT_BASE = 'appFkwB2Aei2oblnz'
@@ -96,6 +98,21 @@ function codeList(v, max) {
   return out
 }
 
+// Optional area: 2-letter US state code (50 states + DC) and free-text city
+// (trimmed, <= 80 chars). A city needs a state. Returns null on invalid input.
+export function validateArea(stateIn, cityIn) {
+  let state = ''
+  if (stateIn !== undefined && stateIn !== null && stateIn !== '') {
+    if (typeof stateIn !== 'string') return { error: 'state' }
+    state = stateIn.trim().toUpperCase()
+    if (!/^[A-Z]{2}$/.test(state) || !stateByCode(state)) return { error: 'state' }
+  }
+  const city = cleanText(cityIn, 80)
+  if (city === null) return { error: 'city' }
+  if (city && !state) return { error: 'city' }
+  return { state, city }
+}
+
 export function validateSignup(input) {
   const b = input && typeof input === 'object' && !Array.isArray(input) ? input : {}
   const fields = {}
@@ -107,10 +124,13 @@ export function validateSignup(input) {
   if (company === null) fields.company = 'Company name is too long.'
   if (b.newsletter !== undefined && typeof b.newsletter !== 'boolean') fields.newsletter = 'Choose whether to receive The Monthly Signal.'
   const source = cleanText(b.source, 60)
+  const area = validateArea(b.state, b.city)
+  if (area.error === 'state') fields.state = 'Choose a US state from the list.'
+  if (area.error === 'city') fields.city = area.error && b.state ? 'City must be 80 characters or fewer.' : 'Choose a state for this city.'
   const keys = Object.keys(fields)
   if (keys.length) return { ok: false, fields, field: keys[0] }
   // Newsletter defaults to checked (Andy's decision).
-  return { ok: true, value: { name, email, company: company || '', newsletter: b.newsletter !== false, source: source || 'pay-first' } }
+  return { ok: true, value: { name, email, company: company || '', newsletter: b.newsletter !== false, source: source || 'pay-first', state: area.state || '', city: area.city || '' } }
 }
 
 export function validatePreferences(input) {
@@ -123,9 +143,14 @@ export function validatePreferences(input) {
   if (states === null) fields.states = 'Invalid states.'
   if (cities === null) fields.cities = 'Invalid cities.'
   if (b.newsletter !== undefined && typeof b.newsletter !== 'boolean') fields.newsletter = 'Invalid newsletter choice.'
+  // homeState / homeCity: the reader's own area for the monthly report.
+  const hasHome = b.homeState !== undefined || b.homeCity !== undefined
+  const home = hasHome ? validateArea(b.homeState, b.homeCity) : null
+  if (home?.error === 'state') fields.homeState = 'Choose a US state from the list.'
+  if (home?.error === 'city') fields.homeCity = b.homeState ? 'City must be 80 characters or fewer.' : 'Choose a state for this city.'
   const keys = Object.keys(fields)
   if (keys.length) return { ok: false, fields, field: keys[0] }
-  return { ok: true, value: { sectors, states, cities, newsletter: b.newsletter } }
+  return { ok: true, value: { sectors, states, cities, newsletter: b.newsletter, ...(home ? { homeState: home.state, homeCity: home.city } : {}) } }
 }
 
 // ---- Airtable ----
@@ -164,6 +189,8 @@ export async function upsertSubscriber(cfg, fetchImpl, v, now = new Date()) {
     const fields = { [F.name]: v.name }
     if (v.company) fields[F.company] = v.company
     if (v.newsletter) fields[F.newsletter] = true
+    if (v.state) fields[F.states] = v.state
+    if (v.state) fields[F.city] = v.city || ''
     await updateRecord(cfg, fetchImpl, existing.id, fields)
     return { id: existing.id, created: false, unsubscribed: existing.fields?.[F.unsubscribed] === true }
   }
@@ -176,7 +203,9 @@ export async function upsertSubscriber(cfg, fetchImpl, v, now = new Date()) {
         [F.company]: v.company || '',
         [F.newsletter]: v.newsletter,
         [F.signedUpAt]: now.toISOString(),
-        [F.source]: v.source
+        [F.source]: v.source,
+        ...(v.state ? { [F.states]: v.state } : {}),
+        ...(v.city ? { [F.city]: v.city } : {})
       } }],
       returnFieldsByFieldId: true
     }

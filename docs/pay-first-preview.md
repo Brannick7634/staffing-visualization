@@ -56,3 +56,11 @@ The visitor's entered pay rate never leaves the browser. The server returns the 
    - Logo asset. The existing logo is a dark neon PNG; the preview uses an inline bars-and-serif wordmark.
    - Re-enable a Share link (without the rate)?
    - Pick Variant A or B.
+
+## Monthly Staffing Signal report (built 2026-10-04, not deployed)
+
+- **Archive:** `python scripts/export_signal_monthly.py --month YYYY-MM | --previous-month | --backfill` writes `api/_lib/signal/data/monthly/YYYY-MM.json` (calc `signal-month-1.0.0`, same role mapping / quartiles / 5-firm-50% rule as the weekly snapshot, scoped to postings dated in the month). A month is refused unless it has ended, collection was running from day 3, and the pay DB was rebuilt after month end. Built: 2026-08, 2026-09. Refused: everything up to 2026-07 (collection began 2026-08-03).
+- **Report:** `node scripts/build_monthly_report.mjs [--month M]` -> `api/_lib/signal/data/report/M.json`. Thresholds live in `api/_lib/signal/report.js` (`THRESHOLDS`): privacy must pass in both months; pay needs >= 30/20/15 observations (national/state/city) in both months and a typical-pay change of at least 2/3/5% and at most 20% (larger = posting-mix change); demand is change in share of all postings, >= 100 (role), 200 (state), 75 (city), 40 (role in state) postings both months, at least 10% and at most 75%.
+- **API:** `GET /api/signal/report?month=YYYY-MM` (rewrite to `/api/signal-data?route=signal-report`; files bundled via `vercel.json` `functions.includeFiles`). Public = national; signed in = states, cities and `local` (own city -> state -> national, with a note when withheld). Pages `/report`, `/report/YYYY-MM`; homepage "This Month's Signal".
+- **Email:** `node scripts/monthly_report_email.mjs --preview | --draft | --approve M | --send --approved M`. Secrets file `%USERPROFILE%\.staffing-signal\secrets.env` (`RESEND_API_KEY`, `SIGNAL_AIRTABLE_API_KEY`, `SIGNAL_SESSION_SECRET` = same as Vercel, `SIGNAL_FROM_EMAIL`, optional `SIGNAL_SITE_URL`). Draft/approval/sent logs live in `%USERPROFILE%\.staffing-signal\monthly-email\`.
+- **Proposed task (not registered):** `scripts/monthly-signal-report.ps1`, first Monday of the month 07:00.

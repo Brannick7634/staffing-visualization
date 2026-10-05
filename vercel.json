@@ -29,6 +29,10 @@
       "destination": "/api/signal-data?route=signal-pay"
     },
     {
+      "source": "/api/signal/report",
+      "destination": "/api/signal-data?route=signal-report"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
@@ -38,5 +42,10 @@
       "path": "/api/dashboard-metrics?recompute=1",
       "schedule": "0 10 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/signal-data.js": {
+      "includeFiles": "api/_lib/signal/data/report/**"
+    }
+  }
 }

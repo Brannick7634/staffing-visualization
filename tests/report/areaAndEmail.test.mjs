@@ -1,0 +1,131 @@
+import { test, describe, beforeEach } from 'node:test'
+import assert from 'node:assert/strict'
+import { createSubscribeHandler } from '../../api/_lib/routes/subscribe.js'
+import { createPreferencesHandler } from '../../api/_lib/routes/preferences.js'
+import { F, validateSignup, validateArea, unsubscribeUrl } from '../../api/_lib/subscribers.js'
+import { sessionToken, unsubscribeToken, verifyToken, SESSION_COOKIE } from '../../api/_lib/signalSession.js'
+import { _resetRateLimits } from '../../api/_lib/security.js'
+import { buildReport } from '../../api/_lib/signal/report.js'
+import { parseSecrets, eligibleSubscribers, checkApproval, renderEmail, reportHash, DRAFT_TO } from '../../scripts/lib/monthlyEmail.mjs'
+
+beforeEach(() => _resetRateLimits())
+const SECRET = 'test-secret-'.padEnd(40, 'x')
+const ENV = { AIRTABLE_API_KEY: 'patTEST', SIGNAL_SESSION_SECRET: SECRET, SIGNAL_SITE_URL: 'https://signal.example', RESEND_API_KEY: 're_test', SIGNAL_FROM_EMAIL: 'Signal <hello@signal.example>' }
+
+// In-memory Airtable + Resend mock (no network; nothing real is written or sent).
+function mockFetch(rows = []) {
+  const calls = { emails: [] }
+  const fetchImpl = async (url, opts = {}) => {
+    const u = new URL(url)
+    const ok = (data) => ({ ok: true, status: 200, json: async () => data })
+    if (u.hostname === 'api.resend.com') { calls.emails.push(JSON.parse(opts.body)); return ok({ id: 'em_1' }) }
+    if (!opts.method || opts.method === 'GET') {
+      const email = /="(.*)"$/.exec(u.searchParams.get('filterByFormula'))[1]
+      return ok({ records: rows.filter((r) => r.fields[F.email].toLowerCase() === email) })
+    }
+    const body = JSON.parse(opts.body)
+    if (opts.method === 'POST') {
+      const rec = { id: `rec${rows.length + 1}`, fields: { ...body.records[0].fields } }
+      rows.push(rec)
+      return ok({ records: [rec] })
+    }
+    for (const r of body.records) Object.assign(rows.find((x) => x.id === r.id).fields, r.fields)
+    return ok({ records: body.records })
+  }
+  return { fetchImpl, rows, calls }
+}
+const call = (handler, { method = 'POST', body, cookie } = {}) => new Promise((resolve) => {
+  const headers = {}
+  const res = { statusCode: 200, setHeader: (k, v) => { headers[k.toLowerCase()] = v }, end: (b) => resolve({ status: res.statusCode, body: b ? JSON.parse(b) : null }) }
+  Promise.resolve(handler({ method, body, headers: cookie ? { cookie } : {} }, res))
+})
+
+describe('area validation', () => {
+  test('state must be a US code; city trimmed, <= 80, needs a state', () => {
+    assert.deepEqual(validateArea('tx', '  Houston  '), { state: 'TX', city: 'Houston' })
+    assert.deepEqual(validateArea('DC', ''), { state: 'DC', city: '' })
+    assert.deepEqual(validateArea(undefined, undefined), { state: '', city: '' })
+    assert.equal(validateArea('XX', '').error, 'state')
+    assert.equal(validateArea('Texas', '').error, 'state')
+    assert.equal(validateArea('TX', 'a'.repeat(81)).error, 'city')
+    assert.equal(validateArea('', 'Houston').error, 'city')
+    assert.equal(validateSignup({ name: 'A', email: 'a@b.co', state: 'ZZ' }).fields.state.length > 0, true)
+  })
+
+  test('signup stores the 2-letter state and the city', async () => {
+    const m = mockFetch()
+    const h = createSubscribeHandler({ env: ENV, fetchImpl: m.fetchImpl })
+    const r = await call(h, { body: { name: 'Ann', email: 'ann@firm.com', state: 'tx', city: ' Houston ' } })
+    assert.equal(r.status, 200)
+    assert.equal(m.rows[0].fields[F.states], 'TX')
+    assert.equal(m.rows[0].fields[F.city], 'Houston')
+    const m2 = mockFetch()
+    await call(createSubscribeHandler({ env: ENV, fetchImpl: m2.fetchImpl }), { body: { name: 'Bo', email: 'bo@firm.com' } })
+    assert.equal(m2.rows[0].fields[F.states], undefined)
+    assert.equal((await call(h, { body: { name: 'Ann', email: 'ann@firm.com', state: 'QQ' } })).status, 400)
+  })
+
+  test('preferences: home state is the first States line; other lines kept', async () => {
+    const m = mockFetch([{ id: 'rec1', fields: { [F.email]: 'ann@firm.com', [F.states]: 'CA\nNV\nCA:los-angeles' } }])
+    const h = createPreferencesHandler({ env: ENV, fetchImpl: m.fetchImpl })
+    const cookie = `${SESSION_COOKIE}=${sessionToken('ann@firm.com', SECRET)}`
+    const r = await call(h, { cookie, body: { homeState: 'TX', homeCity: 'Houston' } })
+    assert.equal(r.status, 200)
+    assert.equal(m.rows[0].fields[F.states], 'TX\nNV\nCA:los-angeles')
+    assert.equal(m.rows[0].fields[F.city], 'Houston')
+    await call(h, { cookie, body: { states: ['NV', 'TX'], cities: [], homeState: 'TX', homeCity: '' } })
+    assert.equal(m.rows[0].fields[F.states], 'TX\nNV')
+    assert.equal(m.rows[0].fields[F.city], '')
+    assert.equal((await call(h, { cookie, body: { homeState: 'ZZ' } })).status, 400)
+    assert.equal((await call(h, { cookie, body: { homeCity: 'Houston' } })).status, 400)
+  })
+})
+
+describe('monthly email helpers', () => {
+  const ok = { status: 'verified', distinctFirms: 9, maxFirmShare: 0.2 }
+  const pay = (roleKey, typ, extra = {}) => ({ roleKey, level: 'nationwide', state: null, city: null, n: 60, p25Cents: typ - 100, typicalCents: typ, p75Cents: typ + 100, checks: ok, ...extra })
+  const mk = (m, rows, tx) => ({ format: 'staffing-signal-monthly-aggregates', schemaVersion: 1, month: m, reliability: { reliable: true }, totals: { postings: 10000 }, roleStatus: {}, pay: rows, demand: { states: [{ code: 'TX', postings: tx, checks: ok }], cities: [], roles: [] } })
+  const report = buildReport(mk('2026-09', [pay('welder', 2800), pay('cna', 1800), pay('server', 1700), pay('welder', 2800, { level: 'state', state: 'TX' })], 1300),
+    mk('2026-08', [pay('welder', 2400), pay('cna', 2000), pay('server', 1500), pay('welder', 2500, { level: 'state', state: 'TX' })], 1000))
+
+  test('secrets parser', () => {
+    assert.deepEqual(parseSecrets('# c\nRESEND_API_KEY="re_x"\n\nSIGNAL_FROM_EMAIL=Signal <a@b.co>\nbad line'), { RESEND_API_KEY: 're_x', SIGNAL_FROM_EMAIL: 'Signal <a@b.co>' })
+  })
+
+  test('eligible = Newsletter true AND not Unsubscribed, deduped', () => {
+    const rec = (id, email, f = {}) => ({ id, fields: { [F.email]: email, [F.newsletter]: true, ...f } })
+    const subs = eligibleSubscribers([rec('1', 'A@x.co', { [F.states]: 'TX', [F.city]: 'Houston' }), rec('2', 'a@x.co'), rec('3', 'b@x.co', { [F.unsubscribed]: true }),
+      rec('4', 'c@x.co', { [F.newsletter]: false }), rec('5', 'not-an-email')])
+    assert.deepEqual(subs.map((s) => s.email), ['a@x.co'])
+    assert.deepEqual(subs[0].area, { state: 'TX', cityKey: 'TX:houston' })
+  })
+
+  test('approval requires a draft and marker for the same unchanged report', () => {
+    const h = reportHash(report)
+    const draft = { month: '2026-09', reportHash: h }
+    const marker = { month: '2026-09', reportHash: h }
+    assert.match(checkApproval({ month: '2026-09', approvedFlag: undefined, report, draftRecord: draft, marker }), /--approved/)
+    assert.match(checkApproval({ month: '2026-09', approvedFlag: '2026-09', report, draftRecord: null, marker }), /draft/)
+    assert.match(checkApproval({ month: '2026-09', approvedFlag: '2026-09', report, draftRecord: draft, marker: null }), /approval marker/)
+    assert.match(checkApproval({ month: '2026-09', approvedFlag: '2026-09', report: { ...report, label: 'changed' }, draftRecord: draft, marker }), /changed/)
+    assert.equal(checkApproval({ month: '2026-09', approvedFlag: '2026-09', report: { ...report, generatedAt: 'later' }, draftRecord: draft, marker }), null)
+  })
+
+  test('render: area first, national next, real unsubscribe token, draft label', () => {
+    const cfg = { site: 'https://signal.example', secret: SECRET }
+    const unsub = unsubscribeUrl(cfg, 'ann@firm.com')
+    const token = new URL(unsub).searchParams.get('token')
+    assert.equal(token, unsubscribeToken('ann@firm.com', SECRET))
+    assert.equal(verifyToken(token, SECRET, { purpose: 'unsub' }).email, 'ann@firm.com')
+    const m = renderEmail(report, { area: { state: 'TX', cityKey: 'TX:houston' }, name: 'Ann Lee', site: cfg.site, unsubUrl: unsub })
+    assert.equal(m.subject, 'The Monthly Signal: September 2026')
+    assert.ok(m.text.indexOf('TEXAS') < m.text.indexOf('NATIONAL'))
+    assert.match(m.text, /No reliable Houston, TX comparison/)
+    assert.ok(m.html.includes(unsub.replace(/&/g, '&amp;')))
+    assert.match(m.text, /Hi Ann,/)
+    const d = renderEmail(report, { site: cfg.site, unsubUrl: unsub, draft: true })
+    assert.match(d.subject, /^\[DRAFT\] /)
+    assert.match(d.text, /Add|Tell us your state/)
+    assert.equal(DRAFT_TO, 'andy.kohler@marshmma.us')
+  })
+})

@@ -8,6 +8,7 @@
 // It shims the Vercel request/response helpers the handlers expect
 // (req.query, JSON req.body capped at 10 kB, res.status, res.json). Request
 // bodies and query strings are never logged. Not active for `vite build`.
+import { createReportHandler } from '../../api/_lib/routes/signal-report.js'
 import path from 'node:path'
 import { createSnapshotHandler, createPayHandler, sendJson } from '../../api/_lib/signal/handlers.js'
 import { createFixtureAdapter } from './fixtureAdapter.js'
@@ -89,6 +90,8 @@ export function createSignalRoutes({ fixturePath } = {}) {
   return new Map([
     [`${PREFIX}/snapshot`, createSnapshotHandler({ adapter, resolveAccess: devAccess })],
     [`${PREFIX}/pay`, createPayHandler({ adapter, resolveAccess: devAccess })],
+    // Real report files; simulated access; dev area = Texas / Houston.
+    [`${PREFIX}/report`, createReportHandler({ resolveAccess: devAccess, loadArea: async () => ({ state: 'TX', cityKey: 'TX:houston' }) })],
     [`${PREFIX}/dev/access`, createDevAccessHandler()],
     [`${PREFIX}/dev/signup`, createDevSignupHandler()],
     [`${PREFIX}/dev/notify`, createDevNotifyHandler()],

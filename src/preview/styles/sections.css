@@ -1360,3 +1360,27 @@
     transition: none;
   }
 }
+
+/* ---- Monthly Signal (homepage section + /report) ---- */
+.ssp-monthly__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ssp-monthly__item { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; line-height: 1.45; }
+.ssp-monthly__note { margin-top: 12px; font-size: 0.875rem; }
+.ssp-trend { flex: none; font-weight: 700; min-width: 1.1em; }
+.ssp-trend--up { color: var(--heating); }
+.ssp-trend--down { color: var(--cooling); }
+.ssp-trend--new { color: var(--primary); }
+.ssp-h1 { font-family: var(--font-heading); font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1.15; margin: 4px 0 8px; color: var(--ink); }
+.ssp-report { display: grid; gap: 20px; }
+.ssp-report__section { display: grid; gap: 14px; }
+.ssp-report__area { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.ssp-report__area select { min-height: 40px; border: 1px solid var(--border-strong); border-radius: var(--radius-control); padding: 6px 10px; background: var(--surface); color: var(--ink); }
+.ssp-report__fallback { background: var(--caution-bg); border-color: var(--caution-border); padding: 12px 16px; }
+.ssp-report__tablewrap { overflow-x: auto; }
+.ssp-report__table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.ssp-report__table caption { text-align: left; font-weight: 600; padding-bottom: 6px; color: var(--ink-2); }
+.ssp-report__table th, .ssp-report__table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.ssp-report__table td.ssp-num { text-align: right; white-space: nowrap; }
+.ssp-report__moves { padding: 14px 16px; }
+.ssp-report__moves ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.ssp-report__locked { padding: 18px; display: grid; gap: 10px; justify-items: start; }
+.ssp-report__archive ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; }
