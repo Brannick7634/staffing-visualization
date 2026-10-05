@@ -23,7 +23,7 @@ const EMAIL = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[a-z]{2,}$/i
 // Returns { ok: true, cfg } or { ok: false, missing }. Values are never logged.
 export function loadConfig(env = process.env, { needMail = false } = {}) {
   const missing = []
-  if (!env.AIRTABLE_API_KEY) missing.push('AIRTABLE_API_KEY')
+  if (!env.SIGNAL_AIRTABLE_API_KEY && !env.AIRTABLE_API_KEY) missing.push('AIRTABLE_API_KEY')
   const secret = sessionSecret(env)
   if (!secret) missing.push('SIGNAL_SESSION_SECRET')
   const site = String(env.SIGNAL_SITE_URL || '').replace(/\/+$/, '')
@@ -36,7 +36,7 @@ export function loadConfig(env = process.env, { needMail = false } = {}) {
   return {
     ok: true,
     cfg: {
-      apiKey: env.AIRTABLE_API_KEY,
+      apiKey: env.SIGNAL_AIRTABLE_API_KEY || env.AIRTABLE_API_KEY,
       base: env.SIGNAL_SUBSCRIBERS_BASE || DEFAULT_BASE, // field IDs below belong to this base
       table: env.SIGNAL_SUBSCRIBERS_TABLE || DEFAULT_TABLE,
       secret,
