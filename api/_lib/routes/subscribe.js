@@ -1,9 +1,9 @@
 // POST /api/subscribe  { name, email, company?, newsletter?, source? }
 // Validates, upserts the subscriber by lowercased email, and emails a sign-in
 // link. The response is the same for new and existing emails (no enumeration).
-import { loadConfig, readBody, sendJson, sendError, unavailable, methodNotAllowed, validateSignup, upsertSubscriber, sendMagicLink } from './_lib/subscribers.js'
+import { loadConfig, readBody, sendJson, sendError, unavailable, methodNotAllowed, validateSignup, upsertSubscriber, sendMagicLink } from '../subscribers.js'
 
-import { rateLimit } from './_lib/security.js'
+import { rateLimit } from '../security.js'
 
 export function createSubscribeHandler({ env = process.env, fetchImpl = globalThis.fetch, now = () => new Date() } = {}) {
   return async function subscribeHandler(req, res) {

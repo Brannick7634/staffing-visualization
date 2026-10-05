@@ -8,8 +8,8 @@ import jwt from 'jsonwebtoken'
 const TEST_SECRET = 'signal-handlers-test-secret-not-real'
 process.env.SESSION_SECRET = TEST_SECRET
 
-const { default: productionSnapshot } = await import('../../api/signal/snapshot.js')
-const { default: productionPay } = await import('../../api/signal/pay.js')
+const { default: productionSnapshot } = await import('../../api/_lib/routes/signal-snapshot.js')
+const { default: productionPay } = await import('../../api/_lib/routes/signal-pay.js')
 const { sessionAccess } = await import('../../api/_lib/signal/sessionAccess.js')
 const { createSnapshotHandler, createPayHandler, validatePaySelection } = await import('../../api/_lib/signal/handlers.js')
 const { createFixtureAdapter } = await import('../../dev/signal/fixtureAdapter.js')

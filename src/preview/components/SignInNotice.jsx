@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ACCESS } from '../../../shared/signal/contract.js'
 import { usePreview } from '../PreviewContext.jsx'
 
-// Result of the emailed sign-in link. api/auth/verify.js redirects to
+// Result of the emailed sign-in link. api/_lib/routes/verify.js redirects to
 // "/?signin=ok|expired|used|error". Whether the visitor is actually signed in
 // comes from the server (snapshot viewer.access), never from this parameter.
 const MESSAGES = {

@@ -2,8 +2,8 @@
 // Checks the 15-minute login token, marks the email verified, records the
 // sign-in, sets the 30-day session cookie and redirects to the site.
 // Single use: a token issued at or before the last recorded sign-in is refused.
-import { loadConfig, unavailable, methodNotAllowed, findByEmail, updateRecord, F } from '../_lib/subscribers.js'
-import { verifyToken, sessionToken, sessionCookie } from '../_lib/signalSession.js'
+import { loadConfig, unavailable, methodNotAllowed, findByEmail, updateRecord, F } from '../subscribers.js'
+import { verifyToken, sessionToken, sessionCookie } from '../signalSession.js'
 
 function redirect(res, location) {
   res.statusCode = 303

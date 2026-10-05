@@ -1,11 +1,42 @@
 {
   "rewrites": [
     {
+      "source": "/api/subscribe",
+      "destination": "/api/account?route=subscribe"
+    },
+    {
+      "source": "/api/auth/magic-link",
+      "destination": "/api/account?route=magic-link"
+    },
+    {
+      "source": "/api/auth/verify",
+      "destination": "/api/account?route=verify"
+    },
+    {
+      "source": "/api/unsubscribe",
+      "destination": "/api/account?route=unsubscribe"
+    },
+    {
+      "source": "/api/preferences",
+      "destination": "/api/account?route=preferences"
+    },
+    {
+      "source": "/api/signal/snapshot",
+      "destination": "/api/signal-data?route=signal-snapshot"
+    },
+    {
+      "source": "/api/signal/pay",
+      "destination": "/api/signal-data?route=signal-pay"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],
   "crons": [
-    { "path": "/api/dashboard-metrics?recompute=1", "schedule": "0 10 * * *" }
+    {
+      "path": "/api/dashboard-metrics?recompute=1",
+      "schedule": "0 10 * * *"
+    }
   ]
 }

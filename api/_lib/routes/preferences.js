@@ -2,8 +2,8 @@
 // Signed-in subscribers only (session cookie). Stores sectors and states
 // (cities are stored with states as "TX:houston"-style keys). Turning the
 // newsletter on never clears Unsubscribed.
-import { loadConfig, readBody, sendJson, sendError, unavailable, methodNotAllowed, validatePreferences, findByEmail, updateRecord, F } from './_lib/subscribers.js'
-import { verifySession } from './_lib/signalSession.js'
+import { loadConfig, readBody, sendJson, sendError, unavailable, methodNotAllowed, validatePreferences, findByEmail, updateRecord, F } from '../subscribers.js'
+import { verifySession } from '../signalSession.js'
 
 export function createPreferencesHandler({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
   return async function preferencesHandler(req, res) {

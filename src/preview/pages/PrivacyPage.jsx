@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom'
 import { usePreview } from '../PreviewContext.jsx'
 
 // Plain-language privacy summary. Every statement here describes what the
-// code in api/subscribe.js, api/auth/*, api/preferences.js and
-// api/unsubscribe.js actually does; update it if those change.
+// code in api/_lib/routes/ (subscribe, magic-link, verify, preferences and
+// unsubscribe) actually does; update it if those change.
 export default function PrivacyPage() {
   const { base, homePath } = usePreview()
   return (

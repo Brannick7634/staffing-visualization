@@ -1,9 +1,9 @@
 // POST /api/auth/magic-link  { email }
 // Emails a sign-in link to an existing subscriber. Always answers the same way
 // so the endpoint cannot be used to discover who has signed up.
-import { loadConfig, readBody, sendJson, sendError, unavailable, methodNotAllowed, normalizeEmail, isEmail, findByEmail, sendMagicLink } from '../_lib/subscribers.js'
+import { loadConfig, readBody, sendJson, sendError, unavailable, methodNotAllowed, normalizeEmail, isEmail, findByEmail, sendMagicLink } from '../subscribers.js'
 
-import { rateLimit } from '../_lib/security.js'
+import { rateLimit } from '../security.js'
 
 export function createMagicLinkHandler({ env = process.env, fetchImpl = globalThis.fetch, now = () => Date.now() } = {}) {
   return async function magicLinkHandler(req, res) {

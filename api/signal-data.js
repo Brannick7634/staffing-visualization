@@ -1,0 +1,18 @@
+// Pay data endpoints: /api/signal/snapshot, /api/signal/pay.
+import signal_snapshot from './_lib/routes/signal-snapshot.js'
+import signal_pay from './_lib/routes/signal-pay.js'
+
+const ROUTES = { 'signal-snapshot': signal_snapshot, 'signal-pay': signal_pay }
+
+// One serverless function for several URLs (Vercel Hobby allows 12 functions).
+// vercel.json rewrites each public URL here with ?route=<name>.
+export default function handler(req, res) {
+  const route = req.query && req.query.route
+  const fn = Object.prototype.hasOwnProperty.call(ROUTES, route) ? ROUTES[route] : null
+  if (!fn) {
+    res.statusCode = 404
+    res.setHeader('Content-Type', 'application/json')
+    return res.end(JSON.stringify({ error: 'not_found' }))
+  }
+  return fn(req, res)
+}

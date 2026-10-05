@@ -1,8 +1,8 @@
 // GET or POST /api/unsubscribe?token=...
 // One click: sets Unsubscribed + Unsubscribed At. POST supports RFC 8058
 // List-Unsubscribe-Post one-click from mail clients. Nothing ever clears it.
-import { loadConfig, unavailable, methodNotAllowed, findByEmail, updateRecord, F } from './_lib/subscribers.js'
-import { verifyToken } from './_lib/signalSession.js'
+import { loadConfig, unavailable, methodNotAllowed, findByEmail, updateRecord, F } from '../subscribers.js'
+import { verifyToken } from '../signalSession.js'
 
 function page(res, status, title, body) {
   res.statusCode = status

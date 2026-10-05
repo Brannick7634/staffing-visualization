@@ -36,7 +36,7 @@ test('resolved dev-server config denies fixture and server-only files but allows
     'dev/signal/fixtureAdapter.js',
     'dev/signal/syntheticScenarios.js',
     'api/_lib/signal/handlers.js',
-    'api/signal/pay.js',
+    'api/_lib/routes/signal-pay.js',
     'tests/signal/bundle.test.mjs',
     '.env'
   ]
