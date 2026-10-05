@@ -1166,7 +1166,7 @@ function ProtectedDashboard() {
           onLogout={handleLogout}
           onCompanyData={() => navigate('/company-data')}
           onMarketIntel={() => navigate('/market-intel')}
-          onHomeClick={() => navigate('/')}
+          onHomeClick={() => navigate('/dashboard')}
         />
 
         {/* Section 1: Protected Info */}

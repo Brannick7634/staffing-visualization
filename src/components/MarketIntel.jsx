@@ -98,7 +98,7 @@ export default function MarketIntel() {
     return (
       <div className="page-wrapper">
         <div className="dashboard-shell">
-          <Header user={user} onLogout={handleLogout} onCompanyData={() => navigate('/company-data')} onHomeClick={() => navigate('/')} />
+          <Header user={user} onLogout={handleLogout} onCompanyData={() => navigate('/company-data')} onHomeClick={() => navigate('/dashboard')} />
           <section className="section-block">
             <p style={{ color: '#ed1764' }}>Failed to load market intelligence: {error}</p>
           </section>
@@ -112,7 +112,7 @@ export default function MarketIntel() {
   return (
     <div className="page-wrapper">
       <div className="dashboard-shell">
-        <Header user={user} onLogout={handleLogout} onCompanyData={() => navigate('/company-data')} onHomeClick={() => navigate('/')} />
+        <Header user={user} onLogout={handleLogout} onCompanyData={() => navigate('/company-data')} onHomeClick={() => navigate('/dashboard')} />
 
         <section className="section-block">
           <div className="section-eyebrow">LIVE JOB-POSTING DATA ACROSS THE STAFFING INDUSTRY</div>

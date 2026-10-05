@@ -6,3 +6,6 @@ dist
 .idea
 npm-debug.log
 yarn-error.log
+logs/
+vercel-setup-secrets.txt
+dev-fixtures/

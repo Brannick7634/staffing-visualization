@@ -4,5 +4,8 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    { "path": "/api/dashboard-metrics?recompute=1", "schedule": "0 10 * * *" }
   ]
 }

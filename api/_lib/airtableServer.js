@@ -29,6 +29,20 @@ const LEADS_TABLE = 'Staffing Signal Leads Table (Test)'
 
 export const METRICS_CACHE_TYPE = { DASHBOARD: 'dashboard', JOB_SIGNALS: 'job_signals' }
 
+// Escape a user-supplied value for use inside a double-quoted Airtable
+// formula string literal. Backslashes first, then quotes; newlines are
+// collapsed so a value can never terminate the literal and inject formula.
+export function escapeFormulaValue(value) {
+  return String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/[\r\n]+/g, ' ')
+}
+// Build `{Field} = "value"` with the value escaped.
+export function formulaEquals(field, value) {
+  return `{${field}} = "${escapeFormulaValue(value)}"`
+}
+
 const HEATMAP_SIZE_FILTERS = ['all', '1-5', '6-10', '11-20', '21-50', '51-100', '101-250', '251-500', '501-1000', '>1000']
 
 const METRICS_FIELDS = {
@@ -118,13 +132,15 @@ export async function fetchFirms() {
   }
 }
 
-export async function fetchProtectedFirms(user) {
+// segment must come from the authenticated user's server-side record, never
+// from the request body. Accepts a plain segment string.
+export async function fetchProtectedFirms(segment) {
   try {
     const baseConditions = [
       '{Primary Segment} != ""', '{HQ location} != ""', '{company City} != ""', '{Employee Size Bucket} != ""',
       '{1Y Growth} <= 1000', '{6M Growth} <= 1000', '{2Y Growth} <= 1000',
     ]
-    if (user?.primarySegment) baseConditions.push(`{Primary Segment} = "${user.primarySegment}"`)
+    if (segment) baseConditions.push(formulaEquals('Primary Segment', segment))
     const records = await base(COMPANY_TABLE).select({ view: COMPANY_VIEW_ID, fields: FIRM_FIELDS, filterByFormula: `AND(${baseConditions.join(', ')})` }).all()
     return records.map(mapFirmRecord)
   } catch {
@@ -134,7 +150,7 @@ export async function fetchProtectedFirms(user) {
 
 export async function submitLeadRequest(formData) {
   try {
-    const existingRecords = await base(LEADS_TABLE).select({ filterByFormula: `{Email} = '${formData.email}'`, maxRecords: 1 }).firstPage()
+    const existingRecords = await base(LEADS_TABLE).select({ filterByFormula: formulaEquals('Email', formData.email), maxRecords: 1 }).firstPage()
     if (existingRecords.length > 0) {
       return { success: false, error: 'An account with this email address already exists. Please use a different email or try logging in.' }
     }
@@ -158,7 +174,7 @@ export async function submitLeadRequest(formData) {
 
 export async function verifyCredentials(email, password) {
   try {
-    const records = await base(LEADS_TABLE).select({ filterByFormula: `{Email} = '${email}'`, maxRecords: 1 }).firstPage()
+    const records = await base(LEADS_TABLE).select({ filterByFormula: formulaEquals('Email', email), maxRecords: 1 }).firstPage()
     if (records.length === 0) return { success: false, error: 'User not found' }
     const user = records[0]
     const storedHashedPassword = user.get('Password')
@@ -178,6 +194,18 @@ export async function verifyCredentials(email, password) {
     }
   } catch {
     return { success: false, error: 'Authentication failed' }
+  }
+}
+
+// Server-side lookup of a user's Primary Segment by Airtable record id
+// (the id comes from the signed session, not the client).
+export async function fetchUserSegment(userId) {
+  if (!userId || !/^rec[A-Za-z0-9]{14}$/.test(userId)) return null
+  try {
+    const record = await base(LEADS_TABLE).find(userId)
+    return record.get('Primary Segment') || null
+  } catch {
+    return null
   }
 }
 

@@ -1,0 +1,1362 @@
+/*
+ * The Staffing Signal — homepage preview: section + page styles
+ * (IssueStrip, CoverageStrip, MarketPreview, SectorModule, AccessInvite,
+ * TrustStrip, Methodology, States Lab, Preferences, Stub pages).
+ * Uses the tokens and shared classes from base.css; everything is scoped
+ * with an ssp- prefix under the .ssp root.
+ */
+
+/* ---------- Shared section heading row ---------- */
+
+.ssp-sechead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 32px;
+  margin-bottom: 24px;
+}
+
+.ssp-sechead__text {
+  min-width: 0;
+  flex: 1 1 420px;
+}
+
+.ssp-sechead .ssp-lede {
+  margin-bottom: 0;
+}
+
+.ssp-sechead__link {
+  flex: none;
+  padding: 6px 0;
+}
+
+.ssp-sechead--tabs {
+  align-items: flex-end;
+}
+
+/* ---------- Tabs (Markets to watch, sectors) ---------- */
+
+.ssp-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  max-width: 100%;
+  background: #EDF2F7;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.ssp .ssp-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.ssp .ssp-tab:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.ssp .ssp-tab.is-active {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(16, 42, 67, 0.1);
+}
+
+.ssp .ssp-tab--heat.is-active {
+  color: var(--heating);
+}
+
+.ssp .ssp-tab--cool.is-active {
+  color: var(--cooling);
+}
+
+.ssp-tabs--compact {
+  align-self: flex-start;
+  margin: 4px 0 14px;
+}
+
+/* ---------- D. The issue in 30 seconds ---------- */
+
+.ssp-issue__list {
+  list-style: none;
+}
+
+.ssp-issue__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ssp-issue__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ssp-issue__icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #EEF4FA;
+  fill: var(--link);
+  stroke: var(--link);
+}
+
+.ssp-issue__card--momentum .ssp-issue__icon {
+  background: #FBEDEF;
+  fill: var(--heating);
+  stroke: var(--heating);
+}
+
+.ssp-issue__card--pay .ssp-issue__icon {
+  background: var(--primary-tint);
+  fill: var(--primary);
+  stroke: var(--primary);
+}
+
+.ssp-issue__card--pay .ssp-issue__icon path,
+.ssp-issue__card--volume .ssp-issue__icon path {
+  fill: none;
+}
+
+.ssp-issue__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ssp-issue__title {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.ssp-issue__metric {
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.ssp-issue__metric--heat {
+  color: var(--heating);
+}
+
+.ssp-issue__metric--cool {
+  color: var(--cooling);
+}
+
+.ssp-issue__basis {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #EEF2F6;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ssp-issue__scope {
+  margin-top: 16px;
+  font-size: 13.5px;
+}
+
+/* ---------- E. Coverage strip ---------- */
+
+.ssp-section.ssp-coverage {
+  padding: 28px 0 36px;
+}
+
+.ssp-coverage__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-bottom: 16px;
+}
+
+.ssp-coverage__title {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.ssp-coverage__sub {
+  flex-basis: 100%;
+  font-size: 13.5px;
+}
+
+.ssp-coverage__list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ssp-coverage__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.ssp-coverage__value {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.ssp-coverage__label {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.ssp-coverage__note {
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.ssp-coverage__extra {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.ssp-coverage--compact .ssp-coverage__item {
+  padding: 10px 14px;
+}
+
+.ssp-coverage--compact .ssp-coverage__value {
+  font-size: 18px;
+}
+
+/* ---------- F. Market report preview ---------- */
+
+.ssp-market__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.ssp-market__panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.ssp-market__panelhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.ssp-market__panelhead .ssp-card__title {
+  margin-bottom: 4px;
+}
+
+.ssp-market__caption {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ssp-market__tabpanel:focus-visible {
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.ssp-market__basis {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ssp-market__basis + .ssp-market__basis {
+  margin-top: 4px;
+}
+
+.ssp-market__lock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-top: 16px;
+}
+
+.ssp-market__lockcopy {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1 1 220px;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.ssp-lockicon {
+  flex: none;
+  margin-top: 1px;
+  fill: var(--muted);
+  stroke: var(--muted);
+}
+
+.ssp-market__footnote {
+  margin-top: 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  max-width: 90ch;
+}
+
+/* City bars: one 0-based scale per panel. */
+.ssp-bars {
+  list-style: none;
+}
+
+.ssp-bars__row {
+  display: grid;
+  grid-template-columns: 24px minmax(7rem, 10rem) minmax(0, 1fr) minmax(4.5ch, auto);
+  grid-template-areas: 'rank name bar value';
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-bottom: 1px solid #EEF2F6;
+}
+
+.ssp-bars__rank {
+  grid-area: rank;
+}
+
+.ssp-bars__name {
+  grid-area: name;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.ssp-bars__track {
+  grid-area: bar;
+  display: block;
+  height: 14px;
+  border-radius: 4px;
+  background: #EEF3F8;
+  overflow: hidden;
+}
+
+.ssp-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #6F9BD0 0%, #3E73B4 100%);
+}
+
+.ssp-bars__value {
+  grid-area: value;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ssp-bars__rank,
+.ssp-momentum__rank {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #EDF2F7;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* Momentum rows */
+.ssp-momentum {
+  list-style: none;
+}
+
+.ssp-momentum + .ssp-momentum {
+  margin-top: 12px;
+}
+
+.ssp-momentum__row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-bottom: 1px solid #EEF2F6;
+}
+
+.ssp-momentum__name {
+  min-width: 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.ssp-momentum__value {
+  font-size: 15px;
+  text-align: right;
+}
+
+.ssp-nohistory {
+  padding: 14px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: #F7F9FB;
+}
+
+.ssp-nohistory p {
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.ssp-nohistory__title {
+  margin-bottom: 4px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ---------- G. Sector module ---------- */
+
+/* Cards size to their own content: the nurse-specialty list is much longer
+   than the other two cards, and stretching left large empty boxes. */
+.ssp-sector__panel {
+  align-items: start;
+}
+
+.ssp-sector__card {
+  display: flex;
+  flex-direction: column;
+}
+
+.ssp-sector__cardhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 12px;
+}
+
+.ssp-sector__cardhead .ssp-card__title {
+  margin-bottom: 0;
+}
+
+.ssp-sector__card .ssp-card__title + .ssp-sector__note {
+  margin-top: -4px;
+}
+
+.ssp-market__basis--end {
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+.ssp-sector__note {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.ssp-sector__foot {
+  margin-top: auto;
+  padding-top: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.ssp-sector__empty {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: #F7F9FB;
+  font-size: 14.5px;
+}
+
+.ssp-roles {
+  list-style: none;
+}
+
+.ssp .ssp-roles__btn {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'name go' 'meta go';
+  align-items: center;
+  column-gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 6px;
+  border: 0;
+  border-bottom: 1px solid #EEF2F6;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.ssp .ssp-roles__btn:hover {
+  background: #F4F8FB;
+}
+
+.ssp-roles__name {
+  grid-area: name;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ssp-roles__meta {
+  grid-area: meta;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.ssp-roles__go {
+  grid-area: go;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--link);
+  white-space: nowrap;
+}
+
+.ssp-payrows {
+  list-style: none;
+}
+
+.ssp-payrows__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'role value' 'range range';
+  column-gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #EEF2F6;
+}
+
+.ssp-payrows__role {
+  grid-area: role;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.ssp-payrows__value {
+  grid-area: value;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ssp-payrows__unit {
+  margin-left: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.ssp-payrows__range {
+  grid-area: range;
+  font-size: 12.5px;
+}
+
+.ssp-uses {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.ssp-uses li {
+  display: flex;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.ssp-uses__tick {
+  flex: none;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+/* ---------- H. Free-access invitation ---------- */
+
+.ssp-section.ssp-invite {
+  background: linear-gradient(180deg, #EEF5FA 0%, #E6F0F7 100%);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.ssp-invite__box {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 32px 48px;
+  align-items: center;
+}
+
+.ssp-invite__intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.ssp-invite__icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  fill: var(--primary-tint);
+  stroke: var(--primary);
+}
+
+.ssp-invite__copy {
+  max-width: 54ch;
+  font-size: 16.5px;
+  line-height: 1.55;
+  color: #3E5368;
+}
+
+.ssp-invite__copy + .ssp-invite__copy {
+  margin-top: 10px;
+  font-size: 14.5px;
+}
+
+.ssp-invite__context {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--primary-tint);
+  font-size: 14.5px;
+  color: var(--ink);
+}
+
+.ssp-invite__next {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.ssp-invite__done {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.ssp-invite__donetitle {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ---------- I. Trust strip ---------- */
+
+.ssp-section.ssp-trust {
+  padding: 40px 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.ssp-trust__list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.ssp-trust__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ssp-trust__icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #EEF4FA;
+  stroke: var(--ink-2);
+  fill: none;
+}
+
+.ssp-trust__title {
+  margin-bottom: 4px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ssp-trust__body {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ssp-trust__method {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid #EEF2F6;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 100ch;
+}
+
+/* ---------- Methodology page ---------- */
+
+.ssp-method__layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-areas: 'head head' 'toc body';
+  gap: 24px 48px;
+  align-items: start;
+}
+
+.ssp-method__head {
+  grid-area: head;
+  max-width: 820px;
+}
+
+.ssp-method__head .ssp-lede {
+  margin-bottom: 10px;
+}
+
+.ssp-method__snapshot {
+  font-size: 14px;
+}
+
+.ssp-method__toc {
+  grid-area: toc;
+  position: sticky;
+  top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.ssp-method__tochead {
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ssp-method__toc ul {
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+.ssp-method__toc a {
+  display: block;
+  padding: 6px 0;
+  font-size: 14px;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.ssp-method__toc a:hover {
+  text-decoration: underline;
+}
+
+.ssp-method__body {
+  grid-area: body;
+  min-width: 0;
+  max-width: 780px;
+}
+
+.ssp-method__section {
+  padding: 0 0 28px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+  scroll-margin-top: 12px;
+}
+
+.ssp-method__h2 {
+  margin-bottom: 12px;
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+  scroll-margin-top: 12px;
+}
+
+.ssp-method__section p,
+.ssp-buildnotes p {
+  margin-bottom: 12px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.ssp-method__list,
+.ssp-buildnotes__list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding-left: 22px;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.ssp-method code,
+.ssp-lab code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #EDF2F7;
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.88em;
+  overflow-wrap: anywhere;
+}
+
+.ssp-buildnotes {
+  padding: 24px;
+  border: 2px dashed #C9A35A;
+  border-radius: var(--radius-card);
+  background: var(--caution-bg);
+}
+
+.ssp-buildnotes__flag {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--caution);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ssp .ssp-buildnotes__flag {
+  color: #FFFFFF;
+}
+
+.ssp-buildnotes__title {
+  margin-bottom: 16px;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.ssp-buildnotes__h3 {
+  margin: 16px 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--caution);
+}
+
+.ssp-buildnotes__list {
+  font-size: 15px;
+}
+
+.ssp-method__back {
+  margin-top: 28px;
+}
+
+/* ---------- States lab ---------- */
+
+.ssp-lab__head {
+  max-width: 860px;
+  margin-bottom: 28px;
+}
+
+.ssp-lab__head > * + * {
+  margin-top: 10px;
+}
+
+.ssp-lab__banner {
+  padding: 12px 14px;
+  border: 2px dashed #B79AE6;
+  border-radius: 10px;
+  background: #F3EEFB;
+  color: #3F2873;
+  font-size: 15px;
+}
+
+.ssp-lab__count {
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.ssp-lab__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+.ssp-lab__card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border: 2px dashed #B79AE6;
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(-45deg, rgba(91, 58, 155, 0.035) 0 14px, transparent 14px 28px),
+    #FBF9FE;
+}
+
+.ssp-lab__mark {
+  justify-self: start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #5B3A9B;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.ssp .ssp-lab__mark {
+  color: #FFFFFF;
+}
+
+.ssp-lab__title {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.ssp-lab__desc {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.ssp-lab__meta {
+  font-size: 13px;
+}
+
+.ssp-lab__momentum .ssp-card__title {
+  margin-bottom: 4px;
+}
+
+.ssp-lab__rates {
+  margin-top: 40px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.ssp-lab__rates .ssp-lab__desc {
+  margin: 6px 0 14px;
+}
+
+.ssp-lab__ratelist {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+}
+
+.ssp-lab__rate {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid #EEF2F6;
+  font-size: 14px;
+}
+
+.ssp-lab__input {
+  justify-self: start;
+  white-space: pre;
+}
+
+.ssp-lab__rate.is-ok .ssp-lab__verdict {
+  color: #17603A;
+}
+
+.ssp-lab__rate.is-bad .ssp-lab__verdict {
+  color: var(--ink-2);
+}
+
+/* ---------- Preferences page ---------- */
+
+.ssp-container.ssp-prefs__layout {
+  max-width: 868px;
+}
+
+.ssp-prefs__head {
+  margin-bottom: 24px;
+}
+
+.ssp-prefs__head .ssp-lede {
+  margin-bottom: 12px;
+}
+
+.ssp-prefs__sim {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.ssp .ssp-prefs__group {
+  margin: 0 0 24px;
+  padding: 0 0 24px;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid #EEF2F6;
+}
+
+.ssp .ssp-prefs__cities {
+  margin: 8px 0 0;
+  padding: 0;
+  min-width: 0;
+  border: 0;
+}
+
+.ssp-prefs__legend {
+  margin-bottom: 10px;
+  padding: 0;
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ssp-prefs__sublegend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.ssp-prefs__checks {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px 16px;
+}
+
+.ssp .ssp-prefs__check {
+  align-items: center;
+  min-height: 44px;
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ssp-prefs__radios {
+  display: grid;
+  gap: 2px;
+}
+
+.ssp-prefs__radios .ssp-prefs__check {
+  align-items: flex-start;
+  padding-top: 10px;
+}
+
+.ssp-prefs__hint {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.ssp-prefs__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.ssp-prefs__add .ssp-field {
+  flex: 1 1 240px;
+}
+
+.ssp-prefs__states {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.ssp-prefs__state {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #FAFCFD;
+}
+
+.ssp-prefs__statehead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ssp-prefs__statename {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ssp-prefs__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ssp-prefs__status {
+  margin-top: 14px;
+}
+
+.ssp-prefs__saved {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid #BBDCE0;
+  border-radius: 10px;
+  background: var(--primary-tint);
+}
+
+.ssp-prefs__savedtitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ssp-prefs__summary {
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.ssp-prefs__gate {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.ssp-prefs__back {
+  margin-top: 24px;
+}
+
+/* ---------- Stub pages ---------- */
+
+.ssp-stub__card {
+  max-width: 780px;
+}
+
+.ssp-stub__lead {
+  margin-bottom: 18px;
+  font-size: 17px;
+  color: var(--ink-2);
+}
+
+.ssp-stub__h2 {
+  margin-bottom: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.ssp-stub__card p {
+  line-height: 1.6;
+}
+
+.ssp-stub__draft {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 2px dashed #C9A35A;
+  border-radius: 10px;
+  background: var(--caution-bg);
+}
+
+.ssp-stub__draftflag {
+  margin-bottom: 8px;
+}
+
+.ssp-stub__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-top: 24px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .ssp-trust__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1000px) {
+  .ssp-lab__grid,
+  .ssp-lab__ratelist {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .ssp-coverage__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ssp-market__grid,
+  .ssp-invite__box {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ssp-method__layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'head' 'toc' 'body';
+  }
+
+  .ssp-method__toc {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .ssp-sechead {
+    margin-bottom: 18px;
+  }
+
+  .ssp-tabs--sectors {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .ssp .ssp-tabs--sectors .ssp-tab {
+    padding: 0 8px;
+    white-space: normal;
+  }
+
+  .ssp-bars__row {
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    grid-template-areas: 'rank name value' '. bar bar';
+    gap: 4px 10px;
+    padding: 8px 0;
+  }
+
+  .ssp-invite__intro {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .ssp-invite__icon {
+    width: 52px;
+    height: 52px;
+  }
+
+  .ssp-invite__icon svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ssp-trust__list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .ssp-buildnotes {
+    padding: 18px 16px;
+  }
+
+  .ssp-lab__card {
+    padding: 12px;
+  }
+
+  .ssp-lab__rates {
+    padding: 16px;
+  }
+
+  .ssp-lab__rate {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}
+
+@media (max-width: 400px) {
+  .ssp-coverage__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ssp-coverage__item {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+  }
+
+  .ssp-coverage__note {
+    flex-basis: 100%;
+  }
+
+  .ssp .ssp-roles__btn {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'name' 'meta' 'go';
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ssp .ssp-tab,
+  .ssp .ssp-roles__btn {
+    transition: none;
+  }
+}
