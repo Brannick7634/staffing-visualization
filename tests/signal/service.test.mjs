@@ -115,6 +115,22 @@ describe('snapshot builder', () => {
     assert.doesNotMatch(JSON.stringify(issueCards), /collection coverage/)
   })
 
+  test('a pay card names the job its figure belongs to', async () => {
+    const { data, dataMode } = await fixtureData()
+    const generic = { ...data, issueCards: [{ key: 'pay-software-engineer', kind: 'pay', title: 'Most-advertised pay snapshot.', ref: { roleKey: 'software-engineer' }, basis: 'Staffing-firm postings only. Advertised pay, not actual pay.' }] }
+    const [card] = buildSnapshotResponse({ data: generic, dataMode, viewer: { access: 'public' } }).issueCards
+    assert.equal(card.title, 'Software Engineer pay snapshot.')
+    assert.equal(card.metric, 'Typical nationwide advertised pay: $62.50/hour')
+    assert.match(card.basis, /^The job with the most advertised-pay postings from staffing firms nationwide\./)
+  })
+
+  test('a city volume card names the city in its title', async () => {
+    const { data, dataMode } = await fixtureData()
+    const generic = { ...data, issueCards: [{ key: 'volume-top-city', kind: 'volume', title: 'Highest observed city volume.', ref: { cityKey: 'NY:new-york' }, basis: 'Observed postings, not verified open orders.' }] }
+    const [card] = buildSnapshotResponse({ data: generic, dataMode, viewer: { access: 'public' } }).issueCards
+    assert.equal(card.title, 'New York leads observed city volume.')
+  })
+
   test('an editorial card cannot disclose a gated city to a signed-out viewer', async () => {
     const { data, dataMode } = await fixtureData()
     const leaky = { ...data, issueCards: [...data.issueCards, { key: 'volume-x', kind: 'volume', title: 'Gated city card.', ref: { cityKey: 'IL:chicago' }, basis: 'x' }] }

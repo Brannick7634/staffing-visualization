@@ -388,8 +388,8 @@ function buildIssueCards({ issueCards, rankedCities, momentumRows, momentum, nat
     const card = object(raw)
     const ref = object(card.ref)
     const key = text(card.key, 60)
-    const title = text(card.title, 120)
-    const basis = text(card.basis, 300)
+    let title = text(card.title, 120)
+    let basis = text(card.basis, 300)
     if (!key || !title) continue
     let metric = null
     let geography = null
@@ -408,6 +408,13 @@ function buildIssueCards({ issueCards, rankedCities, momentumRows, momentum, nat
     } else if (card.kind === 'pay') {
       const entry = nationalPay.find((e) => e.roleKey === ref.roleKey)
       if (!entry) continue
+      // Name the job in the title. The weekly snapshot's generic title
+      // ("Most-advertised pay snapshot.") left visitors asking which role
+      // the figure was for; the label comes from the same row as the figure.
+      if (/^most-advertised/i.test(title)) {
+        basis = `The job with the most advertised-pay postings from staffing firms nationwide. ${basis || ''}`.trim()
+      }
+      title = `${entry.roleLabel} pay snapshot.`
       metric = `Typical nationwide advertised pay: ${formatCents(entry.typicalCents)}/hour`
       geography = NATIONWIDE
       access = ACCESS.PUBLIC
@@ -417,6 +424,9 @@ function buildIssueCards({ issueCards, rankedCities, momentumRows, momentum, nat
       if (allow.cityKeys.has(row.cityKey)) access = ACCESS.PUBLIC
       else if (authorized) access = ACCESS.AUTHORIZED
       else continue
+      // Name the city in the title too (the snapshot's generic title only
+      // showed it in the small place tag).
+      title = `${row.place.name} leads observed city volume.`
       metric = `${withThousands(row.postings)} new staffing-firm postings observed in the last ${windowDays} days — ${jobScope}.`
       geography = row.place.label
     } else {
