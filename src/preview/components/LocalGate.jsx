@@ -20,7 +20,8 @@ export default function LocalGate({ rateCents, placeName, onUnlock, signup = nul
   const panelId = useId()
   const panelRef = useRef(null)
   const rate = shortRate(rateCents)
-  const heading = rate ? `See how ${rate}/hour compares in ${placeName}.` : `See how your rate compares in ${placeName}.`
+  const heading = `Sign up free to see ${placeName} rates`
+  const lead = rate ? `See how ${rate}/hour compares. ` : ''
 
   useEffect(() => {
     if (!open || !panelRef.current) return
@@ -44,8 +45,13 @@ export default function LocalGate({ rateCents, placeName, onUnlock, signup = nul
         </span>
         <h3 className="ssp-gate__title">{heading}</h3>
       </div>
+      {/* Decorative placeholder only: the server never sends locked figures. */}
+      <div className="ssp-gate__blur" aria-hidden="true">
+        <span>$••.••<small>/hr median</small></span>
+        <span>$••.••<small>– $••.•• typical range</small></span>
+      </div>
       <p className="ssp-gate__body">
-        Create a free account (name, work email and a password) to unlock this local benchmark and other available state and city comparisons.
+        {lead}Create a free account (name, work email and a password) to unlock this local benchmark and other available state and city comparisons.
       </p>
       <div className="ssp-gate__actions">
         <button

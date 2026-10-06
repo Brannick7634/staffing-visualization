@@ -158,7 +158,7 @@ export async function buildScenarios() {
     description: 'The same Example City benchmark, unlocked for a free account.',
     access: A, pay: [NATIONAL_CELL, STATE_CELL, cityCell(PASS_CITY)]
   }))
-  const thinCity = cityCell({ status: 'verified', distinctFirms: 3, maxFirmShare: 0.4 })
+  const thinCity = cityCell({ status: 'verified', distinctFirms: 2, maxFirmShare: 0.4 })
   scenarios.push(await payScenario({
     key: 'city-insufficient-state-fallback-signed-out',
     title: 'City suppressed, state available (signed out)',
@@ -174,8 +174,8 @@ export async function buildScenarios() {
   scenarios.push(await payScenario({
     key: 'four-firms-suppressed',
     title: 'Four firms: suppressed',
-    description: 'Only 4 distinct firms contribute, below the 5-firm minimum. Suppressed for everyone, including signed-in visitors.',
-    access: A, pay: [NATIONAL_CELL, cityCell({ status: 'verified', distinctFirms: 4, maxFirmShare: 0.3 })]
+    description: 'Only 2 distinct firms contribute, below the 3-firm minimum. Suppressed for everyone, including signed-in visitors.',
+    access: A, pay: [NATIONAL_CELL, cityCell({ status: 'verified', distinctFirms: 2, maxFirmShare: 0.3 })]
   }))
   scenarios.push(await payScenario({
     key: 'five-firms-60pct-suppressed',
@@ -195,7 +195,7 @@ export async function buildScenarios() {
     description: 'Example City has heavy observed demand from many firms, but only 3 firms advertise comparable pay. Demand volume never authorizes a pay benchmark.',
     access: A,
     pay: [NATIONAL_CELL, cityCell(
-      { status: 'verified', distinctFirms: 3, maxFirmShare: 0.45 },
+      { status: 'verified', distinctFirms: 2, maxFirmShare: 0.45 },
       { demand: { postings: 2400, checks: { status: 'verified', distinctFirms: 41, maxFirmShare: 0.09 } } }
     )]
   }))

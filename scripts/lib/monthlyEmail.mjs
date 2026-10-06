@@ -87,7 +87,7 @@ export function renderEmail(report, { area = null, name = '', site, unsubUrl, dr
     '',
     `Full report: ${reportUrl}`,
     '',
-    'Staffing-firm postings only. Advertised pay, not actual pay. A figure appears only when at least 5 firms (none over half) are behind it in both months.',
+    'Staffing-firm postings only. Advertised pay, not actual pay. A figure appears only when at least 3 firms (none over half) are behind it in both months.',
     '',
     `Unsubscribe: ${unsubUrl}`
   ].filter((l) => l !== null).join('\n')
@@ -104,7 +104,7 @@ ${local.note ? `<p style="background:#FFF7E6;padding:8px 12px;border-radius:8px"
 ${!where ? `<p><a href="${esc(prefsUrl)}" style="color:#1D5EA8">Add your state and city</a> and we will lead with your area.</p>` : ''}
 ${blocks.map((b) => `<h2 style="font-family:Georgia,serif;font-size:18px;margin:20px 0 8px">${esc(b.title)}</h2><ul style="padding:0;margin:0">${b.items.map(li).join('')}</ul>`).join('\n')}
 <p style="margin:24px 0"><a href="${esc(reportUrl)}" style="background:#075968;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Read the full report</a></p>
-<p style="font-size:12px;color:#52647A">Staffing-firm postings only. Advertised pay, not actual pay. A figure appears only when at least 5 firms (none over half) are behind it in both months.</p>
+<p style="font-size:12px;color:#52647A">Staffing-firm postings only. Advertised pay, not actual pay. A figure appears only when at least 3 firms (none over half) are behind it in both months.</p>
 <p style="font-size:12px;color:#52647A"><a href="${esc(unsubUrl)}" style="color:#52647A">Unsubscribe</a></p>
 </div></body></html>`
   return { subject, html, text }

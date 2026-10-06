@@ -1,6 +1,6 @@
 // Publication rule for every metric The Staffing Signal shows.
 //
-// A metric may be published only when at least five distinct staffing firms
+// A metric may be published only when at least three distinct staffing firms
 // contribute AND no single firm contributes more than half of the metric's
 // underlying observations (exactly 50% passes). The rule is applied to each
 // metric after filtering: a pay benchmark is judged on the firms that actually
@@ -18,7 +18,7 @@
 import { DATA_MODE } from '../../../shared/signal/contract.js'
 
 export const PRIVACY_RULE = Object.freeze({
-  minDistinctFirms: 5,
+  minDistinctFirms: 3,
   maxFirmShare: 0.5
 })
 

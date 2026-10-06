@@ -28,7 +28,7 @@ describe('report builder', () => {
   })
 
   test('pay moves: thresholds, privacy in both months, deterministic text', () => {
-    const prev = month('2026-08', { payRows: [pay('welder', 2400), pay('forklift-operator', 1800), pay('cna', 2000), pay('registered-nurse', 4800), pay('line-cook', 1600, 10), pay('server', 1500, 50, { checks: ok(4) })] })
+    const prev = month('2026-08', { payRows: [pay('welder', 2400), pay('forklift-operator', 1800), pay('cna', 2000), pay('registered-nurse', 4800), pay('line-cook', 1600, 10), pay('server', 1500, 50, { checks: ok(2) })] })
     const cur = month('2026-09', { payRows: [pay('welder', 2800), pay('forklift-operator', 1820), pay('cna', 1800), pay('registered-nurse', 6000), pay('line-cook', 2000), pay('server', 1800)] })
     const r = buildReport(cur, prev, { now: new Date('2026-10-05T00:00:00Z') })
     // forklift +1.1% < 2% noise floor; RN +25% over the 20% mix-shift cap;
@@ -42,7 +42,7 @@ describe('report builder', () => {
   })
 
   test('demand is share-normalized; noise and huge swings suppressed; privacy both months', () => {
-    const prev = month('2026-08', { total: 10000, states: [st('TX', 1000), st('CA', 1000), st('FL', 1000), st('OH', 1000, ok(3)), st('WY', 100)] })
+    const prev = month('2026-08', { total: 10000, states: [st('TX', 1000), st('CA', 1000), st('FL', 1000), st('OH', 1000, ok(2)), st('WY', 100)] })
     const cur = month('2026-09', { total: 5000, states: [st('TX', 650), st('CA', 520), st('FL', 1000), st('OH', 700), st('WY', 100)] })
     const r = buildReport(cur, prev)
     // TX share 10% -> 13% = +30%; CA +4% (noise); FL +100% (over cap);

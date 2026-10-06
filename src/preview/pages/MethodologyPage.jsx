@@ -198,7 +198,7 @@ export default function MethodologyPage() {
           <Section id="publish" title="When we publish a figure">
             <p>We publish a figure only when both of these are true for that exact job, place, pay type and period:</p>
             <ul className="ssp-method__list">
-              <li>at least <strong>five distinct staffing firms</strong> contribute, and</li>
+              <li>at least <strong>three distinct staffing firms</strong> contribute, and</li>
               <li>no single firm contributes <strong>more than 50%</strong> of the underlying observations.</li>
             </ul>
             <p>

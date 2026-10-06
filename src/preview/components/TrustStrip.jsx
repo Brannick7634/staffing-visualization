@@ -73,7 +73,7 @@ export default function TrustStrip({ snapshot }) {
           ))}
         </ul>
         <p className="ssp-trust__method">
-          We publish a figure only when at least five distinct staffing firms contribute and no single firm
+          We publish a figure only when at least three distinct staffing firms contribute and no single firm
           contributes more than 50% of its observations. These rules reduce the risk of revealing any one firm; they
           are not a guarantee of anonymity.{' '}
           <Link to={`${base}/methodology`} className="ssp-link">See how we count</Link>

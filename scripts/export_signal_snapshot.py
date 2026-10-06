@@ -21,7 +21,7 @@ Method (CALC_VERSION below; bump it when any of this changes):
     City volume = new postings in the latest 45 days. Momentum = state's
     latest-45 / previous-45 ratio relative to the all-state ratio, minus 1.
   * Privacy rule on EVERY metric (pay cell, city row, momentum row — each
-    comparison window — and posting families): >= 5 distinct firms and no
+    comparison window — and posting families): >= 3 distinct firms and no
     firm > 50% of the metric's observations. Failing cells are omitted; only
     their count is recorded under "withheld". Fail closed: a cell with any
     missing input is withheld.
@@ -44,10 +44,10 @@ from collections import Counter, defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
-CALC_VERSION = "signal-agg-1.1.0"  # 1.1.0 (2026-10-04): expanded role mapping
+CALC_VERSION = "signal-agg-1.2.0"  # 1.2.0 (2026-10-06): privacy minimum 5 -> 3 firms. 1.1.0 (2026-10-04): expanded role mapping
 SCHEMA_VERSION = 1
 FORMAT = "staffing-signal-aggregate-snapshot"
-MIN_FIRMS = 5
+MIN_FIRMS = 3
 MAX_SHARE = 0.5
 WINDOW_DAYS = 45
 MAX_SOURCE_AGE_DAYS = 10

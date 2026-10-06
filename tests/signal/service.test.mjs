@@ -266,9 +266,9 @@ describe('pay builder with synthetic cells (real gate)', () => {
 
   test('suppressed results carry no counts and no figures, for anyone', () => {
     for (const checks of [
-      { status: 'verified', distinctFirms: 4, maxFirmShare: 0.3 },
+      { status: 'verified', distinctFirms: 2, maxFirmShare: 0.3 },
       { status: 'verified', distinctFirms: 5, maxFirmShare: 0.6 },
-      { status: 'verified', distinctFirms: 3, maxFirmShare: 0.4 }
+      { status: 'verified', distinctFirms: 2, maxFirmShare: 0.4 }
     ]) {
       for (const access of ['public', 'authorized']) {
         const r = synthPay({ pay: [NATIONAL, cell('city', [2137, 2419, 2683], checks, { demand: { postings: 2400, checks: { status: 'verified', distinctFirms: 41, maxFirmShare: 0.09 } } })], access })
@@ -287,7 +287,7 @@ describe('pay builder with synthetic cells (real gate)', () => {
   })
 
   test('suppressed city offers the state fallback with the state gate applied', () => {
-    const thin = cell('city', [2137, 2419, 2683], { status: 'verified', distinctFirms: 3, maxFirmShare: 0.4 })
+    const thin = cell('city', [2137, 2419, 2683], { status: 'verified', distinctFirms: 2, maxFirmShare: 0.4 })
     const pub = synthPay({ pay: [NATIONAL, STATE, thin], access: 'public' })
     assert.equal(pub.result.coverage, 'insufficient_sample')
     assert.equal(pub.fallback.coverage, 'publishable')

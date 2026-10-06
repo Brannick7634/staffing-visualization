@@ -11,15 +11,15 @@ const PROD = { mode: DATA_MODE.PRODUCTION }
 const SYNTH = { mode: DATA_MODE.SYNTHETIC }
 
 describe('publication rule', () => {
-  test('rule constants are 5 firms and a 50% share', () => {
-    assert.equal(PRIVACY_RULE.minDistinctFirms, 5)
+  test('rule constants are 3 firms and a 50% share', () => {
+    assert.equal(PRIVACY_RULE.minDistinctFirms, 3)
     assert.equal(PRIVACY_RULE.maxFirmShare, 0.5)
     assert.ok(Object.isFrozen(PRIVACY_RULE))
   })
 
-  test('4 distinct firms is suppressed in every mode', () => {
+  test('2 distinct firms is suppressed in every mode', () => {
     for (const opts of [PROD, SYNTH, DEV]) {
-      const r = evaluatePublication(verified(4, 0.1), opts)
+      const r = evaluatePublication(verified(2, 0.1), opts)
       assert.equal(r.publishable, false)
       assert.equal(r.reason, PRIVACY_REASON.TOO_FEW_FIRMS)
     }
@@ -104,7 +104,7 @@ describe('malformed values fail closed', () => {
 describe('pay subsets are judged on their own checks', () => {
   test('a large demand sample does not authorize a small pay subset', () => {
     const cell = {
-      checks: verified(3, 0.4),
+      checks: verified(2, 0.4),
       demand: { postings: 5000, checks: verified(60, 0.05) }
     }
     const r = evaluatePayCell(cell, PROD)

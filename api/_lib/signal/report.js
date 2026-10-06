@@ -7,7 +7,7 @@
 // Headline strings come from fixed templates, never from a language model.
 //
 // Privacy: a comparison is made only when the cell exists - i.e. passed the
-// 5-firm / 50% rule - in BOTH months. Cells are re-checked here (fail closed),
+// 3-firm / 50% rule - in BOTH months. Cells are re-checked here (fail closed),
 // so an archive that slipped a failing cell in can never surface it.
 //
 // Noise: see THRESHOLDS. Demand changes are measured as a change in SHARE of
@@ -59,7 +59,7 @@ export function previousMonth(month) {
   return `${y}-${String(m).padStart(2, '0')}`
 }
 
-const passes = (c) => Boolean(c) && Number.isSafeInteger(c.distinctFirms) && c.distinctFirms >= 5 &&
+const passes = (c) => Boolean(c) && Number.isSafeInteger(c.distinctFirms) && c.distinctFirms >= 3 &&
   typeof c.maxFirmShare === 'number' && c.maxFirmShare >= 0 && c.maxFirmShare <= 0.5
 
 export function roleLabel(key) {
@@ -239,7 +239,7 @@ export function buildReport(cur, prev, { now = new Date() } = {}) {
     thresholds: THRESHOLDS,
     notes: [
       'Staffing-firm postings only. Advertised pay, not actual pay.',
-      `Compares ${monthLabel(month)} with ${monthLabel(prev.month)}. A figure appears only when it met the privacy rule (at least 5 firms, no firm over half) in both months.`,
+      `Compares ${monthLabel(month)} with ${monthLabel(prev.month)}. A figure appears only when it met the privacy rule (at least 3 firms, no firm over half) in both months.`,
       'Demand changes are shifts in share of all staffing-firm postings, so they are not distorted by how many postings we collected.'
     ],
     national: {

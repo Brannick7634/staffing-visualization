@@ -10,7 +10,7 @@ COALESCE(posting_date, first_seen_date) falls inside the month.
   * Demand counts: new staffing-firm postings of that month, per state, per
     city, per role (nationwide and per state / city). Reposts and repeat
     fingerprints dropped, as in the weekly snapshot.
-  * Privacy rule on every cell: >= 5 distinct firms, no firm > 50%. Failing
+  * Privacy rule on every cell: >= 3 distinct firms, no firm > 50%. Failing
     cells are omitted; only their count is kept under "withheld".
 
 A month is built only when it can be built RELIABLY:

@@ -2482,3 +2482,16 @@ body.ssp-body {
   }
 }
 
+
+.ssp-gate__blur {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 10px 0 4px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  filter: blur(7px);
+  user-select: none;
+  pointer-events: none;
+}
+.ssp-gate__blur small { font-size: 0.8rem; font-weight: 500; margin-left: 6px; }

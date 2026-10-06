@@ -34,7 +34,7 @@ const RN = 'registered-nurse'
 // Each role: { key, label, sectorKey, group?, specialtyOf?, kind:'title' }.
 // Nurse specialties are explicit roles; an ICU role is never inferred from a
 // generic Registered Nurse posting. Every role here had a publishable
-// nationwide pay cell when added (>= 5 firms, no firm > 50%), except
+// nationwide pay cell when added (>= 3 firms, no firm > 50%), except
 // diesel-mechanic, which has data but is currently withheld by that rule.
 // `group` (Healthcare only) becomes an <optgroup> in the job dropdown.
 // Display order (rolesForSector): ROLE_GROUPS order, Registered Nurse first,

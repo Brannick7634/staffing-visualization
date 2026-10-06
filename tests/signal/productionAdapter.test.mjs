@@ -88,7 +88,7 @@ describe('production adapter fails closed', () => {
   })
 
   test('one pay cell failing the privacy rule rejects the whole snapshot', () => {
-    const bad = [ok(4, 0.2), ok(5, 0.51), { ...ok(), status: 'not_verified' }, { status: 'verified' }, null]
+    const bad = [ok(2, 0.2), ok(5, 0.51), { ...ok(), status: 'not_verified' }, { status: 'verified' }, null]
     for (const checks of bad) {
       const s = withData((d) => d.pay.push({ ...d.pay[0], level: 'city', state: 'TX', city: 'TX:houston', checks }))
       assert.equal(validateSnapshot(s, { now: NOW }), null, JSON.stringify(checks))
@@ -97,7 +97,7 @@ describe('production adapter fails closed', () => {
   })
 
   test('demand rows (city volume and momentum) need passing checks too', () => {
-    assert.equal(validateSnapshot(withData((d) => { d.cityVolume.rows[0].checks = ok(4) }), { now: NOW }), null)
+    assert.equal(validateSnapshot(withData((d) => { d.cityVolume.rows[0].checks = ok(2) }), { now: NOW }), null)
     assert.equal(validateSnapshot(withData((d) => { d.momentum.rows[0].checks = ok(9, 0.6) }), { now: NOW }), null)
   })
 
@@ -138,7 +138,7 @@ describe('exported snapshot file', { skip: existsSync(DEFAULT_SNAPSHOT_PATH) ? f
     assert.ok(all.length > 0)
     for (const m of all) {
       assert.equal(m.checks.status, 'verified')
-      assert.ok(m.checks.distinctFirms >= 5 && m.checks.maxFirmShare <= 0.5)
+      assert.ok(m.checks.distinctFirms >= 3 && m.checks.maxFirmShare <= 0.5)
     }
     assert.match(raw.method.quantile, /exclusive/)
     assert.match(raw.method.newPosting, /COALESCE\(posting_date, first_seen_date\)/)
@@ -147,14 +147,13 @@ describe('exported snapshot file', { skip: existsSync(DEFAULT_SNAPSHOT_PATH) ? f
   test('pay roles exist in the taxonomy and no withheld cell slips through', () => {
     for (const c of raw.data.pay) assert.ok(roleByKey(c.roleKey), c.roleKey)
     for (const key of Object.keys(raw.roleCoverage)) assert.ok(roleByKey(key), key)
-    assert.ok(!raw.data.pay.some((c) => c.roleKey === 'forklift-operator' && c.city === 'TX:houston'))
+    assert.ok(!raw.data.pay.some((c) => c.checks.distinctFirms < 3 || c.checks.maxFirmShare > 0.5))
   })
 
-  test('every taxonomy role publishes a nationwide pay range (only diesel-mechanic is withheld)', () => {
+  test('every taxonomy role publishes a nationwide pay range', () => {
     const nationwide = new Set(raw.data.pay.filter((c) => c.level === 'nationwide').map((c) => c.roleKey))
     const missing = ROLES.map((r) => r.key).filter((key) => !nationwide.has(key))
-    assert.deepEqual(missing, ['diesel-mechanic'])
-    assert.equal(raw.roleCoverage['diesel-mechanic'].nationwide, 'withheld')
+    assert.deepEqual(missing, [])
   })
 
   test('every new-sector role is accounted for in roleCoverage or reported as no data', () => {
