@@ -76,9 +76,9 @@ function useBodyClass(name) {
 // the existing site, so it is not edited). Restores the previous icon on exit.
 const FAVICON = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
-  '<rect width="32" height="32" rx="6" fill="#075968"/>' +
-  '<path d="M6 22h4l3-9 4 13 3-8h6" fill="none" stroke="#fff" stroke-width="2.5" ' +
-  'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  '<rect x="5" y="17" width="6" height="10" rx="1.5" fill="#1E5FAA"/>' +
+  '<rect x="13" y="11" width="6" height="16" rx="1.5" fill="#18406A"/>' +
+  '<rect x="21" y="5" width="6" height="22" rx="1.5" fill="#132B45"/></svg>'
 )
 
 function usePreviewFavicon(enabled) {

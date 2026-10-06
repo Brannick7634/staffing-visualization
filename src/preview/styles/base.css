@@ -18,12 +18,12 @@ body.ssp-body {
   --page: #F6F8FB;
   --surface: #FFFFFF;
   --surface-2: #F0F4F8;
-  --ink: #102A43;
+  --ink: #132B45;
   --ink-2: #243B53;
   --muted: #52647A;
-  --primary: #075968;
-  --primary-hover: #06495A;
-  --primary-tint: #E7F2F3;
+  --primary: #1E5FAA;
+  --primary-hover: #18406A;
+  --primary-tint: #E8F0FA;
   --link: #1D5EA8;
   --heating: #B42336;
   --cooling: #1D5EA8;
