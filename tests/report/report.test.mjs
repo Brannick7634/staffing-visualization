@@ -6,6 +6,7 @@ import path from 'node:path'
 import { buildReport, localFor, cityKeyFor, previousMonth, monthLabel, THRESHOLDS, validateMonthly } from '../../api/_lib/signal/report.js'
 import { createReportHandler, areaFromRecord } from '../../api/_lib/routes/signal-report.js'
 import { F } from '../../api/_lib/subscribers.js'
+import { sessionToken, passwordFingerprint, SESSION_COOKIE } from '../../api/_lib/signalSession.js'
 import { ACCESS } from '../../shared/signal/contract.js'
 
 const ok = (firms = 8, share = 0.2) => ({ status: 'verified', distinctFirms: firms, maxFirmShare: share })
@@ -116,6 +117,25 @@ describe('GET /api/signal/report', () => {
     const q = await call(auth, { query: { state: 'ca' } })
     assert.equal(q.body.area.state, 'CA')
     assert.equal(q.body.local.level, 'national')
+  })
+
+  test('saved area needs a session started with the current password', async () => {
+    const SECRET = 'report-secret-'.padEnd(40, 'x')
+    const env = { AIRTABLE_API_KEY: 'patTEST', SIGNAL_SESSION_SECRET: SECRET, SIGNAL_SITE_URL: 'https://signal.example' }
+    const HASH = '$2b$10$' + 'a'.repeat(53)
+    const rows = [{ id: 'rec1', fields: { [F.email]: 'ann@firm.com', [F.states]: 'TX', [F.city]: 'Houston', [F.passwordHash]: HASH } }]
+    const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ records: rows }) })
+    const h = createReportHandler({ dir, resolveAccess: () => ({ access: ACCESS.AUTHORIZED }), env, fetchImpl })
+    const get = (token) => new Promise((resolve) => {
+      const res = { statusCode: 200, setHeader: () => {}, end: (b) => resolve(JSON.parse(b)) }
+      h({ method: 'GET', query: {}, headers: { cookie: `${SESSION_COOKIE}=${token}` } }, res)
+    })
+    const current = await get(sessionToken('ann@firm.com', SECRET, Date.now(), passwordFingerprint(HASH, SECRET)))
+    assert.equal(current.area.state, 'TX')
+    assert.equal(current.area.source, 'preferences')
+    const stale = await get(sessionToken('ann@firm.com', SECRET, Date.now(), passwordFingerprint('$2b$10$' + 'b'.repeat(53), SECRET)))
+    assert.equal(stale.area, null)
+    assert.equal((await get(sessionToken('ann@firm.com', SECRET))).area, null)
   })
 
   test('bad and missing months', async () => {

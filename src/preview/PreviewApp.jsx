@@ -2,16 +2,17 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Footer from './components/Footer.jsx'
 import Header from './components/Header.jsx'
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
 import FreeAccessPage from './pages/FreeAccessPage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import MethodologyPage from './pages/MethodologyPage.jsx'
 import PreferencesPage from './pages/PreferencesPage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
 import ReportPage from './pages/ReportPage.jsx'
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
 import SignInPage from './pages/SignInPage.jsx'
 
 const REPORT_ON = import.meta.env.DEV || import.meta.env.VITE_SIGNAL_REPORT === '1'
-import SignInNotice from './components/SignInNotice.jsx'
 import { PreviewProvider } from './PreviewContext.jsx'
 import './styles/base.css'
 
@@ -119,12 +120,13 @@ export default function PreviewApp({ site = false }) {
         <Header />
         <main id="ssp-main" className="ssp-main" tabIndex={-1}>
           <ScrollManager />
-          <SignInNotice />
           {(site || !DEV) ? (
             <Routes>
               <Route index element={<HomePage variant="b" />} />
               <Route path="free-access" element={<FreeAccessPage />} />
               <Route path="sign-in" element={<SignInPage />} />
+              <Route path="forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="reset-password" element={<ResetPasswordPage />} />
               <Route path="preferences" element={<PreferencesPage />} />
               <Route path="email-preferences" element={<Navigate to="/preferences" replace />} />
               <Route path="methodology" element={<MethodologyPage />} />
@@ -141,6 +143,8 @@ export default function PreviewApp({ site = false }) {
             <Route path="b" element={<HomePage variant="b" />} />
             <Route path="free-access" element={<FreeAccessPage />} />
             <Route path="sign-in" element={<SignInPage />} />
+            <Route path="forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="reset-password" element={<ResetPasswordPage />} />
             <Route path="preferences" element={<PreferencesPage />} />
             <Route path="methodology" element={<MethodologyPage />} />
             <Route path="states" element={<StatesLabPage />} />

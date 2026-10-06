@@ -1,16 +1,21 @@
 import { useRef, useState } from 'react'
-import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
+import { Link } from 'react-router-dom'
+import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import { signup } from '../api.js'
 import { STATES, stateByCode } from '../../../shared/signal/geography.js'
 import { EVENTS, track } from '../lib/track.js'
+import { PASSWORD_HINT, passwordProblem } from '../lib/password.js'
+import PasswordField from './PasswordField.jsx'
 
-// Name + Work email + newsletter choice. Simulated in this preview: the dev
-// endpoint saves nothing to Airtable and sends no email. Name and email live
-// only in this form's local state and are cleared after a successful submit.
+// Name + Work email + Password + newsletter choice. A successful signup signs
+// the visitor in straight away (no email is sent). In the dev preview the
+// signup is simulated: nothing is saved to Airtable. Name, email and password
+// live only in this form's local state and are cleared after a successful
+// submit; the password is never trimmed, logged or tracked.
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
-function validate({ name, email }) {
+function validate({ name, email, password }) {
   const errors = {}
   const trimmedName = name.trim()
   if (trimmedName === '') errors.name = 'Enter your name.'
@@ -18,22 +23,27 @@ function validate({ name, email }) {
   const trimmedEmail = email.trim()
   if (trimmedEmail === '') errors.email = 'Enter your work email.'
   else if (trimmedEmail.length > 254 || !EMAIL_PATTERN.test(trimmedEmail)) errors.email = 'Enter a work email like name@company.com.'
+  const pw = passwordProblem(password)
+  if (pw) errors.password = pw
   return errors
 }
+
+const FIELD_KEYS = ['name', 'email', 'password']
+const FIELD_FALLBACK = { name: 'Check your name.', email: 'Check your work email.', password: 'Check your password.' }
 
 function serverFieldErrors(err) {
   const details = err?.details || {}
   const out = {}
   const fields = details.fields || details.fieldErrors || null
   if (fields && typeof fields === 'object') {
-    for (const key of ['name', 'email']) {
+    for (const key of FIELD_KEYS) {
       const value = fields[key]
       if (typeof value === 'string' && value) out[key] = value
-      else if (value) out[key] = key === 'name' ? 'Check your name.' : 'Check your work email.'
+      else if (value) out[key] = FIELD_FALLBACK[key]
     }
   }
-  if (typeof details.field === 'string' && (details.field === 'name' || details.field === 'email') && !out[details.field]) {
-    out[details.field] = details.message || (details.field === 'name' ? 'Check your name.' : 'Check your work email.')
+  if (typeof details.field === 'string' && FIELD_KEYS.includes(details.field) && !out[details.field]) {
+    out[details.field] = details.message || FIELD_FALLBACK[details.field]
   }
   return out
 }
@@ -43,21 +53,27 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
   const site = FORCE_SITE || siteMount
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [newsletter, setNewsletter] = useState(true)
   // Optional area: leads the monthly report and email with local trends.
   const [areaState, setAreaState] = useState(context?.state && stateByCode(context.state) ? context.state : '')
   const [areaCity, setAreaCity] = useState('')
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
+  // The email already has an account: offer Sign in / Forgot password.
+  const [accountExists, setAccountExists] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const started = useRef(false)
   const nameRef = useRef(null)
   const emailRef = useRef(null)
+  const passwordRef = useRef(null)
   const id = (field) => `${idPrefix}-${field}`
+  const base = basePath(site)
 
   function focusFirst(errs) {
     if (errs.name) nameRef.current?.focus()
     else if (errs.email) emailRef.current?.focus()
+    else if (errs.password) passwordRef.current?.focus()
   }
 
   async function onSubmit(event) {
@@ -67,21 +83,30 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
       started.current = true
       track(EVENTS.SIGNUP_STARTED, { variant, roleKey: context?.roleKey || undefined })
     }
-    const errs = validate({ name, email })
+    const errs = validate({ name, email, password })
     setErrors(errs)
     setFormError('')
-    if (errs.name || errs.email) {
+    setAccountExists(false)
+    if (errs.name || errs.email || errs.password) {
       focusFirst(errs)
       return
     }
     setSubmitting(true)
     let result
     try {
-      result = await signup({ name: name.trim(), email: email.trim(), newsletter, context, state: areaState, city: areaState ? areaCity.trim().slice(0, 80) : '' })
+      result = await signup({ name: name.trim(), email: email.trim(), password, newsletter, context, state: areaState, city: areaState ? areaCity.trim().slice(0, 80) : '' })
     } catch (err) {
       setSubmitting(false)
+      if (err?.status === 409 || err?.code === 'account_exists') {
+        setAccountExists(true)
+        return
+      }
+      if (err?.status === 429) {
+        setFormError('Too many attempts. Please wait a few minutes and try again.')
+        return
+      }
       const fieldErrs = serverFieldErrors(err)
-      if (fieldErrs.name || fieldErrs.email) {
+      if (fieldErrs.name || fieldErrs.email || fieldErrs.password) {
         setErrors(fieldErrs)
         focusFirst(fieldErrs)
       } else {
@@ -92,6 +117,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
     track(EVENTS.SIGNUP_COMPLETED, { variant, roleKey: context?.roleKey || undefined })
     setName('')
     setEmail('')
+    setPassword('')
     setAreaCity('')
     markSignedUp()
     await reloadSnapshot()
@@ -153,6 +179,20 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
           />
           {errors.email && <p id={id('email-error')} className="ssp-field-error"><span aria-hidden="true">!</span> {errors.email}</p>}
         </div>
+        <PasswordField
+          id={id('password')}
+          label="Password"
+          value={password}
+          autoComplete="new-password"
+          hint={PASSWORD_HINT}
+          error={errors.password || null}
+          inputRef={passwordRef}
+          className="ssp-signup__full"
+          onChange={(e) => {
+            setPassword(e.target.value)
+            if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }))
+          }}
+        />
         <div className="ssp-field">
           <label htmlFor={id('state')} className="ssp-field__label">State <span className="ssp-muted">(optional)</span></label>
           <select id={id('state')} className="ssp-input" value={areaState} autoComplete="address-level1"
@@ -189,6 +229,14 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
       </div>
 
       {formError && <p className="ssp-field-error ssp-signup__error" role="alert">{formError}</p>}
+      {accountExists && (
+        <p className="ssp-auth__alert ssp-signup__error" role="alert">
+          An account with this email already exists.{' '}
+          {/* The typed email rides along in router state (never in the URL). */}
+          <Link to={`${base}/sign-in`} state={{ email: email.trim() }} className="ssp-link">Sign in</Link>, or use{' '}
+          <Link to={`${base}/forgot-password`} state={{ email: email.trim() }} className="ssp-link">Forgot password</Link> to set a new one.
+        </p>
+      )}
 
       {!site && (
         <p id={id('sim')} className="ssp-signup__sim">

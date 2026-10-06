@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 
 // Contextual gate shown only when a publishable local benchmark exists and the
 // visitor is signed out. It carries no local figures (the server never sent
@@ -12,6 +14,8 @@ export function shortRate(rateCents) {
 }
 
 export default function LocalGate({ rateCents, placeName, onUnlock, signup = null }) {
+  const { site: siteMount } = usePreview()
+  const site = FORCE_SITE || siteMount
   const [open, setOpen] = useState(false)
   const panelId = useId()
   const panelRef = useRef(null)
@@ -41,7 +45,7 @@ export default function LocalGate({ rateCents, placeName, onUnlock, signup = nul
         <h3 className="ssp-gate__title">{heading}</h3>
       </div>
       <p className="ssp-gate__body">
-        Enter your name and work email to unlock this local benchmark and other available state and city comparisons.
+        Create a free account (name, work email and a password) to unlock this local benchmark and other available state and city comparisons.
       </p>
       <div className="ssp-gate__actions">
         <button
@@ -54,6 +58,19 @@ export default function LocalGate({ rateCents, placeName, onUnlock, signup = nul
           Unlock my local comparison
         </button>
       </div>
+      {signup && (
+        <p className="ssp-gate__signin ssp-muted">
+          Already have free access?{' '}
+          {/* onUnlock saves this comparison, so sign-in brings the reader back to it. */}
+          <Link
+            to={`${basePath(site)}/sign-in`}
+            className="ssp-link"
+            onClick={() => { if (typeof onUnlock === 'function') onUnlock() }}
+          >
+            Sign in
+          </Link>
+        </p>
+      )}
       {signup && open && (
         <div id={panelId} ref={panelRef} className="ssp-gate__panel">
           {signup}

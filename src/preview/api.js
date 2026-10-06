@@ -2,8 +2,8 @@
 //
 // The visitor's proposed pay rate is NEVER sent: fetchPay asks only for the
 // benchmark bounds of a role and geography, and the verdict is computed in the
-// browser with shared/signal/payBand.js. Names and emails are sent only to the
-// simulated signup endpoint and are never logged here.
+// browser with shared/signal/payBand.js. Names, emails and passwords are sent
+// only in POST bodies to the signup/sign-in endpoints and are never logged here.
 
 export class ApiError extends Error {
   constructor(status, code, message, details = null) {
@@ -79,12 +79,13 @@ export async function setSimAccess(access) {
   return devRequest('access', { method: 'POST', body: { access } })
 }
 
-export async function simSignup({ name, email, newsletter, context }) {
+export async function simSignup({ name, email, password, newsletter, context }) {
   return devRequest('signup', {
     method: 'POST',
     body: {
       name,
       email,
+      password,
       newsletter: Boolean(newsletter),
       context: context
         ? { roleKey: context.roleKey || null, state: context.state || null, city: context.city || null }
@@ -120,6 +121,7 @@ export async function signup(input) {
     body: {
       name: input.name,
       email: input.email,
+      password: input.password,
       newsletter: Boolean(input.newsletter),
       source: 'pay-first',
       ...(input.state ? { state: input.state, city: input.city || '' } : {})
@@ -128,11 +130,31 @@ export async function signup(input) {
   return { ...data, simulated: false }
 }
 
-export async function requestMagicLink(email) {
-  // Dev preview without real signup: nothing to email, so simulate the
-  // server's neutral answer.
-  if (!REAL_SIGNUP) return { ok: true, simulated: true, message: 'If that email is signed up, a sign-in link is on its way.' }
-  return request('/api/auth/magic-link', { method: 'POST', body: { email } })
+// ---- Password sign-in ----
+// Passwords go only in the JSON body of a same-origin POST: never in a URL,
+// storage, logs or analytics. Under vite dev without real signup these hit the
+// dev simulation (dev/signal/devEndpoints.js), which stores nothing durable.
+
+export async function signIn({ email, password }) {
+  if (!REAL_SIGNUP) return devRequest('login', { method: 'POST', body: { email, password } })
+  return request('/api/auth/login', { method: 'POST', body: { email, password } })
+}
+
+// Always answers neutrally (never says whether the email has an account).
+// The dev simulation also returns devResetUrl so the flow can be tested.
+export async function forgotPassword(email) {
+  if (!REAL_SIGNUP) return devRequest('forgot', { method: 'POST', body: { email } })
+  return request('/api/auth/forgot', { method: 'POST', body: { email } })
+}
+
+export async function resetPassword({ token, password }) {
+  if (!REAL_SIGNUP) return devRequest('reset', { method: 'POST', body: { token, password } })
+  return request('/api/auth/reset', { method: 'POST', body: { token, password } })
+}
+
+export async function signOut() {
+  if (!REAL_SIGNUP) return devRequest('logout', { method: 'POST', body: {} })
+  return request('/api/auth/logout', { method: 'POST', body: {} })
 }
 
 export async function savePreferences(prefs) {

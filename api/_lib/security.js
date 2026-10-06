@@ -40,8 +40,10 @@ export function clientIp(req) {
   return req.headers?.['x-real-ip'] || req.socket?.remoteAddress || 'unknown'
 }
 
-export function rateLimit(req, res, { key = 'default', limit = 10, windowMs = 60_000, now = Date.now() } = {}) {
-  const id = `${key}:${clientIp(req)}`
+// `subject` replaces the client IP in the bucket id (e.g. a hashed email for a
+// per-account limit); `body` replaces the default 429 JSON body.
+export function rateLimit(req, res, { key = 'default', limit = 10, windowMs = 60_000, now = Date.now(), subject, body: limitedBody } = {}) {
+  const id = `${key}:${subject ?? clientIp(req)}`
   let b = buckets.get(id)
   if (!b || now >= b.reset) {
     b = { count: 0, reset: now + windowMs }
@@ -53,7 +55,8 @@ export function rateLimit(req, res, { key = 'default', limit = 10, windowMs = 60
   }
   if (b.count > limit) {
     res.setHeader?.('Retry-After', String(Math.ceil((b.reset - now) / 1000)))
-    const body = { success: false, error: 'Too many requests. Please try again shortly.' }
+    res.setHeader?.('Cache-Control', 'no-store')
+    const body = limitedBody || { success: false, error: 'Too many requests. Please try again shortly.' }
     if (typeof res.status === 'function') res.status(429).json(body)
     else { res.statusCode = 429; res.setHeader?.('Content-Type', 'application/json'); res.end(JSON.stringify(body)) }
     return false

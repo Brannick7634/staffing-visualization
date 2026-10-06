@@ -37,7 +37,8 @@ function mockFetch(rows = []) {
 const call = (handler, { method = 'POST', body, cookie } = {}) => new Promise((resolve) => {
   const headers = {}
   const res = { statusCode: 200, setHeader: (k, v) => { headers[k.toLowerCase()] = v }, end: (b) => resolve({ status: res.statusCode, body: b ? JSON.parse(b) : null }) }
-  Promise.resolve(handler({ method, body, headers: cookie ? { cookie } : {} }, res))
+  // Same Content-Type the site's fetch calls send (auth POSTs require JSON).
+  Promise.resolve(handler({ method, body, headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) } }, res))
 })
 
 describe('area validation', () => {
@@ -55,14 +56,14 @@ describe('area validation', () => {
   test('signup stores the 2-letter state and the city', async () => {
     const m = mockFetch()
     const h = createSubscribeHandler({ env: ENV, fetchImpl: m.fetchImpl })
-    const r = await call(h, { body: { name: 'Ann', email: 'ann@firm.com', state: 'tx', city: ' Houston ' } })
+    const r = await call(h, { body: { name: 'Ann', email: 'ann@firm.com', password: 'area test pw', state: 'tx', city: ' Houston ' } })
     assert.equal(r.status, 200)
     assert.equal(m.rows[0].fields[F.states], 'TX')
     assert.equal(m.rows[0].fields[F.city], 'Houston')
     const m2 = mockFetch()
-    await call(createSubscribeHandler({ env: ENV, fetchImpl: m2.fetchImpl }), { body: { name: 'Bo', email: 'bo@firm.com' } })
+    await call(createSubscribeHandler({ env: ENV, fetchImpl: m2.fetchImpl }), { body: { name: 'Bo', email: 'bo@firm.com', password: 'area test pw' } })
     assert.equal(m2.rows[0].fields[F.states], undefined)
-    assert.equal((await call(h, { body: { name: 'Ann', email: 'ann@firm.com', state: 'QQ' } })).status, 400)
+    assert.equal((await call(h, { body: { name: 'Ann', email: 'new@firm.com', password: 'area test pw', state: 'QQ' } })).status, 400)
   })
 
   test('preferences: home state is the first States line; other lines kept', async () => {

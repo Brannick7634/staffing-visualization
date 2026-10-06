@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom'
 import { usePreview } from '../PreviewContext.jsx'
 
 // Plain-language privacy summary. Every statement here describes what the
-// code in api/_lib/routes/ (subscribe, magic-link, verify, preferences and
-// unsubscribe) actually does; update it if those change.
+// code in api/_lib/routes/ (subscribe, login, forgot, reset, logout,
+// preferences and unsubscribe) actually does; update it if those change.
 export default function PrivacyPage() {
   const { base, homePath } = usePreview()
   return (
@@ -19,20 +19,23 @@ export default function PrivacyPage() {
           </p>
           <h2>Free access</h2>
           <p>
-            When you sign up we keep your name, work email, the date you signed up, whether you want The Monthly
-            Signal, and the sectors and states you choose on the{' '}
+            When you sign up we keep your name, work email, a one-way hash of your password, the date you signed
+            up, whether you want The Monthly Signal, and the sectors and states you choose on the{' '}
             <Link to={`${base}/preferences`} className="ssp-link">preferences page</Link>. We use them to sign you in
             and, if you asked for it, to send the newsletter. We do not sell them.
           </p>
           <h2>Signing in</h2>
           <p>
-            We email you a one-time sign-in link. Opening it sets a single cookie on this site that keeps you signed
-            in for 30 days. We use no advertising or tracking cookies.
+            You sign in with your work email and a password. We store your password only as a one-way bcrypt hash,
+            so we never see it and never email it to you. Signing in sets a single cookie on this site that keeps you
+            signed in for up to 30 days, or until you sign out. If you forget your password, we email you a reset link; it
+            works once and expires after 60 minutes. We use no advertising or tracking cookies.
           </p>
           <h2>Unsubscribing</h2>
           <p>
-            Every email has an unsubscribe link. One click stops all Staffing Signal emails, and we keep a record
-            that you unsubscribed so you are not added back.
+            Every email has an unsubscribe link. One click stops The Monthly Signal and our other updates, and we
+            keep a record that you unsubscribed so you are not added back. Password reset emails you ask for still
+            arrive, and you can still sign in.
           </p>
           <p>
             <Link to={{ pathname: homePath, hash: '#pay-check' }} className="ssp-link">

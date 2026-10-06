@@ -732,8 +732,10 @@ body.ssp-body {
   font-weight: 600;
 }
 
-/* Signed-out header: "Sign in" text link beside the primary button. */
-.ssp-header__signedout {
+/* Header actions: "Sign in" (signed out) or "Sign out" (signed in) text
+   link beside the primary button. */
+.ssp-header__signedout,
+.ssp-header__signedin {
   display: flex;
   align-items: center;
   gap: 18px;
@@ -752,6 +754,44 @@ body.ssp-body {
 
 .ssp .ssp-header__signin:hover {
   text-decoration: underline;
+}
+
+/* "Sign out" is a button styled like the "Sign in" text link. */
+.ssp .ssp-header__signout {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ssp .ssp-header__signout:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Phone-menu copy of "Sign out": looks like the other menu links. */
+.ssp .ssp-header__navbtn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ssp .ssp-header__navbtn:hover {
+  color: var(--primary);
 }
 
 /* The menu copy of "Sign in" is for phones only. */
@@ -1756,6 +1796,16 @@ body.ssp-body {
   color: var(--ink-2);
 }
 
+/* Headings that receive focus from script (tabIndex -1) need no ring. */
+.ssp-focus-target:focus {
+  outline: none;
+}
+
+.ssp-gate__signin {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
 .ssp-gate__panel {
   margin-top: 16px;
   padding-top: 16px;
@@ -1770,6 +1820,10 @@ body.ssp-body {
   gap: 14px;
 }
 
+.ssp-signup__full {
+  grid-column: 1 / -1;
+}
+
 .ssp-signup__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1777,6 +1831,11 @@ body.ssp-body {
 }
 
 .ssp-signup__error {
+  margin-top: 12px;
+}
+
+/* Sign-in, forgot and reset show the error above the button: keep a gap. */
+.ssp-signup__error + .ssp-signup__actions {
   margin-top: 12px;
 }
 
@@ -1870,6 +1929,90 @@ body.ssp-body {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 4px;
+}
+
+/* Sign-in / forgot / reset forms: "Forgot password?" sits under the fields. */
+.ssp-auth__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.ssp-auth__row .ssp-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14.5px;
+}
+
+.ssp-auth__alert {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  font-size: 14.5px;
+  color: var(--ink-2);
+}
+
+.ssp-auth__alert--error {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.ssp-auth__alert .ssp-link {
+  color: var(--link);
+}
+
+.ssp-auth__dev {
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Password field ---------- */
+
+.ssp-password {
+  position: relative;
+}
+
+.ssp-password .ssp-input {
+  padding-right: 76px;
+}
+
+.ssp-password__toggle {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  min-width: 66px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  background: var(--surface-2);
+  color: var(--link);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ssp-password__toggle:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ssp-password__toggle[aria-pressed='true'] {
+  background: var(--primary-tint);
+  color: var(--primary);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+.ssp-password__hint {
+  margin: 6px 0 0;
+  font-size: 13.5px;
 }
 
 /* ---------- Status card ---------- */

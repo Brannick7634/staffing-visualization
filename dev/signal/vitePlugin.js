@@ -2,7 +2,8 @@
 // on the local dev server so the preview works without Vercel:
 //   GET  /api/signal/snapshot, GET /api/signal/pay   (same handlers as production,
 //        wired to the development fixture + simulated access cookie)
-//   POST /api/signal/dev/access | dev/signup | dev/notify | dev/preferences
+//   POST /api/signal/dev/access | dev/signup | dev/login | dev/forgot |
+//        dev/reset | dev/logout | dev/notify | dev/preferences
 //   GET  /api/signal/dev/scenarios
 //
 // It shims the Vercel request/response helpers the handlers expect
@@ -14,8 +15,10 @@ import { createSnapshotHandler, createPayHandler, sendJson } from '../../api/_li
 import { createFixtureAdapter } from './fixtureAdapter.js'
 import { devAccess } from './devAccess.js'
 import {
-  createDevAccessHandler, createDevSignupHandler, createDevNotifyHandler,
-  createDevPreferencesHandler, createDevScenariosHandler
+  createDevAccessHandler, createDevAccountStore, createDevSignupHandler,
+  createDevLoginHandler, createDevForgotHandler, createDevResetHandler,
+  createDevLogoutHandler, createDevNotifyHandler, createDevPreferencesHandler,
+  createDevScenariosHandler
 } from './devEndpoints.js'
 
 export const BODY_LIMIT_BYTES = 10 * 1024
@@ -87,13 +90,18 @@ function shimResponse(res) {
 
 export function createSignalRoutes({ fixturePath } = {}) {
   const adapter = createFixtureAdapter(fixturePath ? { fixturePath } : {})
+  const accounts = createDevAccountStore()
   return new Map([
     [`${PREFIX}/snapshot`, createSnapshotHandler({ adapter, resolveAccess: devAccess })],
     [`${PREFIX}/pay`, createPayHandler({ adapter, resolveAccess: devAccess })],
     // Real report files; simulated access; dev area = Texas / Houston.
     [`${PREFIX}/report`, createReportHandler({ resolveAccess: devAccess, loadArea: async () => ({ state: 'TX', cityKey: 'TX:houston' }) })],
     [`${PREFIX}/dev/access`, createDevAccessHandler()],
-    [`${PREFIX}/dev/signup`, createDevSignupHandler()],
+    [`${PREFIX}/dev/signup`, createDevSignupHandler(accounts)],
+    [`${PREFIX}/dev/login`, createDevLoginHandler(accounts)],
+    [`${PREFIX}/dev/forgot`, createDevForgotHandler(accounts)],
+    [`${PREFIX}/dev/reset`, createDevResetHandler(accounts)],
+    [`${PREFIX}/dev/logout`, createDevLogoutHandler()],
     [`${PREFIX}/dev/notify`, createDevNotifyHandler()],
     [`${PREFIX}/dev/preferences`, createDevPreferencesHandler()],
     [`${PREFIX}/dev/scenarios`, createDevScenariosHandler()]

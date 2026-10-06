@@ -1,60 +1,80 @@
-import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ACCESS } from '../../../shared/signal/contract.js'
-import { requestMagicLink } from '../api.js'
+import { signIn } from '../api.js'
+import PasswordField from '../components/PasswordField.jsx'
+import { stateEmail } from '../lib/password.js'
 import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 
-// Returning subscribers: enter a work email, get a one-time sign-in link
-// (POST /api/auth/magic-link). The server answers the same way whether or not
-// the email is signed up, so this page never says which emails exist.
+// Returning subscribers: work email + password (POST /api/auth/login). The
+// server gives the same answer for an unknown email, an account without a
+// password and a wrong password, so this page never says which emails exist.
+// The password lives only in this component's state and is cleared on success.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 function errorMessage(error) {
-  if (error?.status === 400) return 'Enter a valid work email address.'
-  if (error?.status === 429) return 'Too many sign-in requests. Please wait a few minutes and try again.'
-  if (error?.status === 502) return "We couldn't send the sign-in email. Please try again."
+  if (error?.status === 401) return 'Email or password is incorrect.'
+  if (error?.status === 429) return 'Too many attempts. Please wait a few minutes and try again.'
+  if (error?.status === 400) return 'Enter your work email and password.'
+  if (error?.status === 0) return 'We could not reach the server. Check your connection and try again.'
   return 'Something went wrong. Please try again.'
 }
 
 export default function SignInPage() {
-  const { access, homePath, site: siteMount } = usePreview()
+  const { access, homePath, pendingReturn, reloadSnapshot, returnToComparison, site: siteMount } = usePreview()
   const site = FORCE_SITE || siteMount
   const base = basePath(site)
-  const [email, setEmail] = useState('')
-  const [fieldError, setFieldError] = useState(null)
+  const navigate = useNavigate()
+  const location = useLocation()
+  // Email typed in the signup form (router state, never the URL), if any.
+  const [email, setEmail] = useState(() => stateEmail(location.state))
+  const [password, setPassword] = useState('')
+  const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [sent, setSent] = useState(false)
   const emailRef = useRef(null)
+  const passwordRef = useRef(null)
+
+  // Old one-time sign-in emails now redirect here with a dead ?token=; drop it
+  // from the address bar.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has('token')) {
+      navigate({ pathname: location.pathname, hash: location.hash }, { replace: true })
+    }
+  }, [location.search, location.pathname, location.hash, navigate])
 
   async function onSubmit(event) {
     event.preventDefault()
+    if (busy) return
     const value = email.trim().toLowerCase()
-    if (!EMAIL_RE.test(value) || value.length > 254) {
-      setFieldError('Enter a valid work email address.')
-      emailRef.current?.focus()
+    const errs = {}
+    if (!EMAIL_RE.test(value) || value.length > 254) errs.email = 'Enter a valid work email address.'
+    if (password === '') errs.password = 'Enter your password.'
+    setErrors(errs)
+    setFormError(null)
+    if (errs.email || errs.password) {
+      if (errs.email) emailRef.current?.focus()
+      else passwordRef.current?.focus()
       return
     }
-    setFieldError(null)
-    setFormError(null)
     setBusy(true)
     try {
-      await requestMagicLink(value)
-      setSent(true)
+      await signIn({ email: value, password })
     } catch (error) {
-      if (error?.status === 400) {
-        setFieldError(errorMessage(error))
-        emailRef.current?.focus()
-      } else {
-        setFormError(errorMessage(error))
-      }
-    } finally {
       setBusy(false)
+      setFormError(errorMessage(error))
+      return
     }
+    setPassword('')
+    await reloadSnapshot()
+    setBusy(false)
+    // Back to the comparison they were trying to unlock, else the pay check.
+    const returned = pendingReturn ? returnToComparison(pendingReturn) : false
+    if (!returned) navigate({ pathname: homePath, hash: '#pay-check' })
   }
 
-  const signedIn = access === ACCESS.AUTHORIZED
+  const signedIn = access === ACCESS.AUTHORIZED && !busy
 
   return (
     <section className="ssp-section ssp-page">
@@ -63,12 +83,12 @@ export default function SignInPage() {
           <p className="ssp-eyebrow">Sign in</p>
           <h1 className="ssp-page__title">Welcome back.</h1>
           <p className="ssp-lede">
-            Already have free access? Enter your work email and we'll send you a one-time sign-in link. No password
-            needed.
+            Already have free access? Sign in with your work email and password to unlock local comparisons and full
+            rankings.
           </p>
           <ul className="ssp-ticks">
-            <li>The link works once, for 15 minutes.</li>
-            <li>Open it on the device you want to use. You stay signed in there for 30 days.</li>
+            <li>You stay signed in on this device for 30 days, or until you sign out.</li>
+            <li>Forgot your password? We'll email you a reset link. It works once, for 60 minutes.</li>
           </ul>
         </div>
 
@@ -82,30 +102,12 @@ export default function SignInPage() {
                 <Link to={`${base}/preferences`} className="ssp-btn ssp-btn--secondary">My preferences</Link>
               </div>
             </div>
-          ) : sent ? (
-            <div className="ssp-freeaccess__done" role="status">
-              <h2 className="ssp-card__title">Check your inbox.</h2>
-              <p>
-                If {email.trim()} is signed up, a sign-in link is on its way. Open it on this device. The link works
-                once, for 15 minutes.
-              </p>
-              {!site && <p className="ssp-muted">Development preview: simulated. No email was sent.</p>}
-              <div className="ssp-freeaccess__links">
-                <button type="button" className="ssp-btn ssp-btn--secondary" onClick={() => setSent(false)}>
-                  Use a different email
-                </button>
-              </div>
-              <p className="ssp-muted">
-                No email after a few minutes? Check your spam folder, or{' '}
-                <Link to={`${base}/free-access`} className="ssp-link">get free access</Link> if you haven't signed up yet.
-              </p>
-            </div>
           ) : (
             <>
-              <h2 className="ssp-card__title">Email me a sign-in link</h2>
+              <h2 className="ssp-card__title">Sign in</h2>
               <form className="ssp-signup" onSubmit={onSubmit} noValidate>
                 <div className="ssp-signup__fields">
-                  <div className={`ssp-field${fieldError ? ' has-error' : ''}`}>
+                  <div className={`ssp-field ssp-signup__full${errors.email ? ' has-error' : ''}`}>
                     <label htmlFor="signin-email" className="ssp-field__label">Work email</label>
                     <input
                       id="signin-email"
@@ -113,28 +115,58 @@ export default function SignInPage() {
                       className="ssp-input"
                       type="email"
                       inputMode="email"
-                      autoComplete="email"
+                      autoComplete="username"
                       autoCapitalize="none"
                       spellCheck="false"
                       maxLength={254}
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value)
-                        if (fieldError) setFieldError(null)
+                        if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }))
                       }}
-                      aria-invalid={fieldError ? 'true' : undefined}
-                      aria-describedby={fieldError ? 'signin-email-error' : undefined}
+                      aria-invalid={errors.email ? 'true' : undefined}
+                      aria-describedby={errors.email ? 'signin-email-error' : undefined}
                     />
-                    {fieldError && (
-                      <p id="signin-email-error" className="ssp-field-error"><span aria-hidden="true">!</span> {fieldError}</p>
+                    {errors.email && (
+                      <p id="signin-email-error" className="ssp-field-error"><span aria-hidden="true">!</span> {errors.email}</p>
                     )}
                   </div>
+                  <PasswordField
+                    id="signin-password"
+                    label="Password"
+                    value={password}
+                    autoComplete="current-password"
+                    error={errors.password || null}
+                    inputRef={passwordRef}
+                    className="ssp-signup__full"
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }))
+                    }}
+                  />
                 </div>
-                {formError && <p className="ssp-field-error" role="alert"><span aria-hidden="true">!</span> {formError}</p>}
-                <button type="submit" className="ssp-btn ssp-btn--primary" aria-busy={busy ? 'true' : undefined} disabled={busy}>
-                  {busy ? 'Sending…' : 'Email me a sign-in link'}
-                </button>
+                <div className="ssp-auth__row">
+                  <Link to={`${base}/forgot-password`} className="ssp-link">Forgot password?</Link>
+                </div>
+                {formError && (
+                  <p className="ssp-field-error ssp-signup__error" role="alert"><span aria-hidden="true">!</span> {formError}</p>
+                )}
+                <div className="ssp-signup__actions">
+                  <button type="submit" className="ssp-btn ssp-btn--primary ssp-btn--lg" aria-busy={busy ? 'true' : undefined} disabled={busy}>
+                    {busy ? 'Signing in…' : 'Sign in'}
+                  </button>
+                </div>
+                {!site && (
+                  <p className="ssp-signup__sim">
+                    <span className="ssp-chip ssp-chip--dev">Simulated</span>{' '}
+                    Development preview: sign-in uses the in-memory dev accounts.
+                  </p>
+                )}
               </form>
+              <p className="ssp-muted ssp-freeaccess__next">
+                Signed up before we added passwords? Use{' '}
+                <Link to={`${base}/forgot-password`} className="ssp-link">Forgot password</Link> to set one.
+              </p>
               <p className="ssp-muted ssp-freeaccess__next">
                 New here? <Link to={`${base}/free-access`} className="ssp-link">Get free access</Link>
               </p>

@@ -14,7 +14,7 @@ import { sessionAccess } from '../signal/sessionAccess.js'
 import { ACCESS } from '../../../shared/signal/contract.js'
 import { MONTH, REPORT_FORMAT, localFor, cityKeyFor } from '../signal/report.js'
 import { stateByCode } from '../../../shared/signal/geography.js'
-import { verifySession } from '../signalSession.js'
+import { verifySession, sessionMatchesHash } from '../signalSession.js'
 import { loadConfig, findByEmail, F } from '../subscribers.js'
 
 export const DEFAULT_REPORT_DIR = fileURLToPath(new URL('../signal/data/report/', import.meta.url))
@@ -41,7 +41,8 @@ async function defaultLoadArea(req, env, fetchImpl) {
   const conf = loadConfig(env)
   if (!conf.ok) return null
   const rec = await findByEmail(conf.cfg, fetchImpl, session.email)
-  return rec ? areaFromRecord(rec.fields) : null
+  // A session from before a password reset does not get the reader's area.
+  return rec && sessionMatchesHash(session, rec.fields?.[F.passwordHash], conf.cfg.secret) ? areaFromRecord(rec.fields) : null
 }
 
 export function createReportHandler({

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ACCESS, COVERAGE, REQUEST } from '../../shared/signal/contract.js'
 import { parseHourlyRate } from '../../shared/signal/money.js'
 import { DEFAULT_EXAMPLE, sectorForRole } from '../../shared/signal/taxonomy.js'
-import { fetchPay, fetchSnapshot, setSimAccess } from './api.js'
+import { fetchPay, fetchSnapshot, setSimAccess, signOut as apiSignOut } from './api.js'
 import { EVENTS, track } from './lib/track.js'
 
 // In-memory state for the homepage preview. Nothing here is written to
@@ -249,6 +249,23 @@ export function PreviewProvider({ children, site = false }) {
     setSignedUp(true)
   }, [])
 
+  // Sign out: the server clears the session cookie; then forget the in-memory
+  // signup state, refresh access and go home. Even if the request fails we
+  // reload the snapshot so the header reflects what the server says.
+  const signOut = useCallback(async () => {
+    let ok = true
+    try {
+      await apiSignOut()
+    } catch {
+      ok = false
+    }
+    setSignedUp(false)
+    setPendingReturn(null)
+    await reloadSnapshot()
+    navigate(homePathFor(variantRef.current, site))
+    return { ok }
+  }, [navigate, reloadSnapshot, site])
+
   const requestFocus = useCallback((field) => {
     setFocusRequest((prev) => ({ field, n: (prev?.n || 0) + 1 }))
   }, [])
@@ -327,6 +344,7 @@ export function PreviewProvider({ children, site = false }) {
     setRateInput,
     signedUp,
     markSignedUp,
+    signOut,
     pendingReturn,
     requestFreeAccess,
     pickRole,
@@ -339,7 +357,7 @@ export function PreviewProvider({ children, site = false }) {
     requestFocus,
     goHome
   }), [site, variant, snap, reloadSnapshot, access, simulated, setAccess, selection, setSelection, rateInput,
-    signedUp, markSignedUp, pendingReturn, requestFreeAccess, pickRole, returnToComparison, payCheck,
+    signedUp, markSignedUp, signOut, pendingReturn, requestFreeAccess, pickRole, returnToComparison, payCheck,
     runPayCheck, retryPayCheck, isOutOfDate, focusRequest, requestFocus, goHome])
 
   return <PreviewContext.Provider value={value}>{children}</PreviewContext.Provider>

@@ -1,13 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { ACCESS } from '../../../shared/signal/contract.js'
 import { cityByKey, stateByCode } from '../../../shared/signal/geography.js'
 import { roleByKey } from '../../../shared/signal/taxonomy.js'
 import SignupForm from '../components/SignupForm.jsx'
 import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 
-// Standalone signup route, also reachable from contextual gates. After a
-// simulated signup the visitor returns to the exact comparison they asked for
-// (selection + in-memory rate); with no pending comparison they go on to pick
-// what they follow.
+// Standalone signup route, also reachable from contextual gates. Signup signs
+// the visitor in straight away (no email link). They then return to the exact
+// comparison they asked for (selection + in-memory rate); with no pending
+// comparison they can go on to pick what they follow.
 
 function contextLine(context) {
   if (!context || !context.roleKey) return null
@@ -30,10 +31,12 @@ const BENEFITS = [
 ]
 
 export default function FreeAccessPage() {
-  const { pendingReturn, signedUp, homePath, site: siteMount } = usePreview()
+  const { pendingReturn, signedUp, access, homePath, site: siteMount } = usePreview()
   const site = FORCE_SITE || siteMount
   const navigate = useNavigate()
   const line = contextLine(pendingReturn)
+  const base = basePath(site)
+  const done = signedUp || access === ACCESS.AUTHORIZED
 
   function onSuccess(result) {
     if (!site && !result.returned) navigate('/preview/preferences')
@@ -59,15 +62,17 @@ export default function FreeAccessPage() {
         </div>
 
         <div className="ssp-card ssp-freeaccess__card">
-          {signedUp ? (
+          {done ? (
             <div className="ssp-freeaccess__done" role="status">
-              <h2 className="ssp-card__title">{site ? 'Check your inbox.' : "You're in (simulated)."}</h2>
-              <p>{site
-                ? 'We sent a sign-in link to your work email. Open it on this device to unlock local comparisons. The link works once, for 15 minutes.'
-                : 'Choose the sectors and markets you follow, or go back to your pay check.'}</p>
+              <h2 className="ssp-card__title">You're signed in.</h2>
+              <p>
+                Local comparisons and full rankings are unlocked on this device. Choose the sectors and markets you
+                follow, or go back to your pay check.
+              </p>
+              {!site && <p className="ssp-muted">Development preview: simulated. Nothing was saved.</p>}
               <div className="ssp-freeaccess__links">
-                {!site && <Link to="/preview/preferences" className="ssp-btn ssp-btn--primary">Choose what you follow <span aria-hidden="true">→</span></Link>}
-                <Link to={{ pathname: homePath, hash: '#pay-check' }} className="ssp-btn ssp-btn--secondary">Back to the pay check</Link>
+                <Link to={{ pathname: homePath, hash: '#pay-check' }} className="ssp-btn ssp-btn--primary">Back to the pay check</Link>
+                <Link to={`${base}/preferences`} className="ssp-btn ssp-btn--secondary">Choose what you follow</Link>
               </div>
             </div>
           ) : (
@@ -81,7 +86,7 @@ export default function FreeAccessPage() {
               <SignupForm idPrefix="page" context={pendingReturn} onSuccess={onSuccess} />
               <p className="ssp-muted ssp-freeaccess__next">Next, you can choose the sectors and markets you follow.</p>
               <p className="ssp-muted ssp-freeaccess__next">
-                Already have free access? <Link to={`${basePath(site)}/sign-in`} className="ssp-link">Sign in</Link>
+                Already have free access? <Link to={`${base}/sign-in`} className="ssp-link">Sign in</Link>
               </p>
             </>
           )}

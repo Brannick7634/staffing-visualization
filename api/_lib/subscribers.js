@@ -1,6 +1,9 @@
 // Signal Subscribers table (Airtable REST via fetch, field IDs only) plus the
-// validation, config, Resend and response helpers for the signup endpoints.
-import { sessionSecret, loginToken, unsubscribeToken } from './signalSession.js'
+// validation, config, password, Resend and response helpers for the signup
+// and sign-in endpoints. Passwords are only ever held in memory long enough to
+// hash or compare them; they are never stored, logged or echoed.
+import bcrypt from 'bcryptjs'
+import { sessionSecret, unsubscribeToken, resetToken, passwordFingerprint, sessionToken, sessionCookie } from './signalSession.js'
 import { stateByCode } from '../../shared/signal/geography.js'
 
 export const F = {
@@ -16,7 +19,9 @@ export const F = {
   sectors: 'fld0K11cHOv596h0A',
   states: 'fldUVhSgbxpWiYWdj',
   source: 'fldPEkhn5c7rf5wVG',
-  city: 'fldlcjpoi2omNmM18'
+  city: 'fldlcjpoi2omNmM18',
+  passwordHash: 'fld79K4mK8Zsxb4Xx', // bcrypt hash only, never returned to a browser
+  passwordSetAt: 'fld3iY8vBcRw9X3rz'
 }
 const DEFAULT_TABLE = 'tbl3V33K9WVjadzMQ'
 const DEFAULT_BASE = 'appFkwB2Aei2oblnz'
@@ -66,6 +71,18 @@ export function methodNotAllowed(res, allow) {
   res.setHeader('Allow', allow)
   sendError(res, 405, 'method_not_allowed', 'Method not allowed.')
 }
+// Auth POSTs must be JSON. A cross-site HTML form can only send urlencoded,
+// multipart or text/plain bodies, and a JSON request from another site needs a
+// CORS preflight we never answer, so this stops login/logout CSRF.
+export function requireJson(req, res) {
+  const type = String(req?.headers?.['content-type'] || '').split(';')[0].trim().toLowerCase()
+  if (type === 'application/json') return true
+  sendError(res, 415, 'unsupported_media_type', 'Send the request as JSON.')
+  return false
+}
+// Body for 429s from these endpoints, in the same { error } shape as the rest.
+export const RATE_LIMITED = { error: { code: 'rate_limited', message: 'Too many attempts. Please wait a few minutes and try again.' } }
+
 export function readBody(req) {
   const b = req?.body
   if (typeof b === 'string') { try { return JSON.parse(b) } catch { return null } }
@@ -113,6 +130,43 @@ export function validateArea(stateIn, cityIn) {
   return { state, city }
 }
 
+// ---- Passwords ----
+export const PASSWORD_MIN_CHARS = 8
+export const PASSWORD_MAX_BYTES = 72 // bcrypt ignores everything past 72 bytes
+const BCRYPT_COST = 10
+// bcrypt hash of a random value nobody knows. Compared against when there is
+// no account (or no password yet) so every failed sign-in costs the same time.
+const DUMMY_HASH = '$2b$10$wSudbY//k3I3gUECsPYkeeMNoOIpB0LqPMd1iKGBKWA2LD1B/9Zt6'
+
+// Returns an error message, or '' when the password is acceptable. Not trimmed:
+// spaces are part of the password.
+export function validatePassword(pw) {
+  if (typeof pw !== 'string' || pw === '') return `Enter a password (at least ${PASSWORD_MIN_CHARS} characters).`
+  if ([...pw].length < PASSWORD_MIN_CHARS) return `Use at least ${PASSWORD_MIN_CHARS} characters.`
+  if (Buffer.byteLength(pw, 'utf8') > PASSWORD_MAX_BYTES) return 'That password is too long. Use at most 72 bytes (emoji and accented letters count as 2 to 4 each).'
+  return ''
+}
+
+export function hashPassword(pw) {
+  return bcrypt.hash(pw, BCRYPT_COST)
+}
+
+const isBcryptHash = (h) => typeof h === 'string' && /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(h)
+
+// True only for a stored hash that matches. Always runs one bcrypt compare.
+export async function checkPassword(pw, hash) {
+  const usable = typeof pw === 'string' && pw !== '' && Buffer.byteLength(pw, 'utf8') <= PASSWORD_MAX_BYTES
+  const real = usable && isBcryptHash(hash)
+  const match = await bcrypt.compare(usable ? pw : 'x', real ? hash : DUMMY_HASH)
+  return real && match
+}
+
+// Sets the 30-day signed session cookie for this email, tied to the password
+// hash it was started with (a later reset ends it for record-level actions).
+export function startSession(res, cfg, email, { now = Date.now(), hash = '' } = {}) {
+  res.setHeader('Set-Cookie', sessionCookie(sessionToken(email, cfg.secret, now, passwordFingerprint(hash, cfg.secret))))
+}
+
 export function validateSignup(input) {
   const b = input && typeof input === 'object' && !Array.isArray(input) ? input : {}
   const fields = {}
@@ -120,6 +174,8 @@ export function validateSignup(input) {
   if (!name) fields.name = 'Enter your name (up to 100 characters).'
   const email = normalizeEmail(b.email)
   if (!isEmail(email)) fields.email = 'Enter a valid work email address.'
+  const passwordError = validatePassword(b.password)
+  if (passwordError) fields.password = passwordError
   const company = cleanText(b.company, 150)
   if (company === null) fields.company = 'Company name is too long.'
   if (b.newsletter !== undefined && typeof b.newsletter !== 'boolean') fields.newsletter = 'Choose whether to receive The Monthly Signal.'
@@ -130,7 +186,7 @@ export function validateSignup(input) {
   const keys = Object.keys(fields)
   if (keys.length) return { ok: false, fields, field: keys[0] }
   // Newsletter defaults to checked (Andy's decision).
-  return { ok: true, value: { name, email, company: company || '', newsletter: b.newsletter !== false, source: source || 'pay-first', state: area.state || '', city: area.city || '' } }
+  return { ok: true, value: { name, email, password: b.password, company: company || '', newsletter: b.newsletter !== false, source: source || 'pay-first', state: area.state || '', city: area.city || '' } }
 }
 
 export function validatePreferences(input) {
@@ -176,24 +232,29 @@ export async function findByEmail(cfg, fetchImpl, email) {
   return Array.isArray(data.records) && data.records[0] ? data.records[0] : null
 }
 
+// Every row for this email (up to `max`), oldest first. Used after signup to
+// catch two signups for the same email that raced past findByEmail.
+export async function findAllByEmail(cfg, fetchImpl, email, max = 2) {
+  const formula = `LOWER({Email})="${escapeFormulaString(normalizeEmail(email))}"`
+  const q = new URLSearchParams({ filterByFormula: formula, maxRecords: String(max), returnFieldsByFieldId: 'true' })
+  const data = await at(cfg, fetchImpl, `?${q}`)
+  const rows = Array.isArray(data.records) ? data.records : []
+  const when = (r) => Date.parse(r.createdTime || '') || 0
+  return rows.slice().sort((a, b) => when(a) - when(b))
+}
+
+export async function deleteRecord(cfg, fetchImpl, id) {
+  return at(cfg, fetchImpl, `/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
 export async function updateRecord(cfg, fetchImpl, id, fields) {
   return at(cfg, fetchImpl, '', { method: 'PATCH', body: { records: [{ id, fields }], returnFieldsByFieldId: true } })
 }
 
-// Idempotent upsert by lowercased email. On an existing row it never touches
-// Unsubscribed, Unsubscribed At, Email Verified or Signed Up At, and never
-// switches the newsletter off.
-export async function upsertSubscriber(cfg, fetchImpl, v, now = new Date()) {
-  const existing = await findByEmail(cfg, fetchImpl, v.email)
-  if (existing) {
-    const fields = { [F.name]: v.name }
-    if (v.company) fields[F.company] = v.company
-    if (v.newsletter) fields[F.newsletter] = true
-    if (v.state) fields[F.states] = v.state
-    if (v.state) fields[F.city] = v.city || ''
-    await updateRecord(cfg, fetchImpl, existing.id, fields)
-    return { id: existing.id, created: false, unsubscribed: existing.fields?.[F.unsubscribed] === true }
-  }
+// Creates a new subscriber row. The caller has already checked that no row
+// exists for this email; existing rows are never modified by signup.
+export async function createSubscriber(cfg, fetchImpl, v, { passwordHash, now = new Date() }) {
+  const stamp = now.toISOString()
   const data = await at(cfg, fetchImpl, '', {
     method: 'POST',
     body: {
@@ -202,7 +263,10 @@ export async function upsertSubscriber(cfg, fetchImpl, v, now = new Date()) {
         [F.name]: v.name,
         [F.company]: v.company || '',
         [F.newsletter]: v.newsletter,
-        [F.signedUpAt]: now.toISOString(),
+        [F.signedUpAt]: stamp,
+        [F.lastSignInAt]: stamp,
+        [F.passwordHash]: passwordHash,
+        [F.passwordSetAt]: stamp,
         [F.source]: v.source,
         ...(v.state ? { [F.states]: v.state } : {}),
         ...(v.city ? { [F.city]: v.city } : {})
@@ -210,7 +274,7 @@ export async function upsertSubscriber(cfg, fetchImpl, v, now = new Date()) {
       returnFieldsByFieldId: true
     }
   })
-  return { id: data.records?.[0]?.id, created: true, unsubscribed: false }
+  return { id: data.records?.[0]?.id, createdTime: data.records?.[0]?.createdTime }
 }
 
 // ---- Resend ----
@@ -228,16 +292,25 @@ export function unsubscribeUrl(cfg, email) {
   return `${cfg.site}/api/unsubscribe?token=${encodeURIComponent(unsubscribeToken(email, cfg.secret))}`
 }
 
-export async function sendMagicLink(cfg, fetchImpl, email, now = Date.now()) {
-  const loginUrl = `${cfg.site}/api/auth/verify?token=${encodeURIComponent(loginToken(email, cfg.secret, now))}`
+// Emails a one-time, 60-minute password reset link. `currentHash` is the
+// stored hash (or '') so the link dies as soon as any password is set.
+export async function sendPasswordReset(cfg, fetchImpl, email, { currentHash = '', now = Date.now() } = {}) {
+  const token = resetToken(email, cfg.secret, { now, h: passwordFingerprint(currentHash, cfg.secret) })
+  const resetUrl = `${cfg.site}/reset-password?token=${encodeURIComponent(token)}`
   const unsubUrl = unsubscribeUrl(cfg, email)
-  const text = `Sign in to Staffing Signal:\n\n${loginUrl}\n\nThis link works once, for 15 minutes. If you did not ask for it, ignore this email.\n\nUnsubscribe: ${unsubUrl}`
-  const html = `<p>Sign in to Staffing Signal:</p><p><a href="${loginUrl}">Sign in</a></p>` +
-    '<p>This link works once, for 15 minutes. If you did not ask for it, you can ignore this email.</p>' +
+  const text = `Set a new password for Staffing Signal:
+
+${resetUrl}
+
+This link works once, for 60 minutes. If you did not ask for it, ignore this email and your password stays the same.
+
+Unsubscribe: ${unsubUrl}`
+  const html = `<p>Set a new password for Staffing Signal:</p><p><a href="${resetUrl}">Reset your password</a></p>` +
+    '<p>This link works once, for 60 minutes. If you did not ask for it, you can ignore this email and your password stays the same.</p>' +
     `<p style="font-size:12px;color:#666"><a href="${unsubUrl}">Unsubscribe</a></p>`
   return sendEmail(cfg, fetchImpl, {
     to: email,
-    subject: 'Your Staffing Signal sign-in link',
+    subject: 'Reset your Staffing Signal password',
     text,
     html,
     headers: { 'List-Unsubscribe': `<${unsubUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }

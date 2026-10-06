@@ -22,10 +22,11 @@ const SITE_PAGES = [
 ]
 
 export default function Header() {
-  const { homePath, access, simulated, requestFreeAccess, payCheck, variant, site: siteMount } = usePreview()
+  const { homePath, access, requestFreeAccess, payCheck, variant, signOut, site: siteMount } = usePreview()
   const site = FORCE_SITE || siteMount
   const PAGES = site ? SITE_PAGES : PREVIEW_PAGES
   const [open, setOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const location = useLocation()
   const menuButton = useRef(null)
 
@@ -48,6 +49,16 @@ export default function Header() {
   const authorized = access === ACCESS.AUTHORIZED
   const context = payCheck.selection && !payCheck.isExample ? payCheck.selection : null
   const signInPath = `${basePath(site)}/sign-in`
+
+  async function onSignOut() {
+    if (signingOut) return
+    setSigningOut(true)
+    try {
+      await signOut()
+    } finally {
+      setSigningOut(false)
+    }
+  }
 
   return (
     <header className={`ssp-header${open ? ' is-open' : ''}`}>
@@ -89,8 +100,16 @@ export default function Header() {
                 )}
               </li>
             ))}
-            {!authorized && (
-              // Phone menu only; on wider screens "Sign in" sits beside the button.
+            {/* Phone menu only; on wider screens "Sign in" / "Sign out" sits
+                beside the button. */}
+            {authorized ? (
+              <li className="ssp-header__nav-signin">
+                <button type="button" className="ssp-header__navbtn" onClick={onSignOut} disabled={signingOut}
+                  aria-busy={signingOut ? 'true' : undefined}>
+                  {signingOut ? 'Signing out…' : 'Sign out'}
+                </button>
+              </li>
+            ) : (
               <li className="ssp-header__nav-signin">
                 <NavLink to={signInPath}>Sign in</NavLink>
               </li>
@@ -100,19 +119,22 @@ export default function Header() {
 
         <div className="ssp-header__action">
           {authorized ? (
-            <>
+            <div className="ssp-header__signedin">
+              <button
+                type="button"
+                className="ssp-header__signin ssp-header__signout"
+                onClick={onSignOut}
+                disabled={signingOut}
+                aria-busy={signingOut ? 'true' : undefined}
+              >
+                {signingOut ? 'Signing out…' : 'Sign out'}
+              </button>
               {site ? (
-                <>
-                  <Link to="/preferences" className="ssp-btn ssp-btn--primary ssp-header__cta">My preferences</Link>
-                  <span className="ssp-header__status">Signed in</span>
-                </>
+                <Link to="/preferences" className="ssp-btn ssp-btn--primary ssp-header__cta">My preferences</Link>
               ) : (
-                <>
-                  <Link to="/preview/my-market" className="ssp-btn ssp-btn--primary ssp-header__cta">My market</Link>
-                  {simulated && <span className="ssp-header__status">Signed in (simulated)</span>}
-                </>
+                <Link to="/preview/my-market" className="ssp-btn ssp-btn--primary ssp-header__cta">My market</Link>
               )}
-            </>
+            </div>
           ) : (
             <div className="ssp-header__signedout">
               <Link to={signInPath} className="ssp-header__signin">Sign in</Link>

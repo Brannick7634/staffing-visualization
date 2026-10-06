@@ -265,8 +265,8 @@ export default function PreferencesPage() {
             <p className="ssp-prefs__savedtitle">Preferences are part of free access.</p>
             <p className="ssp-muted">
               {site
-                ? 'Sign up with your name and work email, then open the sign-in link we email you. Already signed up? Sign in to get a new link.'
-                : 'Sign up with your name and work email first (simulated in this preview), or use the dev banner’s “Signed in (simulated)” switch.'}
+                ? 'Sign up with your name, work email and a password. Already signed up? Sign in with your email and password.'
+                : 'Sign up with your name, work email and a password, or sign in (simulated in this preview). The dev banner’s “Signed in (simulated)” switch also works.'}
             </p>
             <div className="ssp-freeaccess__links">
               <Link to={site ? '/free-access' : '/preview/free-access'} className="ssp-btn ssp-btn--primary">Get free access</Link>

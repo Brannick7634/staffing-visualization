@@ -2,8 +2,9 @@
 //
 // 'authorized' when either the existing dashboard session (Bearer token,
 // api/_lib/auth.js) or the signed Staffing Signal subscriber cookie
-// (api/_lib/signalSession.js, set by the magic link) verifies; anything else
-// is 'public'. The development-only simulated-access cookie is never read.
+// (api/_lib/signalSession.js, set at signup, sign-in or password reset)
+// verifies; anything else is 'public'. The development-only simulated-access
+// cookie is never read.
 //
 // Server-only.
 import { verifySession } from '../auth.js'

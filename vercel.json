@@ -1,16 +1,31 @@
 {
+  "redirects": [
+    {
+      "source": "/api/auth/verify",
+      "destination": "/sign-in",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/subscribe",
       "destination": "/api/account?route=subscribe"
     },
     {
-      "source": "/api/auth/magic-link",
-      "destination": "/api/account?route=magic-link"
+      "source": "/api/auth/login",
+      "destination": "/api/account?route=login"
     },
     {
-      "source": "/api/auth/verify",
-      "destination": "/api/account?route=verify"
+      "source": "/api/auth/forgot",
+      "destination": "/api/account?route=forgot"
+    },
+    {
+      "source": "/api/auth/reset",
+      "destination": "/api/account?route=reset"
+    },
+    {
+      "source": "/api/auth/logout",
+      "destination": "/api/account?route=logout"
     },
     {
       "source": "/api/unsubscribe",

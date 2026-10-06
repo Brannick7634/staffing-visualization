@@ -1,13 +1,15 @@
 import { Link } from 'react-router-dom'
 import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
+import { ACCESS } from '../../../shared/signal/contract.js'
 import { geographyLabel } from '../../../shared/signal/geography.js'
 import { roleByKey } from '../../../shared/signal/taxonomy.js'
 import SignupForm from './SignupForm.jsx'
 import '../styles/sections.css'
 
-// Free-access invitation. Name + work email only (preferences come after
-// signup). When the visitor has a comparison in progress we say where we'll
-// bring them back to — job and place only, never the rate.
+// Free-access invitation. Name + work email + password (preferences come after
+// signup, which signs the visitor in straight away). When the visitor has a
+// comparison in progress we say where we'll bring them back to — job and place
+// only, never the rate. Signed-in visitors see a short confirmation instead.
 
 export function returnLine(context) {
   if (!context || !context.roleKey) return null
@@ -27,8 +29,9 @@ function PlaneIcon() {
 
 export default function AccessInvite({ context = null, signedUp = false }) {
   const line = returnLine(context)
-  const { site: siteMount } = usePreview()
+  const { access, site: siteMount } = usePreview()
   const site = FORCE_SITE || siteMount
+  const done = signedUp || access === ACCESS.AUTHORIZED
 
   return (
     <section className="ssp-section ssp-invite" aria-labelledby="ssp-invite-title">
@@ -50,28 +53,16 @@ export default function AccessInvite({ context = null, signedUp = false }) {
           </div>
 
           <div className="ssp-card ssp-invite__card">
-            {signedUp ? (
+            {done ? (
               <div className="ssp-invite__done" role="status">
-                {site ? (
-                  <>
-                    <p className="ssp-invite__donetitle">Check your inbox.</p>
+                <p className="ssp-invite__donetitle">You're signed in.</p>
                 <p className="ssp-muted">
-                  We sent a sign-in link to your work email. Open it on this device to unlock local comparisons and
-                  full rankings. The link works once, for 15 minutes.
+                  Local comparisons and full rankings are unlocked on this device.
+                  {!site && ' Development preview: simulated. Nothing was saved and no email was sent.'}
                 </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="ssp-invite__donetitle">You're in (simulated).</p>
-                    <p className="ssp-muted">
-                      Local comparisons and full rankings are unlocked for this preview session. Nothing was saved and
-                      no email was sent.
-                    </p>
-                    <Link to="/preview/preferences" className="ssp-btn ssp-btn--primary">
-                      Choose what you follow <span aria-hidden="true">→</span>
-                    </Link>
-                  </>
-                )}
+                <Link to={`${basePath(site)}/preferences`} className="ssp-btn ssp-btn--primary">
+                  Choose what you follow <span aria-hidden="true">→</span>
+                </Link>
               </div>
             ) : (
               <>

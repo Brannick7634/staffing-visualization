@@ -1,9 +1,11 @@
 // POST /api/preferences  { sectors?, states?, cities?, newsletter?, homeState?, homeCity? }
-// Signed-in subscribers only (session cookie). Stores sectors and states
+// Signed-in subscribers only (session cookie), and only a session started with
+// the password currently stored: after a password reset, older sessions get
+// 401 here. Stores sectors and states
 // (cities are stored with states as "TX:houston"-style keys). Turning the
 // newsletter on never clears Unsubscribed.
 import { loadConfig, readBody, sendJson, sendError, unavailable, methodNotAllowed, validatePreferences, findByEmail, updateRecord, F } from '../subscribers.js'
-import { verifySession } from '../signalSession.js'
+import { verifySession, sessionMatchesHash } from '../signalSession.js'
 
 export function createPreferencesHandler({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
   return async function preferencesHandler(req, res) {
@@ -33,7 +35,9 @@ export function createPreferencesHandler({ env = process.env, fetchImpl = global
     if (typeof v.newsletter === 'boolean') fields[F.newsletter] = v.newsletter
     try {
       const record = await findByEmail(conf.cfg, fetchImpl, session.email)
-      if (!record) return sendError(res, 401, 'sign_in_required', 'Please sign in to save preferences.')
+      if (!record || !sessionMatchesHash(session, record.fields?.[F.passwordHash], conf.cfg.secret)) {
+        return sendError(res, 401, 'sign_in_required', 'Please sign in to save preferences.')
+      }
       setStates(record.fields?.[F.states])
       if (Object.keys(fields).length) await updateRecord(conf.cfg, fetchImpl, record.id, fields)
     } catch {

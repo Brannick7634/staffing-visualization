@@ -1,11 +1,11 @@
 // Signed tokens and the session cookie for Staffing Signal subscribers.
 // HMAC-SHA256 over a base64url JSON payload, keyed by SIGNAL_SESSION_SECRET.
-// Each token carries a purpose ("login" | "session" | "unsub") so one kind can
+// Each token carries a purpose ("session" | "reset" | "unsub") so one kind can
 // never be replayed as another.
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 export const SESSION_COOKIE = 'ss_session'
-export const LOGIN_TTL_MS = 15 * 60 * 1000
+export const RESET_TTL_MS = 60 * 60 * 1000
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const MIN_SECRET = 32
 
@@ -40,19 +40,34 @@ export function verifyToken(token, secret, { purpose, now = Date.now() } = {}) {
   return payload
 }
 
-export function loginToken(email, secret, now = Date.now()) {
-  return signToken({ p: 'login', email, iat: now, exp: now + LOGIN_TTL_MS }, secret)
+// Password reset link: 60 minutes. `h` fingerprints the password hash at the
+// time the link was issued (see passwordFingerprint) so the link stops
+// working once any password has been set.
+export function resetToken(email, secret, { now = Date.now(), h = '' } = {}) {
+  return signToken({ p: 'reset', email, iat: now, exp: now + RESET_TTL_MS, h }, secret)
+}
+// Short keyed digest of the stored bcrypt hash ('' when none). Reveals nothing
+// about the hash; it only changes when the password changes.
+export function passwordFingerprint(hash, secret) {
+  return mac(secret, `pw:${typeof hash === 'string' ? hash : ''}`).slice(0, 16)
 }
 // No expiry: unsubscribe links in old emails must keep working.
 export function unsubscribeToken(email, secret) {
   return signToken({ p: 'unsub', email }, secret)
 }
-export function sessionToken(email, secret, now = Date.now()) {
-  return signToken({ p: 'session', email, iat: now, exp: now + SESSION_TTL_MS }, secret)
+// `h` is passwordFingerprint() of the hash the session was started with, so a
+// password change (reset) ends every older session for record-level actions.
+// Tokens without `h` (issued before passwords existed) count as "no password".
+export function sessionToken(email, secret, now = Date.now(), h) {
+  return signToken({ p: 'session', email, iat: now, exp: now + SESSION_TTL_MS, ...(typeof h === 'string' ? { h } : {}) }, secret)
 }
 
 export function sessionCookie(token) {
   return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`
+}
+
+export function clearSessionCookie() {
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
 }
 
 function readCookie(req, name) {
@@ -65,9 +80,22 @@ function readCookie(req, name) {
   return null
 }
 
-// verifySession(req) -> { email } for a valid signed-in subscriber, else null.
+// verifySession(req) -> { email, h } for a valid signed-in subscriber, else null.
+// `h` is the password fingerprint the session was started with; routes that
+// load the subscriber's row must also check sessionMatchesHash() so sessions
+// from before a password reset stop working there.
 // Fails closed (null) when SIGNAL_SESSION_SECRET is missing or too short.
 export function verifySession(req, { env = process.env, now = Date.now() } = {}) {
-  const payload = verifyToken(readCookie(req, SESSION_COOKIE), sessionSecret(env), { purpose: 'session', now })
-  return payload ? { email: payload.email } : null
+  const secret = sessionSecret(env)
+  const payload = verifyToken(readCookie(req, SESSION_COOKIE), secret, { purpose: 'session', now })
+  if (!payload) return null
+  return { email: payload.email, h: typeof payload.h === 'string' ? payload.h : passwordFingerprint('', secret) }
+}
+
+// True when the session was started with the password currently stored.
+export function sessionMatchesHash(session, storedHash, secret) {
+  if (!session || typeof session.h !== 'string' || !secret) return false
+  const a = Buffer.from(session.h)
+  const b = Buffer.from(passwordFingerprint(storedHash || '', secret))
+  return a.length === b.length && timingSafeEqual(a, b)
 }

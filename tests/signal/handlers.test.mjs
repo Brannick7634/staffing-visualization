@@ -245,16 +245,21 @@ describe('dev-only endpoints', () => {
     assert.equal((await call(handler, { method: 'GET' })).statusCode, 405)
   })
 
-  test('dev/signup validates, is idempotent by normalized email and never echoes or logs PII', async () => {
-    const handler = devEndpoints.createDevSignupHandler()
+  test('dev/signup validates, signs in, refuses a second signup for the same email and never echoes or logs PII', async () => {
+    const store = devEndpoints.createDevAccountStore()
+    const handler = devEndpoints.createDevSignupHandler(store)
+    const PW = 'dev password 1'
     const invalid = [
-      [{ name: '', email: 'a@b.co' }, 'name'],
-      [{ name: '   ', email: 'a@b.co' }, 'name'],
-      [{ name: 'x'.repeat(101), email: 'a@b.co' }, 'name'],
-      [{ name: 'Pat', email: 'not-an-email' }, 'email'],
-      [{ name: 'Pat', email: 'pat@example.c' }, 'email'],
-      [{ name: 'Pat', email: `${'a'.repeat(250)}@b.co` }, 'email'],
-      [{ name: 'Pat', email: 'pat@example.com', newsletter: 'yes' }, 'newsletter']
+      [{ name: '', email: 'a@b.co', password: PW }, 'name'],
+      [{ name: '   ', email: 'a@b.co', password: PW }, 'name'],
+      [{ name: 'x'.repeat(101), email: 'a@b.co', password: PW }, 'name'],
+      [{ name: 'Pat', email: 'not-an-email', password: PW }, 'email'],
+      [{ name: 'Pat', email: 'pat@example.c', password: PW }, 'email'],
+      [{ name: 'Pat', email: `${'a'.repeat(250)}@b.co`, password: PW }, 'email'],
+      [{ name: 'Pat', email: 'pat@example.com', password: PW, newsletter: 'yes' }, 'newsletter'],
+      [{ name: 'Pat', email: 'pat@example.com' }, 'password'],
+      [{ name: 'Pat', email: 'pat@example.com', password: 'short' }, 'password'],
+      [{ name: 'Pat', email: 'pat@example.com', password: 'a'.repeat(73) }, 'password']
     ]
     for (const [body, field] of invalid) {
       const res = await call(handler, { method: 'POST', body })
@@ -264,24 +269,87 @@ describe('dev-only endpoints', () => {
     }
     let first, again, other
     const logged = await captureConsole(async () => {
-      first = await call(handler, { method: 'POST', body: { name: 'Pat Example', email: ' Pat@Example.com ', newsletter: true, context: { roleKey: 'forklift-operator', state: 'TX', city: 'TX:houston' } } })
-      again = await call(handler, { method: 'POST', body: { name: 'Pat', email: 'pat@example.com', newsletter: false } })
-      other = await call(handler, { method: 'POST', body: { name: 'Sam', email: 'sam@example.com' } })
+      first = await call(handler, { method: 'POST', body: { name: 'Pat Example', email: ' Pat@Example.com ', password: PW, newsletter: true, context: { roleKey: 'forklift-operator', state: 'TX', city: 'TX:houston' } } })
+      again = await call(handler, { method: 'POST', body: { name: 'Pat', email: 'pat@example.com', password: 'other password', newsletter: false } })
+      other = await call(handler, { method: 'POST', body: { name: 'Sam', email: 'sam@example.com', password: PW } })
     })
     assert.equal(first.statusCode, 200)
     assert.match(first.body.subscriberId, /^dev-sim-[0-9a-f]{6}$/)
     assert.equal(first.body.created, true)
+    assert.equal(first.body.signedIn, true)
     assert.equal(first.body.newsletter, true)
     assert.equal(first.body.simulated, true)
-    assert.equal(first.body.message, 'Simulated signup \u2014 nothing was saved to Airtable and no email was sent.')
+    assert.equal(first.body.message, 'Simulated signup — nothing was saved to Airtable and no email was sent.')
     assert.equal(first.headers['set-cookie'], 'ssp_sim_access=authorized; Path=/; HttpOnly; SameSite=Lax')
-    assert.equal(again.body.subscriberId, first.body.subscriberId)
-    assert.equal(again.body.created, false)
+    assert.equal(again.statusCode, 409)
+    assert.equal(again.body.error.code, 'account_exists')
+    assert.equal(again.headers['set-cookie'], undefined)
     assert.notEqual(other.body.subscriberId, first.body.subscriberId)
     assert.equal(other.body.newsletter, false)
     const echoed = JSON.stringify([first.body, again.body, other.body]).toLowerCase()
-    for (const pii of ['pat@example.com', 'pat example', 'sam@example.com', 'houston']) assert.equal(echoed.includes(pii), false, pii)
+    for (const pii of ['pat@example.com', 'pat example', 'sam@example.com', 'houston', PW]) assert.equal(echoed.includes(pii), false, pii)
     assert.equal(logged, '')
+    for (const account of store.accounts.values()) assert.match(account.hash, /^\$2[aby]\$/)
+  })
+
+  test('dev/login, dev/forgot, dev/reset and dev/logout simulate password sign-in', async () => {
+    let clock = 1_800_000_000_000
+    const store = devEndpoints.createDevAccountStore({ now: () => clock })
+    const signup = devEndpoints.createDevSignupHandler(store)
+    const login = devEndpoints.createDevLoginHandler(store)
+    const forgot = devEndpoints.createDevForgotHandler(store)
+    const reset = devEndpoints.createDevResetHandler(store)
+    const logout = devEndpoints.createDevLogoutHandler()
+    const PW = 'dev password 1'
+    const NEW_PW = 'dev password 2'
+    await call(signup, { method: 'POST', body: { name: 'Pat', email: 'pat@example.com', password: PW } })
+    const ok = await call(login, { method: 'POST', body: { email: ' PAT@example.com', password: PW } })
+    assert.equal(ok.statusCode, 200)
+    assert.deepEqual(ok.body, { ok: true, simulated: true, signedIn: true })
+    assert.equal(ok.headers['set-cookie'], 'ssp_sim_access=authorized; Path=/; HttpOnly; SameSite=Lax')
+    for (const body of [{ email: 'pat@example.com', password: 'wrong password' }, { email: 'nobody@example.com', password: PW }, { email: 'pat@example.com' }]) {
+      const bad = await call(login, { method: 'POST', body })
+      assert.equal(bad.statusCode, 401)
+      assert.equal(bad.body.error.code, 'invalid_credentials')
+      assert.equal(bad.headers['set-cookie'], undefined)
+    }
+    // Forgot: neutral message plus a dev-only reset link that never carries the email.
+    clock += 1000
+    const sent = await call(forgot, { method: 'POST', body: { email: 'pat@example.com' } })
+    assert.equal(sent.statusCode, 200)
+    assert.equal(sent.body.message, 'If that email has an account, a password reset link is on its way.')
+    assert.match(sent.body.devResetUrl, /^\/reset-password\?token=[^&]+$/)
+    assert.equal(JSON.stringify(sent.body).includes('pat@example.com'), false)
+    assert.equal((await call(forgot, { method: 'POST', body: { email: 'nope' } })).statusCode, 400)
+    const token = decodeURIComponent(sent.body.devResetUrl.split('token=')[1])
+    clock += 1000
+    assert.equal((await call(reset, { method: 'POST', body: { token, password: 'short' } })).body.error.code, 'invalid_fields')
+    const done = await call(reset, { method: 'POST', body: { token, password: NEW_PW } })
+    assert.equal(done.statusCode, 200)
+    assert.deepEqual(done.body, { ok: true, simulated: true, signedIn: true })
+    assert.equal(done.headers['set-cookie'], 'ssp_sim_access=authorized; Path=/; HttpOnly; SameSite=Lax')
+    assert.equal((await call(reset, { method: 'POST', body: { token, password: 'third password' } })).body.error.code, 'link_used')
+    assert.equal((await call(login, { method: 'POST', body: { email: 'pat@example.com', password: PW } })).statusCode, 401)
+    assert.equal((await call(login, { method: 'POST', body: { email: 'pat@example.com', password: NEW_PW } })).statusCode, 200)
+    // Expired and forged links.
+    const fresh = decodeURIComponent((await call(forgot, { method: 'POST', body: { email: 'pat@example.com' } })).body.devResetUrl.split('token=')[1])
+    clock += 61 * 60 * 1000
+    assert.equal((await call(reset, { method: 'POST', body: { token: fresh, password: NEW_PW } })).body.error.code, 'link_expired')
+    assert.equal((await call(reset, { method: 'POST', body: { token: 'forged.token', password: NEW_PW } })).body.error.code, 'link_expired')
+    // A reader with no dev account (e.g. joined before passwords) can set one.
+    const legacy = await call(forgot, { method: 'POST', body: { email: 'legacy@example.com' } })
+    const set = await call(reset, { method: 'POST', body: { token: decodeURIComponent(legacy.body.devResetUrl.split('token=')[1]), password: NEW_PW } })
+    assert.equal(set.statusCode, 200)
+    const out = await call(logout, { method: 'POST', body: {} })
+    assert.deepEqual(out.body, { ok: true, simulated: true })
+    assert.match(out.headers['set-cookie'], /^ssp_sim_access=; Path=\/; HttpOnly; SameSite=Lax; Max-Age=0$/)
+    assert.equal((await call(logout, { method: 'GET' })).statusCode, 405)
+  })
+
+  test('dev account endpoints are mounted by the dev plugin only', () => {
+    const routes = plugin.createSignalRoutes()
+    for (const name of ['signup', 'login', 'forgot', 'reset', 'logout']) assert.equal(typeof routes.get(`/api/signal/dev/${name}`), 'function', name)
+    assert.equal(plugin.default().apply, 'serve')
   })
 
   test('dev/notify accepts only a valid selection', async () => {
