@@ -204,7 +204,7 @@ export function createClientReportEmailHandler({
 } = {}) {
   // Fixed strings only: never the rate, recipients, note, names or emails.
   const logFailure = (stage, error) => {
-    const code = error && typeof error.message === 'string' && /^(resend|airtable)_\d{3}$/.test(error.message) ? error.message : (error?.name || 'Error')
+    const code = error && typeof error.message === 'string' && /^(resend|airtable)_\d{3}$/.test(error.message) ? error.message : (typeof error?.code === 'string' && /^[A-Z][A-Z0-9_]{2,40}$/.test(error.code) ? error.code : (error?.name || 'Error'))
     try { logger.error(`[client-report-email] ${stage} failed (${code})`) } catch { /* logging must never break a send */ }
   }
   const sendFailed = (res, sent, extra = {}) => sendError(res, 502, 'send_failed', 'We could not send the report. Please try again.', { sent, ...extra })

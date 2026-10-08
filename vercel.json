@@ -68,7 +68,7 @@
   ],
   "functions": {
     "api/signal-data.js": {
-      "includeFiles": "api/_lib/signal/data/{report,monthly}/**"
+      "includeFiles": "{api/_lib/signal/data/report/**,api/_lib/signal/data/monthly/**,node_modules/pdfkit/js/standard-fonts/**}"
     }
   }
 }
