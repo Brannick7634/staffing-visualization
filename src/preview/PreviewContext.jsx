@@ -4,11 +4,13 @@ import { ACCESS, COVERAGE, REQUEST } from '../../shared/signal/contract.js'
 import { parseHourlyRate } from '../../shared/signal/money.js'
 import { DEFAULT_EXAMPLE, sectorForRole } from '../../shared/signal/taxonomy.js'
 import { fetchPay, fetchSnapshot, setSimAccess, signOut as apiSignOut } from './api.js'
+import { freezeSelection, isReportReturn, reportReturn } from './lib/reportGate.js'
 import { EVENTS, track } from './lib/track.js'
 
 // In-memory state for the homepage preview. Nothing here is written to
-// localStorage/sessionStorage except the A/B variant choice. The visitor's rate
-// lives only in this context (never in the URL, storage or analytics), and
+// localStorage/sessionStorage except the A/B variant choice. The client pay
+// rate lives only in this context (never in the URL, storage or analytics; it
+// leaves the browser only inside an email-the-report POST body), and
 // name/email are never kept here after a signup — only `signedUp: true`.
 
 const PreviewContext = createContext(null)
@@ -87,6 +89,18 @@ function hasFigures(part) {
   return Boolean(part) && Number.isSafeInteger(part.p25Cents) && Number.isSafeInteger(part.p75Cents)
 }
 
+function accessOf(snapshotData) {
+  return snapshotData?.viewer?.access === ACCESS.AUTHORIZED ? ACCESS.AUTHORIZED : ACCESS.PUBLIC
+}
+
+function levelOf(selection) {
+  if (!selection) return undefined
+  if (selection.city) return 'city'
+  return selection.state ? 'state' : 'nationwide'
+}
+
+const GATE_CLOSED = Object.freeze({ open: false, path: null })
+
 const IDLE_CHECK = Object.freeze({
   requestState: REQUEST.IDLE,
   response: null,
@@ -111,6 +125,9 @@ export function PreviewProvider({ children, site = false }) {
   const [pendingReturn, setPendingReturn] = useState(null)
   const [payCheck, setPayCheck] = useState(IDLE_CHECK)
   const [focusRequest, setFocusRequest] = useState(null)
+  // The report sign-up gate belongs to the page it was opened on: leaving that
+  // page (Sign In, the sample report, browser back) closes it.
+  const [reportGate, setReportGate] = useState(GATE_CLOSED)
 
   const payRequest = useRef(0)
   const payCheckRef = useRef(payCheck)
@@ -127,6 +144,10 @@ export function PreviewProvider({ children, site = false }) {
   const onHome = variantFromPath(location.pathname, site) !== null
   const onHomeRef = useRef(onHome)
   onHomeRef.current = onHome
+  const pathRef = useRef(location.pathname)
+  pathRef.current = location.pathname
+  const snapDataRef = useRef(null)
+  const snapPromise = useRef(null)
 
   useEffect(() => {
     const fromPath = variantFromPath(location.pathname, site)
@@ -136,18 +157,23 @@ export function PreviewProvider({ children, site = false }) {
     }
   }, [location.pathname])
 
-  const reloadSnapshot = useCallback(async () => {
+  const reloadSnapshot = useCallback(() => {
     const id = ++snapRequest.current
     setSnap((prev) => ({ ...prev, state: REQUEST.LOADING, error: null }))
-    try {
-      const data = await fetchSnapshot()
-      if (id !== snapRequest.current) return data
-      setSnap({ data, state: REQUEST.READY, error: null })
-      return data
-    } catch (error) {
-      if (id === snapRequest.current) setSnap((prev) => ({ data: prev.data, state: REQUEST.ERROR, error }))
-      return null
-    }
+    const pending = (async () => {
+      try {
+        const data = await fetchSnapshot()
+        if (id !== snapRequest.current) return data
+        snapDataRef.current = data
+        setSnap({ data, state: REQUEST.READY, error: null })
+        return data
+      } catch (error) {
+        if (id === snapRequest.current) setSnap((prev) => ({ data: prev.data, state: REQUEST.ERROR, error }))
+        return null
+      }
+    })()
+    snapPromise.current = pending
+    return pending
   }, [])
 
   const trackPayResult = useCallback((response, checkedSelection) => {
@@ -179,7 +205,8 @@ export function PreviewProvider({ children, site = false }) {
   }, [])
 
   // Fetch benchmark bounds for a selection. The rate stays in memory and is
-  // only used client-side for the verdict.
+  // only used client-side for the comparison. Resolves to { ok, superseded }
+  // so callers can tell a stale or failed check from a current answer.
   const runPayCheck = useCallback(async ({ selection: checked, rateCents, isExample = false }) => {
     const id = ++payRequest.current
     const frozen = {
@@ -191,12 +218,14 @@ export function PreviewProvider({ children, site = false }) {
     setPayCheck((prev) => ({ ...prev, requestState: REQUEST.LOADING, error: null, selection: frozen, rateCents, isExample }))
     try {
       const response = await fetchPay(frozen)
-      if (id !== payRequest.current) return
+      if (id !== payRequest.current) return { ok: false, superseded: true }
       setPayCheck({ requestState: REQUEST.READY, response, error: null, selection: frozen, rateCents, isExample })
       if (!isExample) trackPayResult(response, frozen)
+      return { ok: true, superseded: false }
     } catch (error) {
-      if (id !== payRequest.current) return
+      if (id !== payRequest.current) return { ok: false, superseded: true }
       setPayCheck({ requestState: REQUEST.ERROR, response: null, error, selection: frozen, rateCents, isExample })
+      return { ok: false, superseded: false }
     }
   }, [trackPayResult])
 
@@ -213,7 +242,7 @@ export function PreviewProvider({ children, site = false }) {
     runPayCheck({ selection: DEFAULT_SELECTION, rateCents: parsed.ok ? parsed.cents : null, isExample: true })
   }, [reloadSnapshot, runPayCheck])
 
-  const access = snap.data?.viewer?.access === ACCESS.AUTHORIZED ? ACCESS.AUTHORIZED : ACCESS.PUBLIC
+  const access = accessOf(snap.data)
   const simulated = snap.data?.viewer?.simulated === true
 
   // When access changes (dev toggle or simulated signup), re-run the last
@@ -261,6 +290,7 @@ export function PreviewProvider({ children, site = false }) {
     }
     setSignedUp(false)
     setPendingReturn(null)
+    setReportGate(GATE_CLOSED)
     await reloadSnapshot()
     navigate(homePathFor(variantRef.current, site))
     return { ok }
@@ -319,6 +349,135 @@ export function PreviewProvider({ children, site = false }) {
     return true
   }, [goHome, runPayCheck])
 
+  const reportPath = `${basePath(site)}/client-report`
+
+  // The control that opened the report gate, so focus can go back to it (or
+  // to its re-rendered twin, by data-gate-opener) when the gate closes. The
+  // results card re-renders while createClientReport re-runs the check, so
+  // the original button may be gone by then.
+  const gateOpenerRef = useRef(null)
+  const noteGateOpener = useCallback(() => {
+    const el = typeof document === 'undefined' ? null : document.activeElement
+    gateOpenerRef.current = el && el !== document.body
+      ? { el, key: typeof el.getAttribute === 'function' ? el.getAttribute('data-gate-opener') : null }
+      : null
+  }, [])
+  const takeGateOpener = useCallback(() => {
+    const opener = gateOpenerRef.current
+    gateOpenerRef.current = null
+    return opener
+  }, [])
+
+  // Opens the Client Pay Market Report sign-up gate on the current page and
+  // saves where to return (job and place only, never the rate). With no
+  // context it keeps a pending report return, else uses the last real check.
+  const openReportGate = useCallback((context, { keepOpener = false } = {}) => {
+    if (!keepOpener) noteGateOpener()
+    const given = context?.selection || (context?.roleKey ? context : null)
+    const pending = pendingRef.current
+    let next
+    if (given) next = reportReturn(given)
+    else if (isReportReturn(pending)) next = pending
+    else {
+      const last = payCheckRef.current
+      next = reportReturn(last.selection && !last.isExample ? last.selection : null)
+    }
+    setPendingReturn(next)
+    setReportGate({ open: true, path: pathRef.current })
+    track(EVENTS.REPORT_GATE_SHOWN, {
+      roleKey: next.selection?.roleKey,
+      sectorKey: next.selection?.sectorKey,
+      geographyLevel: levelOf(next.selection),
+      variant: variantRef.current
+    })
+  }, [noteGateOpener])
+
+  const closeReportGate = useCallback(() => {
+    setReportGate(GATE_CLOSED)
+  }, [])
+
+  useEffect(() => {
+    if (reportGate.open && reportGate.path !== location.pathname) setReportGate(GATE_CLOSED)
+  }, [location.pathname, reportGate])
+
+  // The main CTA. Runs the (free) comparison first so the page and the report
+  // agree, then opens the report when signed in, else the sign-up gate. A
+  // failed or superseded check stays put so its error and Retry show.
+  // intent 'sign-in' (the results band's Sign In button) goes to the sign-in
+  // page instead of the sign-up gate when signed out.
+  const createClientReport = useCallback(async ({ selection: checked, rateCents, intent } = {}) => {
+    const frozen = freezeSelection(checked)
+    if (!frozen) return { ok: false, opened: null }
+    noteGateOpener()
+    const result = await runPayCheck({ selection: frozen, rateCents })
+    track(EVENTS.REPORT_CREATE_CLICKED, {
+      roleKey: frozen.roleKey,
+      sectorKey: frozen.sectorKey,
+      geographyLevel: levelOf(frozen),
+      variant: variantRef.current
+    })
+    if (!result.ok) return { ok: false, opened: null }
+    // Access comes from the snapshot; wait for a first load still in flight.
+    let data = snapDataRef.current
+    if (!data && snapPromise.current) data = await snapPromise.current
+    // No snapshot at all (the request failed): sign-in status is unknown, so
+    // open the report page, which offers a retry, rather than the sign-up gate.
+    if (!data || accessOf(data) === ACCESS.AUTHORIZED) {
+      setPendingReturn(null)
+      navigate(reportPath)
+      return { ok: true, opened: 'report' }
+    }
+    if (intent === 'sign-in') {
+      setPendingReturn(reportReturn(frozen))
+      navigate(`${basePath(site)}/sign-in`)
+      return { ok: true, opened: 'sign-in' }
+    }
+    openReportGate({ selection: frozen }, { keepOpener: true })
+    return { ok: true, opened: 'gate' }
+  }, [navigate, noteGateOpener, openReportGate, reportPath, runPayCheck, site])
+
+  // Send the visitor to /sign-in and back to the report afterwards (job and
+  // place only; the rate stays in memory). signOutFirst ends a session the
+  // server no longer accepts (e.g. after a password change elsewhere), which
+  // the sign-in page would otherwise show as "already signed in".
+  const signInForReport = useCallback(async ({ signOutFirst = false } = {}) => {
+    const last = payCheckRef.current
+    const next = reportReturn(last.selection && !last.isExample ? last.selection : null)
+    setReportGate(GATE_CLOSED)
+    setPendingReturn(next)
+    // Leave the report page first, so it does not open the sign-up gate when
+    // the sign-out below makes the visitor signed out.
+    navigate(`${basePath(site)}/sign-in`)
+    if (signOutFirst) {
+      try { await apiSignOut() } catch { /* the reload below shows what the server says */ }
+      setSignedUp(false)
+      await reloadSnapshot()
+    }
+  }, [navigate, reloadSnapshot, site])
+
+  // After a successful sign-up or sign-in. A pending report return re-runs
+  // that comparison with the rate still in memory and opens the report;
+  // anything else keeps the returnToComparison behaviour.
+  const returnAfterAuth = useCallback((context) => {
+    const pending = pendingRef.current
+    const target = isReportReturn(context) ? context : (isReportReturn(pending) ? pending : null)
+    if (!target) return returnToComparison(context)
+    setPendingReturn(null)
+    setReportGate(GATE_CLOSED)
+    const restored = freezeSelection(target.selection)
+    if (!restored) {
+      goHome('pay-check')
+      return true
+    }
+    setSelectionState(restored)
+    const parsed = parseHourlyRate(rateInputRef.current)
+    if (parsed.ok) runPayCheck({ selection: restored, rateCents: parsed.cents })
+    navigate(reportPath)
+    return true
+  }, [goHome, navigate, reportPath, returnToComparison, runPayCheck])
+
+  const reportGateOpen = reportGate.open && reportGate.path === location.pathname
+
   const parsedRate = useMemo(() => parseHourlyRate(rateInput), [rateInput])
   const isOutOfDate = payCheck.requestState === REQUEST.READY && Boolean(payCheck.selection) && (
     !sameSelection(selection, payCheck.selection) ||
@@ -349,6 +508,13 @@ export function PreviewProvider({ children, site = false }) {
     requestFreeAccess,
     pickRole,
     returnToComparison,
+    returnAfterAuth,
+    reportGateOpen,
+    openReportGate,
+    closeReportGate,
+    takeGateOpener,
+    createClientReport,
+    signInForReport,
     payCheck,
     runPayCheck,
     retryPayCheck,
@@ -357,7 +523,8 @@ export function PreviewProvider({ children, site = false }) {
     requestFocus,
     goHome
   }), [site, variant, snap, reloadSnapshot, access, simulated, setAccess, selection, setSelection, rateInput,
-    signedUp, markSignedUp, signOut, pendingReturn, requestFreeAccess, pickRole, returnToComparison, payCheck,
+    signedUp, markSignedUp, signOut, pendingReturn, requestFreeAccess, pickRole, returnToComparison, returnAfterAuth,
+    reportGateOpen, openReportGate, closeReportGate, takeGateOpener, createClientReport, signInForReport, payCheck,
     runPayCheck, retryPayCheck, isOutOfDate, focusRequest, requestFocus, goHome])
 
   return <PreviewContext.Provider value={value}>{children}</PreviewContext.Provider>

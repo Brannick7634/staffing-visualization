@@ -3,8 +3,10 @@
 // and sign-in endpoints. Passwords are only ever held in memory long enough to
 // hash or compare them; they are never stored, logged or echoed.
 import bcrypt from 'bcryptjs'
-import { sessionSecret, unsubscribeToken, resetToken, passwordFingerprint, sessionToken, sessionCookie } from './signalSession.js'
+import { sessionSecret, unsubscribeToken, resetToken, confirmToken, passwordFingerprint, sessionToken, sessionCookie } from './signalSession.js'
 import { stateByCode } from '../../shared/signal/geography.js'
+import { checkArea, cleanCityText, findListedCity } from '../../shared/signal/area.js'
+import { cityKeyFor } from './signal/report.js'
 
 export const F = {
   email: 'fldSis1UQ5WwDbq9R',
@@ -21,7 +23,11 @@ export const F = {
   source: 'fldPEkhn5c7rf5wVG',
   city: 'fldlcjpoi2omNmM18',
   passwordHash: 'fld79K4mK8Zsxb4Xx', // bcrypt hash only, never returned to a browser
-  passwordSetAt: 'fld3iY8vBcRw9X3rz'
+  passwordSetAt: 'fld3iY8vBcRw9X3rz',
+  // Client report email daily cap: the UTC day ('YYYY-MM-DD') and how many
+  // emails were sent that day. Never the rate, recipients or message.
+  reportEmailDay: 'fldfs4He3PM9Lb049',
+  reportEmailCount: 'fldiZYx4EQBb2dz1k'
 }
 const DEFAULT_TABLE = 'tbl3V33K9WVjadzMQ'
 const DEFAULT_BASE = 'appFkwB2Aei2oblnz'
@@ -115,19 +121,49 @@ function codeList(v, max) {
   return out
 }
 
-// Optional area: 2-letter US state code (50 states + DC) and free-text city
-// (trimmed, <= 80 chars). A city needs a state. Returns null on invalid input.
+// The reader's area (shared/signal/area.js has the rules). Returns
+// { state: 'TX', city: 'Houston, TX' } with the label to store in City, or
+// { error: 'state' | 'city', code, message }. Both are required.
 export function validateArea(stateIn, cityIn) {
-  let state = ''
-  if (stateIn !== undefined && stateIn !== null && stateIn !== '') {
-    if (typeof stateIn !== 'string') return { error: 'state' }
-    state = stateIn.trim().toUpperCase()
-    if (!/^[A-Z]{2}$/.test(state) || !stateByCode(state)) return { error: 'state' }
-  }
-  const city = cleanText(cityIn, 80)
-  if (city === null) return { error: 'city' }
-  if (city && !state) return { error: 'city' }
-  return { state, city }
+  const a = checkArea(stateIn, cityIn)
+  if (!a.ok) return { error: a.field, code: a.code, message: a.message }
+  return { state: a.state, city: a.label }
+}
+
+const AREA_FIELDS = new Set(['state', 'city', 'homeState', 'homeCity'])
+// Code + message for a 400 from validateSignup/validatePreferences: the area's
+// own code (state_required, invalid_state, city_required, invalid_city,
+// links_not_allowed) when only the area is wrong, else invalid_fields.
+export function fieldErrorCode(checked, fallbackMessage) {
+  const areaOnly = Object.keys(checked.fields).every((k) => AREA_FIELDS.has(k))
+  if (areaOnly && checked.codes?.[checked.field]) return { code: checked.codes[checked.field], message: checked.fields[checked.field] }
+  return { code: 'invalid_fields', message: fallbackMessage }
+}
+
+const CITY_KEY_LINE = /^[A-Z]{2}:[a-z0-9-]{1,60}$/
+// City text as stored ('Houston, TX', 'Katy, TX', or an older bare 'Houston')
+// -> the report's city key ('TX:houston', 'TX:katy'). A label for another
+// state ('Houston, TX' when the home state is CA) gives null.
+export function cityKeyFromStored(state, text) {
+  if (!state || typeof text !== 'string' || !text.trim()) return null
+  const m = /,\s*([A-Za-z]{2})\.?\s*$/.exec(text)
+  if (m && m[1].toUpperCase() !== state && stateByCode(m[1].toUpperCase())) return null
+  const name = cleanCityText(text, state)
+  if (!name) return null
+  const listed = findListedCity(state, name)
+  return listed ? listed.key : cityKeyFor(state, name)
+}
+
+// The reader's area for the monthly report page and email:
+// state = the first States line that is a state code (the home state);
+// city = the City field, else a 'TX:houston' line in States for that state.
+export function subscriberArea(fields) {
+  const lines = String(fields?.[F.states] || '').split('\n').map((s) => s.trim())
+  const state = lines.find((s) => /^[A-Z]{2}$/.test(s) && stateByCode(s)) || null
+  const cityText = typeof fields?.[F.city] === 'string' ? fields[F.city] : ''
+  let cityKey = state && cityText ? cityKeyFromStored(state, cityText) : null
+  if (!cityKey && state) cityKey = lines.find((s) => CITY_KEY_LINE.test(s) && s.startsWith(`${state}:`)) || null
+  return { state, cityKey }
 }
 
 // ---- Passwords ----
@@ -180,13 +216,17 @@ export function validateSignup(input) {
   if (company === null) fields.company = 'Company name is too long.'
   if (b.newsletter !== undefined && typeof b.newsletter !== 'boolean') fields.newsletter = 'Choose whether to receive The Monthly Signal.'
   const source = cleanText(b.source, 60)
+  // State and city are required: The Monthly Signal is sent by area.
+  const codes = {}
   const area = validateArea(b.state, b.city)
-  if (area.error === 'state') fields.state = 'Choose a US state from the list.'
-  if (area.error === 'city') fields.city = area.error && b.state ? 'City must be 80 characters or fewer.' : 'Choose a state for this city.'
+  if (area.error) {
+    fields[area.error] = area.message
+    codes[area.error] = area.code
+  }
   const keys = Object.keys(fields)
-  if (keys.length) return { ok: false, fields, field: keys[0] }
+  if (keys.length) return { ok: false, fields, field: keys[0], codes }
   // Newsletter defaults to checked (Andy's decision).
-  return { ok: true, value: { name, email, password: b.password, company: company || '', newsletter: b.newsletter !== false, source: source || 'pay-first', state: area.state || '', city: area.city || '' } }
+  return { ok: true, value: { name, email, password: b.password, company: company || '', newsletter: b.newsletter !== false, source: source || 'pay-first', state: area.state, city: area.city } }
 }
 
 export function validatePreferences(input) {
@@ -199,13 +239,22 @@ export function validatePreferences(input) {
   if (states === null) fields.states = 'Invalid states.'
   if (cities === null) fields.cities = 'Invalid cities.'
   if (b.newsletter !== undefined && typeof b.newsletter !== 'boolean') fields.newsletter = 'Invalid newsletter choice.'
-  // homeState / homeCity: the reader's own area for the monthly report.
-  const hasHome = b.homeState !== undefined || b.homeCity !== undefined
-  const home = hasHome ? validateArea(b.homeState, b.homeCity) : null
-  if (home?.error === 'state') fields.homeState = 'Choose a US state from the list.'
-  if (home?.error === 'city') fields.homeCity = b.homeState ? 'City must be 80 characters or fewer.' : 'Choose a state for this city.'
+  // homeState / homeCity: the reader's own area for the monthly report, with
+  // the same rules as signup (a state needs a city). Both empty clears it;
+  // neither sent leaves the saved area alone.
+  const codes = {}
+  const blank = (v) => v === undefined || v === null || v === ''
+  let home = null
+  if (!blank(b.homeState) || !blank(b.homeCity)) {
+    const a = validateArea(b.homeState, b.homeCity)
+    if (a.error) {
+      const key = a.error === 'state' ? 'homeState' : 'homeCity'
+      fields[key] = a.message
+      codes[key] = a.code
+    } else home = a
+  } else if (b.homeState !== undefined || b.homeCity !== undefined) home = { state: '', city: '' }
   const keys = Object.keys(fields)
-  if (keys.length) return { ok: false, fields, field: keys[0] }
+  if (keys.length) return { ok: false, fields, field: keys[0], codes }
   return { ok: true, value: { sectors, states, cities, newsletter: b.newsletter, ...(home ? { homeState: home.state, homeCity: home.city } : {}) } }
 }
 
@@ -278,11 +327,16 @@ export async function createSubscriber(cfg, fetchImpl, v, { passwordHash, now = 
 }
 
 // ---- Resend ----
-export async function sendEmail(cfg, fetchImpl, { to, subject, html, text, headers }) {
+// One recipient per call. Optional `reply_to` (or `replyTo`) and
+// `attachments` ([{ filename, content: base64 }]) are added only when given.
+export async function sendEmail(cfg, fetchImpl, { to, subject, html, text, headers, reply_to: replyToRaw, replyTo = replyToRaw, attachments }) {
+  const payload = { from: cfg.from, to: [to], subject, html, text, headers }
+  if (replyTo) payload.reply_to = replyTo
+  if (Array.isArray(attachments) && attachments.length) payload.attachments = attachments
   const res = await fetchImpl('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${cfg.resendKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: cfg.from, to: [to], subject, html, text, headers })
+    body: JSON.stringify(payload)
   })
   if (!res.ok) throw new Error(`resend_${res.status}`)
   return res.json().catch(() => ({}))
@@ -290,6 +344,23 @@ export async function sendEmail(cfg, fetchImpl, { to, subject, html, text, heade
 
 export function unsubscribeUrl(cfg, email) {
   return `${cfg.site}/api/unsubscribe?token=${encodeURIComponent(unsubscribeToken(email, cfg.secret))}`
+}
+
+// Emails a 24-hour link that confirms the reader owns this address. The link
+// opens a page with a Confirm button (a POST), so mail scanners that follow
+// links cannot confirm an address on their own.
+export async function sendEmailConfirmation(cfg, fetchImpl, email, { now = Date.now() } = {}) {
+  const token = confirmToken(email, cfg.secret, { now })
+  const confirmUrl = `${cfg.site}/confirm-email?token=${encodeURIComponent(token)}`
+  const text = `Confirm your email address for The Staffing Signal:
+
+${confirmUrl}
+
+Confirming lets you email Client Pay Market Reports to other people. This link works for 24 hours. If you did not ask for it, ignore this email.`
+  const html = '<p>Confirm your email address for The Staffing Signal:</p>' +
+    `<p><a href="${confirmUrl}">Confirm your email</a></p>` +
+    '<p>Confirming lets you email Client Pay Market Reports to other people. This link works for 24 hours. If you did not ask for it, you can ignore this email.</p>'
+  return sendEmail(cfg, fetchImpl, { to: email, subject: 'Confirm your email for The Staffing Signal', text, html })
 }
 
 // Emails a one-time, 60-minute password reset link. `currentHash` is the

@@ -1,30 +1,31 @@
 // DEVELOPMENT ONLY. Simulated endpoints for the local preview:
 //   POST /api/signal/dev/access       set/clear the simulated-access cookie
-//   POST /api/signal/dev/signup       simulated signup with a password (signs in)
+//   POST /api/signal/dev/signup       simulated signup with a password (signs in);
+//                                     state + city required, same rules as production
 //   POST /api/signal/dev/login        simulated password sign-in
 //   POST /api/signal/dev/forgot       simulated reset request (returns devResetUrl)
 //   POST /api/signal/dev/reset        simulated password reset (signs in)
 //   POST /api/signal/dev/logout       clears the simulated-access cookie
 //   POST /api/signal/dev/notify       "tell me when this benchmark is available"
-//   POST /api/signal/dev/preferences  echo of followed sectors/markets
+//   POST /api/signal/dev/preferences  saves followed sectors/markets + home area (in memory)
+//   GET  /api/signal/dev/preferences  the saved settings (production shape; signed-in only)
 //   GET  /api/signal/dev/scenarios    States Lab synthetic scenarios
 //
 // Nothing is written anywhere: no Airtable, no email, no files, no logs. The
-// account "store" lives in memory for one dev-server run, keyed by salted
-// hashes of normalized emails and holding only bcrypt hashes; names, emails
-// and passwords are never kept, echoed or logged.
+// saved preferences and the account "store" live in memory for one dev-server
+// run. Accounts are keyed by salted hashes of normalized emails and hold only
+// bcrypt hashes; names, emails and passwords are never kept, echoed or logged.
 import { createHmac, randomBytes } from 'node:crypto'
 import { ACCESS } from '../../shared/signal/contract.js'
-import { SECTORS } from '../../shared/signal/taxonomy.js'
 import { stateByCode, cityByKey } from '../../shared/signal/geography.js'
 import { sendJson, validatePaySelection } from '../../api/_lib/signal/handlers.js'
-import { validatePassword, hashPassword, checkPassword } from '../../api/_lib/subscribers.js'
+import { validatePassword, hashPassword, checkPassword, validateArea, validatePreferences, fieldErrorCode, F } from '../../api/_lib/subscribers.js'
+import { preferencesFromRecord, preferenceFields } from '../../api/_lib/routes/preferences.js'
 import { resetToken, passwordFingerprint, verifyToken } from '../../api/_lib/signalSession.js'
-import { simAccessCookie } from './devAccess.js'
+import { simAccessCookie, devAccess } from './devAccess.js'
 import { buildScenarios } from './syntheticScenarios.js'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-const SECTOR_KEYS = new Set(SECTORS.map((s) => s.key))
 
 function body(req) {
   return req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : null
@@ -74,10 +75,18 @@ export function validateSignup(input) {
   const passwordError = validatePassword(b.password)
   if (passwordError) fields.password = passwordError
   if (b.newsletter !== undefined && typeof b.newsletter !== 'boolean') fields.newsletter = 'Choose whether to receive The Monthly Signal.'
+  // State + city: the production rules (api/_lib/subscribers.js validateArea).
+  // The area is checked but never stored or echoed.
+  const codes = {}
+  const area = validateArea(b.state, b.city)
+  if (area.error) {
+    fields[area.error] = area.message
+    codes[area.error] = area.code
+  }
   // `context` (the comparison to return to) is accepted but never stored,
   // echoed or validated: a stale selection must not block a signup.
   const invalid = Object.keys(fields)
-  if (invalid.length) return { ok: false, fields, field: invalid[0] }
+  if (invalid.length) return { ok: false, fields, field: invalid[0], codes }
   return { ok: true, email, password: b.password, newsletter: b.newsletter === true }
 }
 
@@ -103,7 +112,10 @@ export function createDevSignupHandler(store = createDevAccountStore()) {
   return async function devSignupHandler(req, res) {
     if (!requireMethod(req, res, 'POST')) return
     const checked = validateSignup(body(req))
-    if (!checked.ok) return badRequest(res, 'invalid_fields', { fields: checked.fields, field: checked.field })
+    if (!checked.ok) {
+      const { code, message } = fieldErrorCode(checked, 'Please check the highlighted fields.')
+      return badRequest(res, code, { message, fields: checked.fields, field: checked.field, codes: checked.codes })
+    }
     const digest = store.idFor(checked.email)
     if (store.accounts.has(digest)) {
       return sendJson(res, 409, { ok: false, simulated: true, error: { code: 'account_exists', message: 'An account with this email already exists. Sign in, or use Forgot password to set a new one.' } })
@@ -206,13 +218,35 @@ function stringList(value, isValid, max) {
   return out
 }
 
-export function createDevPreferencesHandler() {
+// The dev reader's saved settings, as production stores them on the
+// subscriber row (States lines + City label). Starts as Houston, TX (the dev
+// report area) and lives in memory for one dev-server run.
+export const DEV_SAVED_PREFERENCES = Object.freeze({
+  [F.states]: 'TX',
+  [F.city]: 'Houston, TX',
+  [F.newsletter]: true,
+  [F.sectors]: 'light-industrial'
+})
+
+// GET: the saved settings in the production shape (needs the simulated
+// signed-in cookie, else 401 sign_in_required). POST: validated like before,
+// applied to the in-memory row with the production merge, and echoed.
+export function createDevPreferencesHandler({ saved = DEV_SAVED_PREFERENCES } = {}) {
+  const row = { ...saved }
   return function devPreferencesHandler(req, res) {
+    if (req.method === 'GET') {
+      if (devAccess(req).access !== ACCESS.AUTHORIZED) {
+        return sendJson(res, 401, { error: { code: 'sign_in_required', message: 'Please sign in to see your preferences.' } })
+      }
+      return sendJson(res, 200, preferencesFromRecord(row))
+    }
     if (!requireMethod(req, res, 'POST')) return
+    // Like production (401 without a session): the simulated sign-in.
+    if (devAccess(req).access !== ACCESS.AUTHORIZED) {
+      return sendJson(res, 401, { error: { code: 'sign_in_required', message: 'Please sign in to save preferences.' } })
+    }
     const b = body(req)
     if (!b) return badRequest(res, 'invalid_fields', { field: 'body' })
-    const sectors = stringList(b.sectors, (k) => SECTOR_KEYS.has(k), SECTOR_KEYS.size)
-    if (!sectors) return badRequest(res, 'invalid_fields', { field: 'sectors' })
     const states = stringList(b.states, (c) => Boolean(stateByCode(c)), 51)
     if (!states) return badRequest(res, 'invalid_fields', { field: 'states' })
     const cities = stringList(b.cities, (k) => Boolean(cityByKey(k)), 200)
@@ -220,10 +254,24 @@ export function createDevPreferencesHandler() {
     if (b.newsletter !== undefined && typeof b.newsletter !== 'boolean') return badRequest(res, 'invalid_fields', { field: 'newsletter' })
     const alerts = b.alerts === undefined ? 'off' : b.alerts
     if (alerts !== 'off' && alerts !== 'weekly') return badRequest(res, 'invalid_fields', { field: 'alerts' })
+    // Home area (homeState + homeCity) and the merge: the production rules;
+    // the area is echoed as the label production would store ('Houston, TX').
+    const checked = validatePreferences({ sectors: b.sectors, states: b.states, cities: b.cities, newsletter: b.newsletter, homeState: b.homeState, homeCity: b.homeCity })
+    if (!checked.ok) {
+      const { code, message } = fieldErrorCode(checked, 'Please check your selections.')
+      return badRequest(res, code, { message, fields: checked.fields, field: checked.field, codes: checked.codes })
+    }
+    const v = checked.value
+    // Sectors follow production's rule (any well-formed key): the page sends
+    // back saved keys it does not list, and those must save here too.
+    const sectors = v.sectors || []
+    Object.assign(row, preferenceFields(v, row))
+    const area = v.homeState !== undefined ? { homeState: v.homeState, homeCity: v.homeCity } : {}
     return sendJson(res, 200, {
       ok: true,
       simulated: true,
-      saved: { sectors, states, cities, newsletter: b.newsletter === true, alerts }
+      // Like production, a newsletter choice not sent is left unchanged.
+      saved: { sectors, states, cities, ...(typeof b.newsletter === 'boolean' ? { newsletter: b.newsletter } : {}), alerts, ...area }
     })
   }
 }

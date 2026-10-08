@@ -1,0 +1,249 @@
+/* Report sign-up gate (ReportAuthModal). ssp-modal* only: the legacy global
+   App.css owns .modal-*. Rendered inside .ssp, so the design tokens apply. */
+
+body.ssp-modal-open {
+  overflow: hidden;
+}
+
+.ssp-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgba(16, 42, 67, 0.55);
+}
+
+.ssp-modal__dialog {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  margin: auto 0;
+  padding: 32px 32px 26px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 24px 60px rgba(16, 42, 67, 0.28), 0 2px 6px rgba(16, 42, 67, 0.12);
+  font-family: var(--font-body);
+}
+
+.ssp-modal__dialog:focus {
+  outline: none;
+}
+
+.ssp-modal__dialog:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.ssp-modal__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ssp-modal__close svg {
+  stroke: currentColor;
+  fill: none;
+}
+
+.ssp-modal__close:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.ssp-modal__head {
+  padding-right: 28px;
+}
+
+.ssp-modal__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 0 14px;
+  border-radius: 14px;
+  background: var(--primary-tint);
+}
+
+.ssp-modal__icon svg {
+  stroke: #16426E;
+}
+
+.ssp-modal__icon .ssp-modal__icon-bar {
+  stroke: none;
+  fill: var(--primary);
+}
+
+.ssp-modal__title {
+  margin: 0 0 8px;
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #102A43;
+}
+
+.ssp-modal__text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.ssp-modal__search {
+  margin: 20px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--page);
+}
+
+.ssp-modal__label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ssp-modal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ssp-modal__chip {
+  max-width: 100%;
+  padding: 5px 12px;
+  border: 1px solid #C9D9E9;
+  border-radius: 999px;
+  background: var(--surface);
+  color: #16426E;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ssp-modal__chip--rate {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+  color: var(--primary-hover);
+}
+
+.ssp-modal__benefits {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ssp-modal__benefits li {
+  position: relative;
+  padding-left: 30px;
+  font-size: 15.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.ssp-modal__benefits li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ssp-modal__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 24px 0 0;
+}
+
+.ssp-modal__action {
+  width: 100%;
+}
+
+.ssp-modal__signup {
+  margin: 20px 0 0;
+  padding: 20px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.ssp-modal__fine {
+  margin: 14px 0 0;
+  font-size: 13.5px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.ssp-modal__sample {
+  margin: 10px 0 0;
+  font-size: 15px;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .ssp-modal {
+    padding: 16px;
+  }
+
+  .ssp-modal__dialog {
+    padding: 24px 18px 20px;
+    border-radius: 14px;
+  }
+
+  .ssp-modal__title {
+    font-size: 22px;
+  }
+
+  .ssp-modal__actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 359px) {
+  .ssp-modal {
+    padding: 8px;
+  }
+
+  .ssp-modal__dialog {
+    padding: 20px 14px 18px;
+  }
+}
+
+@media print {
+  .ssp-modal {
+    display: none;
+  }
+}

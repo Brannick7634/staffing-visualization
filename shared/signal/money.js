@@ -11,12 +11,12 @@
 export const MAX_INPUT_CENTS = 99999
 
 const MESSAGES = {
-  missing: 'Enter your hourly pay.',
-  not_a_number: 'Enter your hourly pay as a number, like 17.50.',
-  negative: 'Hourly pay cannot be negative.',
-  zero: 'Hourly pay must be more than $0.00.',
+  missing: "Enter your client's hourly pay rate.",
+  not_a_number: 'Enter the client pay rate as a number, like 17.50.',
+  negative: 'Client pay rate cannot be negative.',
+  zero: 'Client pay rate must be more than $0.00.',
   too_many_decimals: 'Use dollars and cents only: at most two digits after the decimal point.',
-  too_large: 'Enter an hourly rate of $999.99 or less. This is an input check, not a market maximum.',
+  too_large: 'Enter a client pay rate of $999.99 or less. This is an input check, not a market maximum.',
   malformed: 'Enter digits with an optional decimal point, like 17.50 (no commas, letters or spaces).'
 }
 

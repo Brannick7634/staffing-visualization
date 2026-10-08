@@ -62,7 +62,20 @@ const NATIONAL_CELL = payCell('nationwide', SYNTHETIC_FIGURES.national, PASS_NAT
 const STATE_CELL = payCell('state', SYNTHETIC_FIGURES.state, PASS_STATE)
 const cityCell = (checks, extra) => payCell('city', SYNTHETIC_FIGURES.city, checks, extra)
 
-function syntheticData({ pay = [NATIONAL_CELL], snapshot = {}, momentum = {} } = {}) {
+// Synthetic monthly snapshots for the pay trend. The September state cell is
+// absent on purpose (a withheld month shows as "Not enough data").
+const MONTHLY = Object.freeze([
+  {
+    month: '2026-08',
+    pay: [
+      payCell('nationwide', { p25Cents: 1950, typicalCents: 2210, p75Cents: 2530 }, PASS_NATIONAL),
+      payCell('state', { p25Cents: 2020, typicalCents: 2280, p75Cents: 2580 }, PASS_STATE)
+    ]
+  },
+  { month: '2026-09', pay: [payCell('nationwide', { p25Cents: 1975, typicalCents: 2230, p75Cents: 2550 }, PASS_NATIONAL)] }
+])
+
+function syntheticData({ pay = [NATIONAL_CELL], snapshot = {}, momentum = {}, monthly = MONTHLY } = {}) {
   return {
     snapshot: {
       label: 'Example snapshot',
@@ -76,7 +89,10 @@ function syntheticData({ pay = [NATIONAL_CELL], snapshot = {}, momentum = {} } =
     },
     coverage: {},
     issueCards: [],
-    cityVolume: { metric: 'New staffing-firm postings observed', windowDays: 45, scope: 'Example scope', jobScope: 'all jobs', rows: [] },
+    cityVolume: {
+      metric: 'New staffing-firm postings observed', windowDays: 45, scope: 'Example scope', jobScope: 'all jobs',
+      rows: [{ cityKey: CITY.key, postings: 240, checks: { status: 'verified', distinctFirms: 31, maxFirmShare: 0.12 } }]
+    },
     momentum: {
       windowDays: 45,
       previousWindowDays: 45,
@@ -87,6 +103,7 @@ function syntheticData({ pay = [NATIONAL_CELL], snapshot = {}, momentum = {} } =
       ...momentum
     },
     pay,
+    monthly,
     mostPostedFamilies: { labels: [], note: null }
   }
 }
@@ -147,22 +164,22 @@ export async function buildScenarios() {
   const scenarios = []
 
   scenarios.push(await payScenario({
-    key: 'city-locked-signed-out',
+    key: 'city-public-signed-out',
     title: 'Publishable city benchmark, signed out',
-    description: 'The Example City benchmark passes the publication rule, but local pay needs free access. No local figures are sent.',
+    description: 'Local pay is free: the Example City benchmark passes the publication rule and is shown without an account, with its market activity and pay trend. Creating the report needs a free account.',
     access: P, pay: [NATIONAL_CELL, STATE_CELL, cityCell(PASS_CITY)]
   }))
   scenarios.push(await payScenario({
     key: 'city-unlocked-authorized',
     title: 'Publishable city benchmark, signed in',
-    description: 'The same Example City benchmark, unlocked for a free account.',
+    description: 'The same Example City benchmark for a free account (same figures; the report can be created).',
     access: A, pay: [NATIONAL_CELL, STATE_CELL, cityCell(PASS_CITY)]
   }))
   const thinCity = cityCell({ status: 'verified', distinctFirms: 2, maxFirmShare: 0.4 })
   scenarios.push(await payScenario({
     key: 'city-insufficient-state-fallback-signed-out',
     title: 'City suppressed, state available (signed out)',
-    description: 'Too few firms advertise comparable Example City pay. The Example State benchmark is offered instead and still needs free access.',
+    description: 'Too few firms advertise comparable Example City pay. The Example State benchmark is shown instead, free.',
     access: P, pay: [NATIONAL_CELL, STATE_CELL, thinCity]
   }))
   scenarios.push(await payScenario({

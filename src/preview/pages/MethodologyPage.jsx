@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { COMPETITIVENESS_LEVELS } from '../../../shared/signal/clientReport.js'
 import { formatCents } from '../../../shared/signal/money.js'
 import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import '../styles/sections.css'
@@ -10,14 +11,20 @@ import '../styles/sections.css'
 
 const DEFAULT_MOMENTUM_BASIS = 'Normalized posting momentum: latest 45 days vs. the previous 45, measured relative to the change across all observed states. Early signal — not raw growth, a demand forecast or a pay change.'
 
+// The client pay rate promise, shared wording with the Privacy page and the
+// calculator.
+const RATE_PROMISE = 'The client pay rate you enter stays in your browser. It is never saved or put in links, and it is sent to our server only if you email a report, to build that report.'
+
+// Section ids are anchors: keep 'your-rate' so existing links still land.
 const SECTIONS = [
   { id: 'collect', title: 'What we collect' },
   { id: 'pay', title: 'Advertised pay' },
-  { id: 'your-rate', title: 'Your rate stays in your browser' },
+  { id: 'your-rate', title: 'The client pay rate stays in your browser' },
   { id: 'read', title: 'How to read a result' },
+  { id: 'report', title: 'Client Pay Market Report' },
   { id: 'publish', title: 'When we publish a figure' },
   { id: 'demand', title: 'Demand counts and momentum' },
-  { id: 'access', title: 'What free access unlocks' },
+  { id: 'access', title: 'What a free account adds' },
   { id: 'fresh', title: 'Freshness' }
 ]
 
@@ -171,27 +178,61 @@ export default function MethodologyPage() {
               <li>Salaried pay is converted to an hourly figure using 2,080 hours a year, and we say so where it applies.</li>
               <li>Weekly travel packages are kept separate. They can include stipends, so they are never compared with an hourly base rate.</li>
               <li>We never mix pay currencies, pay periods or different jobs in one benchmark.</li>
-              <li>The “typical advertised rate” is the middle of the advertised rates. The “middle half” runs from the 25th to the 75th percentile of advertised rates.</li>
+              <li>The <strong>market median</strong> (the typical advertised rate) is the median of the advertised rates: half advertise more, half less. The <strong>market low</strong> and <strong>market high</strong> are the 25th and 75th percentiles, and the middle half of advertised rates runs between them.</li>
             </ul>
           </Section>
 
-          <Section id="your-rate" title="Your rate stays in your browser">
+          <Section id="your-rate" title="The client pay rate stays in your browser">
+            <p>{RATE_PROMISE}</p>
             <p>
-              When you check a rate, our server sends back only the benchmark range for the job and place you chose.
-              The comparison with your rate happens on your device. Your rate is not sent to our server, not put in the
-              page address, not recorded in analytics, and never added to the advertised-pay data.
+              When you compare a rate, our server sends back only the benchmark for the job title and location you
+              chose, and the comparison happens on your device. The rate is not put in the page address, not recorded
+              in analytics, not kept in your browser's storage and never added to the advertised-pay data. If you email
+              a report, the rate travels inside that one request so our server can build the attached report; it is
+              not stored or logged.
             </p>
           </Section>
 
           <Section id="read" title="How to read a result">
             <ul className="ssp-method__list">
-              <li><strong>Below the typical advertised range:</strong> your rate is under the 25th percentile of advertised rates.</li>
-              <li><strong>Within the typical advertised range:</strong> your rate is between the 25th and 75th percentiles, inclusive.</li>
-              <li><strong>Above the typical advertised range:</strong> your rate is over the 75th percentile. That does not make it the highest rate in the market.</li>
+              <li><strong>Below market:</strong> the client's rate is under the market low (25th percentile of advertised rates).</li>
+              <li><strong>Market range:</strong> the client's rate is between the market low and the market high (75th percentile), inclusive.</li>
+              <li><strong>Above market:</strong> the client's rate is over the market high. That does not make it the highest rate in the market.</li>
             </ul>
             <p>
-              The bar is a dollar scale, not a percentile estimate. Two summary points cannot tell us your exact
-              percentile, so we don't show one. Advertised rates do not predict whether an order will fill.
+              The bar is a dollar scale, not a percentile estimate. Three summary points cannot tell us the client's
+              exact percentile, so we don't show one. Advertised rates do not predict whether an order will fill.
+            </p>
+          </Section>
+
+          <Section id="report" title="Client Pay Market Report">
+            <p>
+              The Client Pay Market Report puts the same comparison on two US Letter pages you can print, download or
+              email to your client. The page and the report are built from the same figures.
+            </p>
+            <ul className="ssp-method__list">
+              <li><strong>Market Low, Market Median, Market High:</strong> the 25th percentile, the median and the 75th percentile of advertised pay for that job and location.</li>
+              <li><strong>Market Gap:</strong> the client's rate minus the market median, in dollars per hour and as a percentage of the median.</li>
+            </ul>
+            <p>
+              <strong>Pay competitiveness</strong> places the client's rate on five steps, checked in this order:
+            </p>
+            <ul className="ssp-method__list">
+              {COMPETITIVENESS_LEVELS.map((level) => (
+                <li key={level.key}><strong>{level.label}:</strong> {level.rule.charAt(0).toLowerCase() + level.rule.slice(1)}.</li>
+              ))}
+            </ul>
+            <ul className="ssp-method__list">
+              <li><strong>Recommended pay ranges:</strong> the competitive range runs from the market median to the market high; the aggressive recruiting range is above the market high. They describe the market; they do not guarantee an order will fill.</li>
+              <li><strong>Market activity:</strong> new staffing-firm postings for all jobs (not only the one you chose) in the city over the last 45 days, the number of staffing firms behind them, and the state's posting momentum. These are observed postings, not verified open orders.</li>
+              <li><strong>Pay trend:</strong> the market median from our monthly snapshots, kept since August 2026, for the state and nationwide. A month without a publishable figure shows as not enough data.</li>
+              <li><strong>Firm counts:</strong> we show how many staffing firms a figure comes from, as a count only. We never name a firm or show a single posting.</li>
+            </ul>
+            <p>
+              A figure from a handful of firms can move more from week to week than one from hundreds. Treat small
+              counts with caution, and remember the figures are advertised pay, not what anyone was actually paid.
+              When a figure comes from fewer than five staffing firms, the results, the report and the email say so
+              and suggest treating it as a directional guide.
             </p>
           </Section>
 
@@ -224,11 +265,13 @@ export default function MethodologyPage() {
             </p>
           </Section>
 
-          <Section id="access" title="What free access unlocks">
+          <Section id="access" title="What a free account adds">
             <p>
-              Anyone can see nationwide pay ranges, the top five heating states and the top three cities from the
-              default nationwide ranking. Free access adds every publishable state and city view, full rankings,
-              cooling markets and preferences. Access does not mean every job and place has data.
+              Anyone can compare a pay rate nationwide, by state and by city wherever a figure passes the checks
+              above, see the sample report, and see the top five heating states and the top three cities from the
+              default nationwide ranking. A free account adds creating, printing, downloading and emailing Client Pay
+              Market Reports, full city rankings, cooling markets, preferences and The Monthly Signal (optional). An
+              account does not mean every job and place has data.
             </p>
           </Section>
 
@@ -244,7 +287,7 @@ export default function MethodologyPage() {
 
           <p className="ssp-method__back">
             <Link to={{ pathname: homePath || '/preview', hash: '#pay-check' }} className="ssp-link">
-              <span aria-hidden="true">←</span> Back to the pay check
+              <span aria-hidden="true">←</span> Back to pay data
             </Link>
           </p>
         </div>

@@ -18,7 +18,7 @@ const PAGES = {
   },
   'my-market': {
     title: 'My Market',
-    holds: 'Your saved sectors and markets, with every local result your free access makes available.'
+    holds: 'Your saved sectors and markets, with the local results for the markets you follow.'
   },
   'monthly-signal': {
     title: 'The Monthly Signal',
@@ -31,7 +31,7 @@ const PAGES = {
   },
   privacy: {
     title: 'Privacy',
-    holds: 'What we collect at signup, how we use it, and how to unsubscribe. Your entered pay rate is never sent or stored.'
+    holds: 'What we collect at signup, how we use it, and how to unsubscribe. The client pay rate you enter stays in your browser. It is never saved or put in links, and it is sent to our server only if you email a report, to build that report.'
   },
   contact: {
     title: 'Contact',

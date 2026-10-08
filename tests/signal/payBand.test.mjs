@@ -75,24 +75,24 @@ describe('verdictCopy', () => {
   test('below, nationwide: matches the brief', () => {
     const copy = verdictCopy(VERDICT.BELOW, { rateCents: 1700, p25Cents: 1713, p75Cents: 2000, geographyLabel: 'Nationwide' })
     assert.deepEqual(copy, {
-      headline: 'Below the typical advertised range.',
-      detail: 'Your rate is $0.13 below the lower end of this nationwide range.'
+      headline: 'Client rate is below the typical advertised range.',
+      detail: "Your client's rate is $0.13 below the lower end of this nationwide range."
     })
   })
 
   test('within', () => {
     const copy = verdictCopy(VERDICT.WITHIN, { rateCents: 1850, p25Cents: 1713, p75Cents: 2000, geographyLabel: 'Nationwide' })
     assert.deepEqual(copy, {
-      headline: 'Within the typical advertised range.',
-      detail: 'Your rate falls inside the middle half of advertised rates for this nationwide comparison.'
+      headline: 'Client rate is within the typical advertised range.',
+      detail: "Your client's rate falls inside the middle half of advertised rates for this nationwide comparison."
     })
   })
 
   test('above, with a local geography label', () => {
     const copy = verdictCopy(VERDICT.ABOVE, { rateCents: 2150, p25Cents: 1713, p75Cents: 2000, geographyLabel: 'Houston, TX' })
     assert.deepEqual(copy, {
-      headline: 'Above the typical advertised range.',
-      detail: 'Your rate is $1.50 above the upper end of this Houston, TX range. That does not make it the highest rate in the market.'
+      headline: 'Client rate is above the typical advertised range.',
+      detail: "Your client's rate is $1.50 above the upper end of this Houston, TX range. That does not make it the highest rate in the market."
     })
   })
 
@@ -104,6 +104,15 @@ describe('verdictCopy', () => {
   test('one-cent differences are exact', () => {
     assert.match(verdictCopy('below', { rateCents: 1712, p25Cents: 1713, p75Cents: 2000 }).detail, /\$0\.01 below/)
     assert.match(verdictCopy('above', { rateCents: 2001, p25Cents: 1713, p75Cents: 2000 }).detail, /\$0\.01 above/)
+  })
+
+  test('copy is about the client rate, never the visitor\'s own rate', () => {
+    for (const [verdict, rateCents] of [['below', 1700], ['within', 1850], ['above', 2150]]) {
+      const copy = verdictCopy(verdict, { rateCents, p25Cents: 1713, p75Cents: 2000, geographyLabel: 'Texas' })
+      assert.match(copy.headline, /^Client rate is /)
+      assert.match(copy.detail, /^Your client's rate /)
+      assert.doesNotMatch(`${copy.headline} ${copy.detail}`, /\bYour rate\b/)
+    }
   })
 
   test('null when the verdict does not match the figures', () => {

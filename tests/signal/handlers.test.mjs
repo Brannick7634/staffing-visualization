@@ -103,6 +103,20 @@ describe('production entrypoints fail closed', () => {
     assertNoStore(res)
   })
 
+  test('pay is limited per IP (60 per 10 minutes) so places cannot be stepped through quickly', async () => {
+    const headers = { 'x-forwarded-for': '203.0.113.77' }
+    const codes = []
+    for (let i = 0; i < 61; i++) codes.push((await call(productionPay, { query: { role: 'not-a-role' }, headers })).statusCode)
+    assert.equal(codes.filter((code) => code === 400).length, 60)
+    const limited = await call(productionPay, { query: { role: 'forklift-operator' }, headers })
+    assert.equal(codes[60], 429)
+    assert.equal(limited.statusCode, 429)
+    assert.equal(limited.body.error.code, 'rate_limited')
+    assert.match(limited.headers['cache-control'], /no-store/)
+    // Another visitor is unaffected.
+    assert.equal((await call(productionPay, { query: { role: 'not-a-role' }, headers: { 'x-forwarded-for': '203.0.113.78' } })).statusCode, 400)
+  })
+
   test('non-GET methods are refused', async () => {
     for (const handler of [productionSnapshot, productionPay]) {
       const res = await call(handler, { method: 'POST', query: { role: 'forklift-operator' } })
@@ -259,7 +273,10 @@ describe('dev-only endpoints', () => {
       [{ name: 'Pat', email: 'pat@example.com', password: PW, newsletter: 'yes' }, 'newsletter'],
       [{ name: 'Pat', email: 'pat@example.com' }, 'password'],
       [{ name: 'Pat', email: 'pat@example.com', password: 'short' }, 'password'],
-      [{ name: 'Pat', email: 'pat@example.com', password: 'a'.repeat(73) }, 'password']
+      [{ name: 'Pat', email: 'pat@example.com', password: 'a'.repeat(73) }, 'password'],
+      // State + city are required, with the production rules (tests/subscribers/area.test.mjs).
+      [{ name: 'Pat', email: 'pat@example.com', password: PW }, 'state'],
+      [{ name: 'Pat', email: 'pat@example.com', password: PW, state: 'TX' }, 'city']
     ]
     for (const [body, field] of invalid) {
       const res = await call(handler, { method: 'POST', body })
@@ -269,9 +286,9 @@ describe('dev-only endpoints', () => {
     }
     let first, again, other
     const logged = await captureConsole(async () => {
-      first = await call(handler, { method: 'POST', body: { name: 'Pat Example', email: ' Pat@Example.com ', password: PW, newsletter: true, context: { roleKey: 'forklift-operator', state: 'TX', city: 'TX:houston' } } })
-      again = await call(handler, { method: 'POST', body: { name: 'Pat', email: 'pat@example.com', password: 'other password', newsletter: false } })
-      other = await call(handler, { method: 'POST', body: { name: 'Sam', email: 'sam@example.com', password: PW } })
+      first = await call(handler, { method: 'POST', body: { name: 'Pat Example', email: ' Pat@Example.com ', password: PW, newsletter: true, state: 'TX', city: 'TX:houston', context: { roleKey: 'forklift-operator', state: 'TX', city: 'TX:houston' } } })
+      again = await call(handler, { method: 'POST', body: { name: 'Pat', email: 'pat@example.com', password: 'other password', newsletter: false, state: 'TX', city: 'Houston' } })
+      other = await call(handler, { method: 'POST', body: { name: 'Sam', email: 'sam@example.com', password: PW, state: 'AK', city: 'Juneau' } })
     })
     assert.equal(first.statusCode, 200)
     assert.match(first.body.subscriberId, /^dev-sim-[0-9a-f]{6}$/)
@@ -302,7 +319,7 @@ describe('dev-only endpoints', () => {
     const logout = devEndpoints.createDevLogoutHandler()
     const PW = 'dev password 1'
     const NEW_PW = 'dev password 2'
-    await call(signup, { method: 'POST', body: { name: 'Pat', email: 'pat@example.com', password: PW } })
+    await call(signup, { method: 'POST', body: { name: 'Pat', email: 'pat@example.com', password: PW, state: 'TX', city: 'TX:houston' } })
     const ok = await call(login, { method: 'POST', body: { email: ' PAT@example.com', password: PW } })
     assert.equal(ok.statusCode, 200)
     assert.deepEqual(ok.body, { ok: true, simulated: true, signedIn: true })
@@ -362,10 +379,21 @@ describe('dev-only endpoints', () => {
 
   test('dev/preferences echoes a validated selection', async () => {
     const handler = devEndpoints.createDevPreferencesHandler()
-    const ok = await call(handler, { method: 'POST', body: { sectors: ['healthcare'], states: ['TX'], cities: ['TX:houston'], newsletter: true, alerts: 'weekly' } })
+    const headers = { cookie: 'ssp_sim_access=authorized' }
+    // Like production: no (simulated) sign-in, no save.
+    const signedOut = await call(handler, { method: 'POST', body: { sectors: ['healthcare'] } })
+    assert.equal(signedOut.statusCode, 401)
+    const ok = await call(handler, { method: 'POST', headers, body: { sectors: ['healthcare'], states: ['TX'], cities: ['TX:houston'], newsletter: true, alerts: 'weekly' } })
     assert.deepEqual(ok.body, { ok: true, simulated: true, saved: { sectors: ['healthcare'], states: ['TX'], cities: ['TX:houston'], newsletter: true, alerts: 'weekly' } })
-    for (const body of [{ sectors: ['nope'] }, { states: ['ZZ'] }, { cities: ['TX:nowhere'] }, { alerts: 'daily' }, { newsletter: 'yes' }, null]) {
-      const res = await call(handler, { method: 'POST', body })
+    // A newsletter choice not sent is left unchanged, so it is not echoed.
+    const untouched = await call(handler, { method: 'POST', headers, body: { sectors: [], states: [], cities: [] } })
+    assert.equal('newsletter' in untouched.body.saved, false)
+    // A saved sector key the page no longer lists is sent back and saves (production rule).
+    const legacy = await call(handler, { method: 'POST', headers, body: { sectors: ['retired-sector'] } })
+    assert.equal(legacy.statusCode, 200)
+    assert.deepEqual(legacy.body.saved.sectors, ['retired-sector'])
+    for (const body of [{ sectors: ['not a key!'] }, { states: ['ZZ'] }, { cities: ['TX:nowhere'] }, { alerts: 'daily' }, { newsletter: 'yes' }, null]) {
+      const res = await call(handler, { method: 'POST', headers, body })
       assert.equal(res.statusCode, 400, JSON.stringify(body))
     }
   })

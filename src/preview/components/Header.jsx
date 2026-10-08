@@ -2,27 +2,27 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ACCESS } from '../../../shared/signal/contract.js'
 import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
+import { isReportReturn } from '../lib/reportGate.js'
 import { EVENTS, track } from '../lib/track.js'
 import Wordmark from './Wordmark.jsx'
 
 // Dev preview nav (includes "coming soon" stubs).
 const PREVIEW_PAGES = [
-  { to: '/preview/market-report', label: 'Market Report', event: EVENTS.MARKET_REPORT_OPENED },
+  { to: '/preview/sample-report', label: 'Sample Report' },
   { to: '/preview/hot-jobs', label: 'Hot Jobs' },
   { to: '/preview/my-market', label: 'My Market' },
   { to: '/preview/monthly-signal', label: 'The Monthly Signal', event: EVENTS.MONTHLY_ISSUE_OPENED },
   { to: '/preview/about', label: 'About' }
 ]
 
-// Production nav: real pages only. Market Report is shown but not linked
-// until the new report page is built (it used to open the old /dashboard).
+// Production nav: real pages only. Sample Report is public (no sign-up).
 const SITE_PAGES = [
-  { label: 'Market Report', comingSoon: true },
+  { to: '/sample-report', label: 'Sample Report' },
   { to: '/methodology', label: 'How We Count' }
 ]
 
 export default function Header() {
-  const { homePath, access, requestFreeAccess, payCheck, variant, signOut, site: siteMount } = usePreview()
+  const { homePath, access, requestFreeAccess, payCheck, pendingReturn, variant, signOut, site: siteMount } = usePreview()
   const site = FORCE_SITE || siteMount
   const PAGES = site ? SITE_PAGES : PREVIEW_PAGES
   const [open, setOpen] = useState(false)
@@ -47,7 +47,10 @@ export default function Header() {
   }, [open])
 
   const authorized = access === ACCESS.AUTHORIZED
-  const context = payCheck.selection && !payCheck.isExample ? payCheck.selection : null
+  // A pending report (from the report gate) is kept so sign-up still ends there.
+  const context = isReportReturn(pendingReturn)
+    ? pendingReturn
+    : (payCheck.selection && !payCheck.isExample ? payCheck.selection : null)
   const signInPath = `${basePath(site)}/sign-in`
 
   async function onSignOut() {
@@ -82,22 +85,16 @@ export default function Header() {
         <nav id="ssp-main-nav" className="ssp-header__nav" aria-label="Main">
           <ul>
             <li>
-              <Link to={{ pathname: homePath, hash: '#pay-check' }}>Pay Check</Link>
+              <Link to={{ pathname: homePath, hash: '#pay-check' }}>Pay Data</Link>
             </li>
             {PAGES.map((page) => (
               <li key={page.label}>
-                {page.comingSoon ? (
-                  <span className="ssp-header__soon">
-                    {page.label} <span className="ssp-header__soon-tag">Soon</span>
-                  </span>
-                ) : (
-                  <NavLink
-                    to={page.to}
-                    onClick={() => page.event && track(page.event, { variant })}
-                  >
-                    {page.label}
-                  </NavLink>
-                )}
+                <NavLink
+                  to={page.to}
+                  onClick={() => page.event && track(page.event, { variant })}
+                >
+                  {page.label}
+                </NavLink>
               </li>
             ))}
             {/* Phone menu only; on wider screens "Sign in" / "Sign out" sits
@@ -143,7 +140,7 @@ export default function Header() {
                 className="ssp-btn ssp-btn--primary ssp-header__cta"
                 onClick={() => requestFreeAccess(context)}
               >
-                Get free access
+                Sign up free
               </button>
             </div>
           )}

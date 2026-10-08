@@ -1,14 +1,15 @@
 // Access policy: what a signed-out visitor may see versus a free account.
 //
-// Public: nationwide views and nationwide pay ranges, plus an explicit preview
-// allowlist taken from the DEFAULT nationwide ranking only: the top five
-// heating states and the top three cities by observed posting volume. The
-// allowlist is computed once from the default ranking, so no filter, sort or
-// offset can widen it. Preview entries expose only their preview metric; their
-// local pay still requires free access.
+// Public: every publishable pay benchmark (nationwide, state and city — the
+// local pay comparison is free, owner decision 2026-10-08), the market context
+// for the place a visitor asks about, plus an explicit preview allowlist taken
+// from the DEFAULT nationwide ranking only: the top five heating states and
+// the top three cities by observed posting volume. The allowlist is computed
+// once from the default ranking, so no filter, sort or offset can widen it.
 //
-// Free account (authorized): every publishable state/city view, available
-// local pay, full eligible rankings, cooling markets.
+// Free account (authorized): full eligible city rankings, cooling markets,
+// and creating / printing / downloading / emailing Client Pay Market Reports
+// (the email route checks the real session itself).
 //
 // Privacy runs BEFORE access: rows reaching this module have already passed
 // the publication rule. Access never un-suppresses anything.
@@ -37,11 +38,12 @@ export function canShowFigures(access) {
 }
 
 // Access state of a pay benchmark at a geography level for this viewer.
-// Nationwide pay is public; any state or city pay needs free access, even for
-// places that appear in the public preview rankings.
+// Pay is public at every level: an account is needed only to create, print,
+// download or email the report. Privacy still runs first, so a suppressed
+// benchmark stays suppressed for everyone. (Both parameters are kept so the
+// gate can be reinstated in one place.)
 export function payAccess(level, viewerAccess) {
-  if (level === 'nationwide') return ACCESS.PUBLIC
-  return isAuthorizedViewer(viewerAccess) ? ACCESS.AUTHORIZED : ACCESS.REQUIRES_FREE_ACCOUNT
+  return ACCESS.PUBLIC
 }
 
 // Default nationwide city ranking: postings descending, ties by key so the

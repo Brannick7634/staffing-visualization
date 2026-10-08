@@ -1,8 +1,11 @@
 import { DATA_MODE, FRESHNESS, REQUEST } from '../../../shared/signal/contract.js'
 import { usePreview } from '../PreviewContext.jsx'
 
-// Hero copy (brief §6.B). Freshness is rendered separately from the
-// "Updated weekly" promise and never implies a refresh that did not happen.
+// Hero copy (client pay report positioning). Freshness is rendered separately
+// from the "Updated weekly" promise and never implies a refresh that did not
+// happen.
+
+const SUB = 'Compare a client’s pay rate with what staffing firms advertise for the same job in the same market, and turn it into a report you can hand your client.'
 
 function formatDate(value) {
   if (typeof value !== 'string' || value === '') return null
@@ -41,10 +44,8 @@ export default function Hero({ compact = false }) {
     return (
       <div className="ssp-hero__intro ssp-hero__intro--compact">
         <div className="ssp-hero__copy">
-          <h1 className="ssp-hero__title">Is your pay rate in range?</h1>
-          <p className="ssp-hero__sub">
-            Compare your proposed hourly pay with rates advertised by staffing firms for the same job and market.
-          </p>
+          <h1 className="ssp-hero__title">See how your client’s pay stacks up.</h1>
+          <p className="ssp-hero__sub">{SUB}</p>
         </div>
       </div>
     )
@@ -54,10 +55,8 @@ export default function Hero({ compact = false }) {
     <div className="ssp-hero__intro">
       <div className="ssp-hero__copy">
         <p className="ssp-eyebrow">Before you quote the order</p>
-        <h1 className="ssp-hero__title">Is your pay rate in range?</h1>
-        <p className="ssp-hero__sub">
-          Compare your proposed hourly pay with rates advertised by staffing firms for the same job and market.
-        </p>
+        <h1 className="ssp-hero__title">See how your client’s pay stacks up.</h1>
+        <p className="ssp-hero__sub">{SUB}</p>
       </div>
       <div className="ssp-hero__meta">
         <p className="ssp-hero__support">

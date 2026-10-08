@@ -4,7 +4,7 @@ import { existsSync, readFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  createProductionAdapter, validateSnapshot, DEFAULT_SNAPSHOT_PATH, MAX_AGE_DAYS
+  createProductionAdapter, validateSnapshot, validateMonthly, loadMonthlySnapshots, DEFAULT_SNAPSHOT_PATH, MAX_AGE_DAYS
 } from '../../api/_lib/signal/productionAdapter.js'
 import { createSnapshotHandler, createPayHandler } from '../../api/_lib/signal/handlers.js'
 import { ROLES, roleByKey } from '../../shared/signal/taxonomy.js'
@@ -112,7 +112,7 @@ describe('production adapter fails closed', () => {
     for (const m of cases) assert.equal(validateSnapshot(withData((d) => m(d.pay[0])), { now: NOW }), null)
   })
 
-  test('served responses never carry firm counts or shares', async () => {
+  test('served responses never carry raw checks or shares (firmCount is the only approved count)', async () => {
     const adapter = adapterFor(sample())
     const resolveAccess = () => ({ access: 'authorized', simulated: false })
     for (const [handler, query] of [[createSnapshotHandler({ adapter, resolveAccess }), {}],
@@ -123,6 +123,65 @@ describe('production adapter fails closed', () => {
       const text = JSON.stringify(res.body)
       assert.ok(!/distinctFirms|maxFirmShare|verified/.test(text))
     }
+  })
+})
+
+describe('monthly snapshots (pay trend)', () => {
+  const month = (m, overrides = {}) => ({
+    format: 'staffing-signal-monthly-aggregates',
+    schemaVersion: 1,
+    calcVersion: 'signal-month-1.0.0',
+    month: m,
+    reliability: { reliable: true },
+    pay: [{ roleKey: 'forklift-operator', level: 'nationwide', state: null, city: null, n: 41, p25Cents: 1700, typicalCents: 1840, p75Cents: 1990, checks: ok(9) }],
+    ...overrides
+  })
+  function monthlyDir(files) {
+    const dir = mkdtempSync(join(tmpdir(), 'signal-monthly-'))
+    for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, name), typeof body === 'string' ? body : JSON.stringify(body))
+    return dir
+  }
+  const adapterWithMonthly = (dir) => createProductionAdapter({ snapshotPath: writeTemp(sample()), monthlyDir: dir, enabled: () => true, now: () => NOW })
+
+  test('loads valid months ascending, reduced to the fields the trend uses', async () => {
+    const months = await loadMonthlySnapshots(monthlyDir({ '2026-09.json': month('2026-09'), '2026-08.json': month('2026-08'), 'notes.txt': 'x' }))
+    assert.deepEqual(months.map((m) => m.month), ['2026-08', '2026-09'])
+    assert.deepEqual(Object.keys(months[0].pay[0]).sort(), ['checks', 'city', 'currency', 'level', 'p25Cents', 'p75Cents', 'payBasis', 'roleKey', 'state', 'typicalCents'])
+  })
+
+  test('a bad file is skipped on its own; the snapshot stays available', async () => {
+    const dir = monthlyDir({
+      '2026-05.json': '{not json',
+      '2026-06.json': month('2026-06', { format: 'other' }),
+      '2026-07.json': month('2026-07', { reliability: { reliable: false } }),
+      '2026-08.json': month('2026-09'),
+      '2026-09.json': month('2026-09', { pay: [{ ...month('x').pay[0], checks: ok(2) }] }),
+      '2026-10.json': month('2026-10', { pay: [{ ...month('x').pay[0], payBasis: 'weekly_package' }] }),
+      '2026-11.json': month('2026-11')
+    })
+    const loaded = await adapterWithMonthly(dir).load()
+    assert.equal(loaded.available, true)
+    assert.deepEqual(loaded.data.monthly.map((m) => m.month), ['2026-11'])
+  })
+
+  test('a missing folder means no trend, never an error', async () => {
+    const loaded = await adapterWithMonthly(join(tmpdir(), 'no-such-monthly-dir')).load()
+    assert.equal(loaded.available, true)
+    assert.deepEqual(loaded.data.monthly, [])
+    assert.equal(validateMonthly(null), null)
+  })
+
+  test('the committed monthly files validate', async () => {
+    const months = await loadMonthlySnapshots()
+    assert.ok(months.length >= 1)
+    assert.ok(months.every((m) => /^\d{4}-\d{2}$/.test(m.month) && m.pay.length > 0))
+  })
+
+  test('vercel.json bundles the monthly files with the pay function', () => {
+    const vercel = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'))
+    const glob = vercel.functions['api/signal-data.js'].includeFiles
+    assert.match(glob, /monthly/)
+    assert.match(glob, /report/)
   })
 })
 

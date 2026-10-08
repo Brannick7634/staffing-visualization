@@ -1,11 +1,12 @@
 // Signed tokens and the session cookie for Staffing Signal subscribers.
 // HMAC-SHA256 over a base64url JSON payload, keyed by SIGNAL_SESSION_SECRET.
-// Each token carries a purpose ("session" | "reset" | "unsub") so one kind can
+// Each token carries a purpose ("session" | "reset" | "unsub" | "confirm") so one kind can
 // never be replayed as another.
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 export const SESSION_COOKIE = 'ss_session'
 export const RESET_TTL_MS = 60 * 60 * 1000
+export const CONFIRM_TTL_MS = 24 * 60 * 60 * 1000
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const MIN_SECRET = 32
 
@@ -45,6 +46,11 @@ export function verifyToken(token, secret, { purpose, now = Date.now() } = {}) {
 // working once any password has been set.
 export function resetToken(email, secret, { now = Date.now(), h = '' } = {}) {
   return signToken({ p: 'reset', email, iat: now, exp: now + RESET_TTL_MS, h }, secret)
+}
+// Email confirmation link: 24 hours. Opening it (and pressing Confirm) proves
+// the reader can receive mail at the address; it changes nothing else.
+export function confirmToken(email, secret, { now = Date.now() } = {}) {
+  return signToken({ p: 'confirm', email, iat: now, exp: now + CONFIRM_TTL_MS }, secret)
 }
 // Short keyed digest of the stored bcrypt hash ('' when none). Reveals nothing
 // about the hash; it only changes when the password changes.

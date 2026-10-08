@@ -212,7 +212,7 @@ export default function MarketPreview({ snapshot, access, onUnlock }) {
               <div className="ssp-lock ssp-market__lock">
                 <p className="ssp-market__lockcopy">
                   <LockIcon />
-                  {cities.more.description || 'Unlock the full city rankings and available local benchmarks.'}
+                  {cities.more.description || 'Unlock the full city rankings.'}
                 </p>
                 <UnlockButton onUnlock={onUnlock}>Unlock full rankings</UnlockButton>
               </div>

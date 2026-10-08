@@ -1,37 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ACCESS } from '../../../shared/signal/contract.js'
 import { citiesForState, STATES } from '../../../shared/signal/geography.js'
 import { parseHourlyRate } from '../../../shared/signal/money.js'
 import { EXAMPLE_ROLES, roleByKey, rolesForSector, SECTORS, sectorForRole } from '../../../shared/signal/taxonomy.js'
 import { usePreview } from '../PreviewContext.jsx'
 import { EVENTS, track } from '../lib/track.js'
 
-// "Check a pay rate": Sector -> Job -> State -> City -> Your hourly pay.
-// The typed rate is validated here with the shared parser and kept in memory
-// only; it is never put in a URL, storage or an analytics event.
+// "Compare a client's pay rate": Sector -> Job Title -> State -> City ->
+// Client Pay Rate. State and City are always visible. The typed rate is
+// validated here with the shared parser and kept in memory only; it is never
+// put in a URL, storage or an analytics event. The CTA runs the comparison
+// (free, also for local markets) through createClientReport, which opens the
+// report when signed in and the free-account gate otherwise.
 
-function useMediaQuery(query) {
-  const get = () => {
-    try {
-      return window.matchMedia(query).matches
-    } catch {
-      return false
-    }
-  }
-  const [matches, setMatches] = useState(get)
-  useEffect(() => {
-    let mql
-    try {
-      mql = window.matchMedia(query)
-    } catch {
-      return undefined
-    }
-    const onChange = () => setMatches(mql.matches)
-    onChange()
-    mql.addEventListener('change', onChange)
-    return () => mql.removeEventListener('change', onChange)
-  }, [query])
-  return matches
-}
+const PRIVACY_PROMISE = 'The client pay rate you enter stays in your browser. It is never saved or put in links, and it is sent to our server only if you email a report, to build that report.'
 
 function firstBenchmarkedRole(sectorKey, benchmarked) {
   const roles = rolesForSector(sectorKey)
@@ -64,14 +46,13 @@ function Field({ id, label, error, children, className = '' }) {
   )
 }
 
-export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsibleLocal = false, onChecked }) {
+export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecked }) {
   const {
-    selection, setSelection, rateInput, setRateInput, runPayCheck, snapshot, focusRequest, variant, payCheck
+    selection, setSelection, rateInput, setRateInput, runPayCheck, createClientReport, snapshot, focusRequest,
+    variant, payCheck, access
   } = usePreview()
   const [errors, setErrors] = useState({})
-  const [localOpen, setLocalOpen] = useState(false)
-  const narrow = useMediaQuery('(max-width: 639.98px)')
-  const collapsed = collapsibleLocal && narrow && !localOpen
+  const signedIn = access === ACCESS.AUTHORIZED
 
   const roleRef = useRef(null)
   const stateRef = useRef(null)
@@ -97,16 +78,10 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
   )
   const cities = selection.state ? citiesForState(selection.state) : []
 
-  // Open the local fields if the visitor already chose a state.
-  useEffect(() => {
-    if (selection.state) setLocalOpen(true)
-  }, [selection.state])
-
-  // Focus requests from elsewhere on the page (example roles, "Compare in my market").
+  // Focus requests from elsewhere on the page (example roles, "Compare in your client's market").
   useEffect(() => {
     if (!focusRequest) return undefined
     const target = focusRequest.field === 'state' ? stateRef : focusRequest.field === 'rate' ? rateRef : roleRef
-    if (focusRequest.field === 'state') setLocalOpen(true)
     const frame = window.requestAnimationFrame(() => {
       const el = target.current
       if (!el) return
@@ -166,7 +141,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
     if (!selection.roleKey || !roleByKey(selection.roleKey)) {
       next.role = selection.sectorKey === 'professional'
         ? 'No title-level pay benchmarks for professional roles in our data. Choose another sector.'
-        : 'Choose a job to compare.'
+        : 'Choose a job title to compare.'
     }
     if (!parsed.ok) next.rate = parsed.message
     setErrors(next)
@@ -181,24 +156,24 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
       geographyLevel: selection.city ? 'city' : selection.state ? 'state' : 'nationwide',
       variant
     })
-    runPayCheck({ selection, rateCents: parsed.cents })
+    // createClientReport runs the comparison itself; runPayCheck is only a
+    // fallback for a context without it.
+    if (typeof createClientReport === 'function') createClientReport({ selection, rateCents: parsed.cents })
+    else runPayCheck({ selection, rateCents: parsed.cents })
     if (typeof onChecked === 'function') onChecked()
   }
 
   const describe = (...ids) => ids.filter(Boolean).join(' ') || undefined
   const busy = payCheck.requestState === 'loading'
-  const localSummary = selection.state
-    ? STATES.find((s) => s.code === selection.state)?.name || selection.state
-    : 'Nationwide'
 
   return (
     <form
-      className={`ssp-card ssp-calc ssp-calc--${layout}${collapsibleLocal ? ' ssp-calc--collapsible' : ''}`}
+      className={`ssp-card ssp-calc ssp-calc--${layout}`}
       onSubmit={onSubmit}
       noValidate
       aria-labelledby={id('calc-title')}
     >
-      <h2 id={id('calc-title')} className="ssp-calc__title">Check a pay rate</h2>
+      <h2 id={id('calc-title')} className="ssp-calc__title">Compare a client’s pay rate</h2>
 
       <div className="ssp-calc__grid">
         <Field id={id('sector')} label="Sector" className="ssp-calc__sector">
@@ -211,7 +186,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
           </span>
         </Field>
 
-        <Field id={id('role')} label="Job" error={errors.role} className="ssp-calc__role">
+        <Field id={id('role')} label="Job Title" error={errors.role} className="ssp-calc__role">
           <span className="ssp-select">
             <select
               id={id('role')}
@@ -229,23 +204,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
           </span>
         </Field>
 
-        {collapsibleLocal && narrow && (
-          <div className="ssp-calc__disclosure">
-            <button
-              type="button"
-              className="ssp-calc__toggle"
-              aria-expanded={!collapsed}
-              aria-controls={id('local')}
-              onClick={() => setLocalOpen((value) => !value)}
-            >
-              <span className="ssp-calc__toggle-icon" aria-hidden="true">{collapsed ? '+' : '−'}</span>
-              <span>Make this local</span>
-              <span className="ssp-calc__toggle-value">{localSummary}</span>
-            </button>
-          </div>
-        )}
-
-        <div id={id('local')} className="ssp-calc__local" hidden={collapsed}>
+        <div id={id('local')} className="ssp-calc__local">
           <Field id={id('state')} label="State" className="ssp-calc__state">
             <span className="ssp-select">
               <select id={id('state')} ref={stateRef} value={selection.state || ''} onChange={onState}>
@@ -276,7 +235,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
           </Field>
         </div>
 
-        <Field id={id('rate')} label="Your hourly pay" error={errors.rate} className="ssp-calc__rate">
+        <Field id={id('rate')} label="Enter Client Pay Rate" error={errors.rate} className="ssp-calc__rate">
           <span className={`ssp-money${errors.rate ? ' has-error' : ''}`}>
             <span className="ssp-money__prefix" aria-hidden="true">$</span>
             <input
@@ -296,10 +255,19 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
         </Field>
 
         <div className="ssp-calc__submit">
-          <button id={id('check')} type="submit" className="ssp-btn ssp-btn--primary ssp-btn--lg ssp-btn--block" aria-busy={busy ? 'true' : undefined}>
-            Check my rate <span aria-hidden="true">→</span>
+          <button
+            id={id('check')}
+            type="submit"
+            className="ssp-btn ssp-btn--primary ssp-btn--lg ssp-btn--block"
+            aria-busy={busy ? 'true' : undefined}
+            aria-describedby={signedIn ? undefined : id('account-hint')}
+          >
+            Create Client Pay Report <span aria-hidden="true">→</span>
           </button>
         </div>
+        {!signedIn && (
+          <p id={id('account-hint')} className="ssp-calc__hint">Free account to create, print, download or email the report</p>
+        )}
       </div>
 
       <p className="ssp-calc__examples">
@@ -318,7 +286,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
           <h3 className="ssp-calc__about-title">What you're comparing</h3>
           <ul>
             <li>Advertised hourly pay in staffing-firm job postings, not actual pay.</li>
-            <li>The band shows the middle half of advertised rates (25th to 75th percentile) and the typical advertised rate.</li>
+            <li>Market Low, Median and High are the 25th percentile, median and 75th percentile of advertised rates.</li>
             <li>No direct-employer postings. Not a prediction of whether an order will fill.</li>
           </ul>
         </div>
@@ -328,7 +296,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', collapsi
           <rect x="4" y="9" width="12" height="9" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
           <path d="M7 9V6.5a3 3 0 0 1 6 0V9" fill="none" stroke="currentColor" strokeWidth="1.8" />
         </svg>
-        <span>Your rate stays in this browser. It is not sent to our servers, saved or put in links.</span>
+        <span>{PRIVACY_PROMISE}</span>
       </p>
     </form>
   )

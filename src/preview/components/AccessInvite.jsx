@@ -3,13 +3,16 @@ import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import { ACCESS } from '../../../shared/signal/contract.js'
 import { geographyLabel } from '../../../shared/signal/geography.js'
 import { roleByKey } from '../../../shared/signal/taxonomy.js'
+import { isReportReturn } from '../lib/reportGate.js'
 import SignupForm from './SignupForm.jsx'
 import '../styles/sections.css'
 
-// Free-access invitation. Name + work email + password (preferences come after
-// signup, which signs the visitor in straight away). When the visitor has a
-// comparison in progress we say where we'll bring them back to — job and place
-// only, never the rate. Signed-in visitors see a short confirmation instead.
+// Free-account invitation. Name + work email + password (preferences come after
+// signup, which signs the visitor in straight away). Local pay comparisons are
+// free; the account is for creating, printing, downloading and emailing Client
+// Pay Market Reports plus The Monthly Signal. When the visitor has a comparison
+// or report in progress we say where we'll take them — job and place only,
+// never the rate. Signed-in visitors see a short confirmation instead.
 
 export function returnLine(context) {
   if (!context || !context.roleKey) return null
@@ -40,14 +43,14 @@ export default function AccessInvite({ context = null, signedUp = false }) {
           <div className="ssp-invite__intro">
             <span className="ssp-invite__icon"><PlaneIcon /></span>
             <div>
-              <h2 id="ssp-invite-title" className="ssp-h2">Check today's rate. Keep up with tomorrow's market.</h2>
+              <h2 id="ssp-invite-title" className="ssp-h2">Turn pay data into a report your client can keep.</h2>
               <p className="ssp-invite__copy">
-                Unlock available local pay comparisons and full city rankings. Receive The Monthly Signal, a
-                five-minute briefing on staffing demand and advertised pay.
+                A free account lets you create, print, download and email Client Pay Market Reports, see full city
+                rankings, and receive The Monthly Signal, a five-minute briefing on staffing demand and advertised pay.
               </p>
               <p className="ssp-invite__copy ssp-muted">
-                Access doesn't mean every job and location has data. Where a benchmark doesn't pass our publication
-                checks, we say so instead of showing a guess.
+                Local pay comparisons stay free without an account. Not every job and location has data: where a
+                benchmark doesn't pass our publication checks, we say so instead of showing a guess.
               </p>
             </div>
           </div>
@@ -57,7 +60,7 @@ export default function AccessInvite({ context = null, signedUp = false }) {
               <div className="ssp-invite__done" role="status">
                 <p className="ssp-invite__donetitle">You're signed in.</p>
                 <p className="ssp-muted">
-                  Local comparisons and full rankings are unlocked on this device.
+                  You can create, print, download and email Client Pay Market Reports on this device.
                   {!site && ' Development preview: simulated. Nothing was saved and no email was sent.'}
                 </p>
                 <Link to={`${basePath(site)}/preferences`} className="ssp-btn ssp-btn--primary">
@@ -68,13 +71,14 @@ export default function AccessInvite({ context = null, signedUp = false }) {
               <>
                 {line && (
                   <p className="ssp-invite__context">
-                    We'll bring you back to: <strong>{line}</strong>
+                    {isReportReturn(context) ? 'Next, your report for: ' : "We'll bring you back to: "}
+                    <strong>{line}</strong>
                   </p>
                 )}
                 <SignupForm idPrefix="invite" context={context} />
                 <p className="ssp-invite__next ssp-muted">Next, you can choose the sectors and markets you follow.</p>
                 <p className="ssp-invite__next ssp-muted">
-                  Already have free access? <Link to={`${basePath(site)}/sign-in`} className="ssp-link">Sign in</Link>
+                  Already have an account? <Link to={`${basePath(site)}/sign-in`} className="ssp-link">Sign in</Link>
                 </p>
               </>
             )}

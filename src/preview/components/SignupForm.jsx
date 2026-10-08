@@ -1,21 +1,28 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import { signup } from '../api.js'
-import { STATES, stateByCode } from '../../../shared/signal/geography.js'
+import { CITY_OTHER, checkPicker, pickerFromSelection, pickerToRequest } from '../../../shared/signal/area.js'
 import { EVENTS, track } from '../lib/track.js'
 import { PASSWORD_HINT, passwordProblem } from '../lib/password.js'
 import PasswordField from './PasswordField.jsx'
+import AreaFields from './AreaFields.jsx'
 
-// Name + Work email + Password + newsletter choice. A successful signup signs
-// the visitor in straight away (no email is sent). In the dev preview the
+// Name + Work email + Password + State + City + newsletter choice. State and
+// city are required: The Monthly Signal is sent by area (AreaFields; the rules
+// are shared with the API in shared/signal/area.js). They are prefilled from
+// the visitor's search (context) until the visitor changes them.
+// A successful signup signs the visitor in straight away (no email is sent).
+// In the dev preview the
 // signup is simulated: nothing is saved to Airtable. Name, email and password
 // live only in this form's local state and are cleared after a successful
-// submit; the password is never trimmed, logged or tracked.
+// submit; the password is never trimmed, logged or tracked. After signup,
+// returnAfterAuth opens a pending Client Pay Market Report, else returns to
+// the comparison the visitor was on.
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
-function validate({ name, email, password }) {
+function validate({ name, email, password, area }) {
   const errors = {}
   const trimmedName = name.trim()
   if (trimmedName === '') errors.name = 'Enter your name.'
@@ -25,13 +32,19 @@ function validate({ name, email, password }) {
   else if (trimmedEmail.length > 254 || !EMAIL_PATTERN.test(trimmedEmail)) errors.email = 'Enter a work email like name@company.com.'
   const pw = passwordProblem(password)
   if (pw) errors.password = pw
+  const where = checkPicker(area)
+  if (!where.ok) Object.assign(errors, where.errors)
   return errors
 }
 
-const FIELD_KEYS = ['name', 'email', 'password']
-const FIELD_FALLBACK = { name: 'Check your name.', email: 'Check your work email.', password: 'Check your password.' }
+const FIELD_KEYS = ['name', 'email', 'password', 'state', 'city']
+const FIELD_FALLBACK = { name: 'Check your name.', email: 'Check your work email.', password: 'Check your password.', state: 'Choose your state.', city: 'Check your city.' }
+const ERROR_ORDER = ['name', 'email', 'password', 'state', 'city', 'cityText']
+const hasErrors = (errs) => ERROR_ORDER.some((key) => errs[key])
 
-function serverFieldErrors(err) {
+// Server field errors -> form errors. A city error belongs to the "Your city"
+// box when the visitor typed their city.
+function serverFieldErrors(err, typedCity) {
   const details = err?.details || {}
   const out = {}
   const fields = details.fields || details.fieldErrors || null
@@ -45,19 +58,23 @@ function serverFieldErrors(err) {
   if (typeof details.field === 'string' && FIELD_KEYS.includes(details.field) && !out[details.field]) {
     out[details.field] = details.message || FIELD_FALLBACK[details.field]
   }
+  if (out.city && typedCity) {
+    out.cityText = out.city
+    delete out.city
+  }
   return out
 }
 
-export default function SignupForm({ idPrefix = 'signup', context = null, onSuccess }) {
-  const { markSignedUp, reloadSnapshot, returnToComparison, variant, site: siteMount } = usePreview()
+export default function SignupForm({ idPrefix = 'signup', context = null, onSuccess, submitLabel = 'Sign up free' }) {
+  const { markSignedUp, reloadSnapshot, returnAfterAuth, variant, site: siteMount } = usePreview()
   const site = FORCE_SITE || siteMount
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [newsletter, setNewsletter] = useState(true)
-  // Optional area: leads the monthly report and email with local trends.
-  const [areaState, setAreaState] = useState(context?.state && stateByCode(context.state) ? context.state : '')
-  const [areaCity, setAreaCity] = useState('')
+  // Required area: The Monthly Signal is sent by state and city.
+  const [area, setArea] = useState(() => pickerFromSelection(context))
+  const areaTouched = useRef(false)
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   // The email already has an account: offer Sign in / Forgot password.
@@ -67,13 +84,28 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
   const nameRef = useRef(null)
   const emailRef = useRef(null)
   const passwordRef = useRef(null)
+  const areaRefs = { state: useRef(null), city: useRef(null), cityText: useRef(null) }
   const id = (field) => `${idPrefix}-${field}`
   const base = basePath(site)
 
+  // Follow the visitor's latest search until they pick an area themselves.
+  const contextState = context?.state || ''
+  const contextCity = context?.city || ''
+  useEffect(() => {
+    if (!areaTouched.current) setArea(pickerFromSelection({ state: contextState, city: contextCity }))
+  }, [contextState, contextCity])
+
   function focusFirst(errs) {
-    if (errs.name) nameRef.current?.focus()
-    else if (errs.email) emailRef.current?.focus()
-    else if (errs.password) passwordRef.current?.focus()
+    const refs = { name: nameRef, email: emailRef, password: passwordRef, ...areaRefs }
+    const first = ERROR_ORDER.find((key) => errs[key])
+    if (first) refs[first].current?.focus()
+  }
+
+  function onAreaChange(next, field) {
+    areaTouched.current = true
+    setArea(next)
+    const clear = field === 'state' ? ['state', 'city', 'cityText'] : field === 'city' ? ['city', 'cityText'] : ['cityText']
+    if (clear.some((key) => errors[key])) setErrors((prev) => ({ ...prev, ...Object.fromEntries(clear.map((key) => [key, undefined])) }))
   }
 
   async function onSubmit(event) {
@@ -83,18 +115,18 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
       started.current = true
       track(EVENTS.SIGNUP_STARTED, { variant, roleKey: context?.roleKey || undefined })
     }
-    const errs = validate({ name, email, password })
+    const errs = validate({ name, email, password, area })
     setErrors(errs)
     setFormError('')
     setAccountExists(false)
-    if (errs.name || errs.email || errs.password) {
+    if (hasErrors(errs)) {
       focusFirst(errs)
       return
     }
     setSubmitting(true)
     let result
     try {
-      result = await signup({ name: name.trim(), email: email.trim(), password, newsletter, context, state: areaState, city: areaState ? areaCity.trim().slice(0, 80) : '' })
+      result = await signup({ name: name.trim(), email: email.trim(), password, newsletter, context, ...pickerToRequest(area) })
     } catch (err) {
       setSubmitting(false)
       if (err?.status === 409 || err?.code === 'account_exists') {
@@ -105,8 +137,8 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
         setFormError('Too many attempts. Please wait a few minutes and try again.')
         return
       }
-      const fieldErrs = serverFieldErrors(err)
-      if (fieldErrs.name || fieldErrs.email || fieldErrs.password) {
+      const fieldErrs = serverFieldErrors(err, area.city === CITY_OTHER)
+      if (hasErrors(fieldErrs)) {
         setErrors(fieldErrs)
         focusFirst(fieldErrs)
       } else {
@@ -118,7 +150,6 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
     setName('')
     setEmail('')
     setPassword('')
-    setAreaCity('')
     markSignedUp()
     await reloadSnapshot()
     setSubmitting(false)
@@ -129,7 +160,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
       newsletter: result?.newsletter === true,
       message: typeof result?.message === 'string' ? result.message : ''
     }
-    const returned = returnToComparison(context)
+    const returned = returnAfterAuth(context)
     if (typeof onSuccess === 'function') onSuccess({ ...safeResult, returned })
   }
 
@@ -193,21 +224,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
             if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }))
           }}
         />
-        <div className="ssp-field">
-          <label htmlFor={id('state')} className="ssp-field__label">State <span className="ssp-muted">(optional)</span></label>
-          <select id={id('state')} className="ssp-input" value={areaState} autoComplete="address-level1"
-            onChange={(e) => { setAreaState(e.target.value); if (!e.target.value) setAreaCity('') }}>
-            <option value="">Choose your state</option>
-            {STATES.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
-          </select>
-        </div>
-        <div className="ssp-field">
-          <label htmlFor={id('city')} className="ssp-field__label">City <span className="ssp-muted">(optional)</span></label>
-          <input id={id('city')} className="ssp-input" type="text" autoComplete="address-level2" maxLength={80}
-            value={areaCity} disabled={!areaState} placeholder={areaState ? 'e.g. Houston' : 'Choose a state first'}
-            onChange={(e) => setAreaCity(e.target.value)} aria-describedby={id('area-hint')} />
-        </div>
-        <p id={id('area-hint')} className="ssp-muted ssp-signup__hint">Add your area and The Monthly Signal leads with your local trends.</p>
+        <AreaFields idPrefix={idPrefix} value={area} onChange={onAreaChange} errors={errors} refs={areaRefs} />
       </div>
 
       <div className="ssp-check">
@@ -218,13 +235,13 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
           onChange={(e) => setNewsletter(e.target.checked)}
         />
         <label htmlFor={id('newsletter')}>
-          Email me The Monthly Signal (monthly). You can unsubscribe anytime; free access stays.
+          Email me The Monthly Signal (monthly). You can unsubscribe anytime; your free account stays.
         </label>
       </div>
 
       <div className="ssp-signup__actions">
         <button type="submit" className="ssp-btn ssp-btn--primary ssp-btn--lg" disabled={submitting} aria-busy={submitting ? 'true' : undefined}>
-          {submitting ? 'Getting access…' : 'Get free access'}
+          {submitting ? 'Signing up…' : submitLabel}
         </button>
       </div>
 

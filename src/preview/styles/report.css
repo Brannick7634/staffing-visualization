@@ -1,0 +1,1424 @@
+/* ==========================================================================
+   Client Pay Market Report: /client-report, /sample-report, the two-page
+   printable report (.ssp-report-page) and the email dialog (.ssp-email).
+   Report pages use pt so screen, print and the PDF (shared/signal/
+   clientReportPdf.js) share one set of measurements.
+   ========================================================================== */
+
+/* ---------- Page shell: toolbar, side panel, panels ---------- */
+
+.ssp-report {
+  padding: 28px 0 72px;
+}
+
+.ssp-report__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.ssp-report__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--link);
+  font-weight: 600;
+  font-size: 14.5px;
+  text-decoration: none;
+}
+
+.ssp-report__back:hover {
+  text-decoration: underline;
+}
+
+.ssp-report__heading {
+  flex: 1 1 260px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ssp-report__heading span {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.ssp-report__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ssp-report__error {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid #F0C7CB;
+  border-radius: var(--radius-control);
+  background: #FDF2F3;
+  color: var(--error);
+  font-size: 14px;
+}
+
+.ssp-report__layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.ssp-report__side {
+  position: sticky;
+  top: 16px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.ssp-report__summary {
+  display: grid;
+  gap: 10px;
+}
+
+.ssp-report__summary dt {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ssp-report__summary dd {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.ssp-report__change {
+  display: inline-block;
+  margin: 10px 0 0;
+  font-size: 14px;
+}
+
+.ssp-report__prepared {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.ssp-report__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.ssp-report__pages {
+  min-width: 0;
+}
+
+.ssp-report__pages--solo {
+  max-width: 8.5in;
+  margin: 0 auto;
+}
+
+.ssp-report__intro {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  max-width: 8.5in;
+  margin: 0 auto 28px;
+}
+
+.ssp-report__intro .ssp-page__title {
+  margin: 0;
+}
+
+.ssp-report__lede {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.ssp-report__cta {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  max-width: 8.5in;
+  margin: 32px auto 0;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.ssp-report__cta p {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.ssp-report-panel {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.ssp-report-panel__title {
+  margin: 0 0 8px;
+  font-family: var(--font-heading);
+  font-size: 24px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.ssp-report-panel__text {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.ssp-report-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin: 18px 0 0;
+}
+
+/* ---------- The printable pages ---------- */
+
+.ssp-report-doc {
+  display: grid;
+  gap: 24px;
+  justify-content: center;
+}
+
+.ssp-report-page {
+  position: relative;
+  box-sizing: border-box;
+  width: 8.5in;
+  min-height: 11in;
+  padding: 34pt 42pt 44pt;
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 6px rgba(16, 42, 67, 0.06), 0 12px 32px rgba(16, 42, 67, 0.08);
+  color: #243B53;
+  font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9pt;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.ssp-report-page :where(ul, ol) {
+  list-style: none;
+}
+
+.ssp-report-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12pt;
+}
+
+.ssp-report-brand__mark {
+  display: flex;
+  align-items: center;
+  gap: 7pt;
+}
+
+.ssp-report-brand__mark > span {
+  display: grid;
+}
+
+.ssp-report-brand__name {
+  font-weight: 700;
+  font-size: 13pt;
+  line-height: 1.1;
+  color: #102A43;
+}
+
+.ssp-report-brand--slim .ssp-report-brand__name {
+  font-size: 10pt;
+}
+
+.ssp-report-brand__tag {
+  font-size: 7.5pt;
+  color: #52647A;
+}
+
+.ssp-report-brand__site {
+  font-size: 8pt;
+  color: #52647A;
+  text-align: right;
+}
+
+.ssp-report-logo {
+  flex: none;
+}
+
+.ssp-report-rule {
+  height: 2pt;
+  margin: 8pt 0 12pt;
+  background: #102A43;
+}
+
+.ssp-report-rule--thin {
+  height: 1pt;
+  margin: 6pt 0 12pt;
+  background: #DCE5EE;
+}
+
+.ssp-report-sample {
+  margin: 0 0 10pt;
+  padding: 4pt 8pt;
+  border: 1px solid #EFD7A6;
+  border-radius: 4pt;
+  background: #FFF7E6;
+  color: #8A5A10;
+  font-size: 8pt;
+}
+
+.ssp-report-sample strong {
+  margin-right: 8pt;
+  font-size: 8.5pt;
+  letter-spacing: 0.12em;
+}
+
+.ssp-report-title {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 21pt;
+  line-height: 1.15;
+  color: #102A43;
+}
+
+.ssp-report-subtitle {
+  margin-top: 1pt;
+  font-size: 9.5pt;
+  color: #52647A;
+}
+
+.ssp-report-kicker,
+.ssp-report-meta dt,
+.ssp-report-prepared dt {
+  font-weight: 700;
+  font-size: 7pt;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: #52647A;
+}
+
+.ssp-report-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4pt 28pt;
+  margin: 8pt 0 7pt;
+}
+
+.ssp-report-meta dd,
+.ssp-report-prepared dd {
+  margin: 0;
+  font-size: 9.5pt;
+  color: #132B45;
+  overflow-wrap: anywhere;
+}
+
+.ssp-report-prepared {
+  display: flex;
+  gap: 8pt;
+  margin: 0 0 7pt;
+  padding: 4pt 8pt;
+  border: 1px solid #DCE5EE;
+  border-radius: 4pt;
+  background: #F0F4F8;
+}
+
+.ssp-report-prepared > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.ssp-report-role__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8pt;
+  margin: 0 0 4pt;
+}
+
+.ssp-report-role__line strong {
+  font-size: 14pt;
+  line-height: 1.2;
+  color: #132B45;
+}
+
+.ssp-report-role__line span {
+  font-size: 9pt;
+  color: #52647A;
+}
+
+/* Small-sample caution under the "from N staffing firms" line: a quiet amber
+   line, lighter than the bordered fallback note below it. */
+.ssp-report-limited {
+  display: table;
+  margin: 0 0 3pt;
+  padding: 2pt 6pt;
+  border-radius: 3pt;
+  background: #FFF7E6;
+  color: #8A5A10;
+  font-size: 8pt;
+  line-height: 1.25;
+}
+
+.ssp-report-note {
+  margin: 0 0 2pt;
+  padding: 4pt 8pt;
+  border: 1px solid #EFD7A6;
+  border-radius: 4pt;
+  background: #FFF7E6;
+  color: #8A5A10;
+  font-size: 8.5pt;
+}
+
+.ssp-report-h {
+  margin: 8pt 0 4pt;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 8.5pt;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #16426E;
+}
+
+.ssp-report-section--first .ssp-report-h {
+  margin-top: 0;
+}
+
+.ssp-report-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6pt;
+}
+
+.ssp-report-tile {
+  display: grid;
+  align-content: start;
+  padding: 6pt 8pt;
+  border: 1px solid #DCE5EE;
+  border-radius: 5pt;
+}
+
+.ssp-report-tile--client {
+  border-color: #B9D1EC;
+  background: #E8F0FA;
+}
+
+.ssp-report-tile--caution {
+  border-color: #EFD7A6;
+  background: #FFF7E6;
+}
+
+.ssp-report-tile__label {
+  font-weight: 700;
+  font-size: 8pt;
+  color: #132B45;
+}
+
+.ssp-report-tile__sub {
+  font-size: 7pt;
+  color: #52647A;
+}
+
+.ssp-report-tile--caution .ssp-report-tile__sub {
+  font-weight: 700;
+  color: #8A5A10;
+}
+
+.ssp-report-tile__value {
+  margin-top: 3pt;
+  font-weight: 700;
+  font-size: 16pt;
+  line-height: 1.15;
+  color: #102A43;
+  white-space: nowrap;
+}
+
+.ssp-report-tile--caution .ssp-report-tile__value {
+  color: #8A5A10;
+}
+
+.ssp-report-tile__value span {
+  font-weight: 400;
+  font-size: 8pt;
+  color: #52647A;
+}
+
+/* Client pay position bar */
+
+.ssp-report-positionrow {
+  display: flex;
+  align-items: stretch;
+  gap: 12pt;
+}
+
+.ssp-report-bar {
+  flex: 1;
+  min-width: 0;
+}
+
+.ssp-report-bar__visual {
+  position: relative;
+  height: 66pt;
+}
+
+.ssp-report-bar__client {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-weight: 700;
+  font-size: 8pt;
+  color: #102A43;
+  white-space: nowrap;
+}
+
+.ssp-report-bar--caution .ssp-report-bar__client {
+  color: #8A5A10;
+}
+
+.ssp-report-bar__track {
+  position: absolute;
+  top: 15pt;
+  left: 0;
+  right: 0;
+  height: 14pt;
+  overflow: hidden;
+  border-radius: 2pt;
+}
+
+.ssp-report-bar__zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.ssp-report-bar__zone--below {
+  background: #F3D9A4;
+}
+
+.ssp-report-bar__zone--within {
+  background: #DCE5EE;
+}
+
+.ssp-report-bar__zone--above {
+  background: #B9D1EC;
+}
+
+.ssp-report-bar__marker {
+  position: absolute;
+  top: 11pt;
+  width: 2.5pt;
+  height: 22pt;
+  transform: translateX(-50%);
+  background: #102A43;
+}
+
+.ssp-report-bar--caution .ssp-report-bar__marker {
+  background: #8A5A10;
+}
+
+.ssp-report-bar__tick {
+  position: absolute;
+  top: 29pt;
+  width: 1px;
+  height: 5pt;
+  transform: translateX(-50%);
+  background: #52647A;
+}
+
+.ssp-report-bar__ticklabel {
+  position: absolute;
+  top: 35pt;
+  display: grid;
+  transform: translateX(-50%);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ssp-report-bar__ticklabel span {
+  font-size: 7pt;
+  color: #52647A;
+}
+
+.ssp-report-bar__ticklabel strong {
+  font-size: 8pt;
+  color: #132B45;
+}
+
+.ssp-report-bar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3pt 10pt;
+  margin-top: 3pt;
+  font-size: 7pt;
+  color: #52647A;
+}
+
+.ssp-report-bar__legend li {
+  display: flex;
+  align-items: center;
+  gap: 3pt;
+}
+
+.ssp-report-bar__swatch {
+  position: static;
+  display: inline-block;
+  width: 8pt;
+  height: 8pt;
+  border-radius: 1.5pt;
+}
+
+.ssp-report-gap {
+  flex: none;
+  width: 150pt;
+  box-sizing: border-box;
+  padding: 6pt 8pt;
+  border: 1px solid #B9D1EC;
+  border-radius: 5pt;
+  background: #E8F0FA;
+  color: #16426E;
+}
+
+.ssp-report-gap--caution {
+  border-color: #EFD7A6;
+  background: #FFF7E6;
+  color: #8A5A10;
+}
+
+.ssp-report-gap__amount {
+  margin-top: 2pt;
+  font-weight: 700;
+  font-size: 15pt;
+  line-height: 1.15;
+}
+
+.ssp-report-gap__short {
+  margin-top: 1pt;
+  font-weight: 700;
+  font-size: 8.5pt;
+}
+
+.ssp-report-gap__sentence {
+  margin-top: 3pt;
+  font-size: 8pt;
+  line-height: 1.35;
+  color: #243B53;
+}
+
+.ssp-report-body {
+  font-size: 9.5pt;
+  line-height: 1.4;
+  color: #243B53;
+}
+
+.ssp-report-body--small {
+  font-size: 8pt;
+}
+
+.ssp-report-body--small + .ssp-report-body--small {
+  margin-top: 3pt;
+}
+
+/* Pay competitiveness scale */
+
+.ssp-report-scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4pt;
+}
+
+.ssp-report-step {
+  display: grid;
+  align-content: start;
+  padding: 5pt;
+  border: 1px solid #DCE5EE;
+  border-radius: 4pt;
+  background: #F0F4F8;
+}
+
+.ssp-report-step.is-active {
+  border: 1.5pt solid #1E5FAA;
+  background: #E8F0FA;
+}
+
+.ssp-report-step.is-warn {
+  border-color: #8A5A10;
+  background: #FFF7E6;
+}
+
+.ssp-report-step__flag {
+  margin-bottom: 2pt;
+  font-weight: 700;
+  font-size: 6pt;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #1E5FAA;
+}
+
+.ssp-report-step.is-warn .ssp-report-step__flag,
+.ssp-report-step.is-warn .ssp-report-step__label {
+  color: #8A5A10;
+}
+
+.ssp-report-step__label {
+  font-weight: 700;
+  font-size: 7.5pt;
+  color: #132B45;
+}
+
+.ssp-report-step__rule {
+  margin-top: 1pt;
+  font-size: 6.5pt;
+  color: #52647A;
+}
+
+.ssp-report-levelline {
+  margin-top: 3pt;
+  font-size: 8.5pt;
+}
+
+/* Recommended ranges */
+
+.ssp-report-ranges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6pt;
+}
+
+.ssp-report-range {
+  display: grid;
+  padding: 6pt 9pt;
+  border: 1px solid #B9D1EC;
+  border-radius: 5pt;
+  background: #E8F0FA;
+}
+
+.ssp-report-range__label {
+  font-weight: 700;
+  font-size: 8.5pt;
+  color: #16426E;
+}
+
+.ssp-report-range__value {
+  margin-top: 2pt;
+  font-weight: 700;
+  font-size: 14pt;
+  line-height: 1.2;
+  color: #102A43;
+}
+
+.ssp-report-range__rule {
+  margin-top: 1pt;
+  font-size: 7.5pt;
+  color: #52647A;
+}
+
+.ssp-report-small {
+  margin-top: 3pt;
+  font-size: 7.5pt;
+  color: #52647A;
+}
+
+.ssp-report-foot {
+  position: absolute;
+  left: 42pt;
+  right: 42pt;
+  bottom: 22pt;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12pt;
+  padding-top: 5pt;
+  border-top: 1px solid #DCE5EE;
+  font-size: 7pt;
+  color: #52647A;
+}
+
+.ssp-report-foot > span:last-child {
+  flex: none;
+  white-space: nowrap;
+}
+
+.ssp-report-foot__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4pt;
+}
+
+/* Page 2: market activity, trend, definitions */
+
+.ssp-report-lead {
+  margin: 0 0 4pt;
+  font-size: 8.5pt;
+}
+
+.ssp-report-cards {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 6pt;
+}
+
+.ssp-report-card {
+  display: grid;
+  align-content: start;
+  padding: 6pt 8pt;
+  border: 1px solid #DCE5EE;
+  border-radius: 5pt;
+}
+
+.ssp-report-card__value {
+  font-weight: 700;
+  font-size: 15pt;
+  line-height: 1.2;
+  color: #102A43;
+}
+
+.ssp-report-card__value--heating {
+  color: #B42336;
+}
+
+.ssp-report-card__value--cooling {
+  color: #1D5EA8;
+}
+
+.ssp-report-card__label {
+  margin-top: 1pt;
+  font-size: 7.5pt;
+  color: #132B45;
+}
+
+.ssp-report-card__note {
+  margin-top: 2pt;
+  font-size: 6.5pt;
+  color: #52647A;
+}
+
+.ssp-report-trend {
+  display: flex;
+  gap: 16pt;
+}
+
+.ssp-report-trend__series {
+  flex: 1;
+  min-width: 0;
+}
+
+.ssp-report-trend__name {
+  margin: 3pt 0;
+  font-weight: 700;
+  font-size: 8.5pt;
+  color: #132B45;
+}
+
+.ssp-report-trend__row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 3pt;
+  font-size: 7.5pt;
+}
+
+.ssp-report-trend__period {
+  flex: none;
+  width: 52pt;
+  color: #52647A;
+}
+
+.ssp-report-trend__track {
+  flex: 1;
+  height: 8pt;
+  border-radius: 1.5pt;
+  background: #F0F4F8;
+}
+
+.ssp-report-trend__bar {
+  display: block;
+  height: 100%;
+  border-radius: 1.5pt;
+  background: #16426E;
+}
+
+.ssp-report-trend__bar--state {
+  background: #1E5FAA;
+}
+
+.ssp-report-trend__value {
+  flex: none;
+  width: 64pt;
+  text-align: right;
+  color: #132B45;
+}
+
+.ssp-report-trend__value.is-empty {
+  color: #52647A;
+}
+
+.ssp-report-defs > div,
+.ssp-report-rulelist > div {
+  display: flex;
+  gap: 0;
+  margin-bottom: 2pt;
+  font-size: 8pt;
+  line-height: 1.35;
+}
+
+.ssp-report-defs dt {
+  flex: none;
+  width: 104pt;
+  font-weight: 700;
+  color: #132B45;
+}
+
+.ssp-report-defs dd,
+.ssp-report-rulelist dd {
+  flex: 1;
+  margin: 0;
+}
+
+.ssp-report-rules {
+  display: flex;
+  gap: 16pt;
+}
+
+.ssp-report-rules > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.ssp-report-rules > div:first-child {
+  flex: 1.15;
+}
+
+.ssp-report-rulelist dt {
+  flex: none;
+  width: 118pt;
+  font-weight: 700;
+  color: #132B45;
+}
+
+.ssp-report-rulelist--wide dt {
+  width: 132pt;
+}
+
+.ssp-report-sub {
+  margin: 5pt 0 3pt;
+  font-weight: 700;
+  font-size: 8pt;
+  color: #16426E;
+}
+
+.ssp-report-rules .ssp-report-body--small {
+  margin-top: 4pt;
+}
+
+/* ---------- Narrow screens: the pages reflow (print is unaffected) ---------- */
+/* 260px side panel + 24px gap + the 816px (8.5in) page + container padding
+   and a classic scrollbar need about 1150px, so stack below 1160px. */
+
+@media screen and (max-width: 1160px) {
+  .ssp-report__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ssp-report__side {
+    position: static;
+  }
+
+  .ssp-report__prepared {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .ssp-report__prepared .ssp-report__hint {
+    grid-column: 1 / -1;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  .ssp-report-doc {
+    justify-content: stretch;
+  }
+
+  .ssp-report-page {
+    width: 100%;
+    min-height: 0;
+    padding: 24px 20px;
+    font-size: 12px;
+  }
+
+  .ssp-report-foot {
+    position: static;
+    margin-top: 20px;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .ssp-report {
+    padding-top: 16px;
+  }
+
+  .ssp-report__toolbar {
+    padding: 10px 12px;
+  }
+
+  .ssp-report__actions {
+    width: 100%;
+  }
+
+  .ssp-report__actions .ssp-btn {
+    flex: 1 1 auto;
+  }
+
+  .ssp-report-page {
+    padding: 20px 16px;
+  }
+
+  .ssp-report-brand {
+    flex-wrap: wrap;
+  }
+
+  .ssp-report-brand__site {
+    text-align: left;
+  }
+
+  .ssp-report-prepared,
+  .ssp-report-positionrow,
+  .ssp-report-trend,
+  .ssp-report-rules {
+    flex-direction: column;
+  }
+
+  .ssp-report-gap {
+    width: auto;
+  }
+
+  .ssp-report-tiles,
+  .ssp-report-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row;
+  }
+
+  /* Three activity cards: the last takes the full row, no empty slot. */
+  .ssp-report-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .ssp-report-scale,
+  .ssp-report-ranges {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ssp-report-tile__value {
+    white-space: normal;
+  }
+
+  .ssp-report-step:not(.is-active) .ssp-report-step__flag {
+    display: none;
+  }
+
+  .ssp-report-defs > div,
+  .ssp-report-rulelist > div {
+    flex-direction: column;
+  }
+
+  .ssp-report-defs dt,
+  .ssp-report-rulelist dt,
+  .ssp-report-rulelist--wide dt {
+    width: auto;
+  }
+
+  .ssp-report-panel {
+    padding: 20px 18px;
+  }
+}
+
+/* ---------- Email dialog ---------- */
+
+.ssp-email {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.ssp-email__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 42, 67, 0.55);
+}
+
+.ssp-email__dialog {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 22px 24px 24px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: 0 24px 64px rgba(16, 42, 67, 0.3);
+  color: var(--ink);
+}
+
+.ssp-email__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.ssp-email__title {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.ssp-email__close {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px -10px 0 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.ssp-email__close:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.ssp-email__form {
+  display: grid;
+  gap: 16px;
+}
+
+.ssp-email__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 46px;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  cursor: text;
+}
+
+.ssp-email__chips:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ssp-field.has-error .ssp-email__chips {
+  border-color: var(--error);
+}
+
+.ssp-email__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px 2px 2px 10px;
+  border-radius: 999px;
+  background: var(--primary-tint);
+  color: var(--ink);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.ssp-email__chipx {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ssp-email__chipx:hover {
+  background: rgba(16, 42, 67, 0.08);
+  color: var(--ink);
+}
+
+.ssp-email__toinput {
+  flex: 1 1 160px;
+  min-width: 120px;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 15.5px;
+}
+
+.ssp-email__toinput:focus,
+.ssp-email__toinput:focus-visible {
+  outline: none;
+}
+
+.ssp-email__hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.ssp-email__hint--split {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ssp-email__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ssp-email__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+.ssp-email__subject {
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.ssp-email__optional {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.ssp-email__note {
+  min-height: 96px;
+  padding: 10px 12px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.ssp-email__attachment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.ssp-email__attachment svg {
+  flex: none;
+  color: var(--primary);
+}
+
+.ssp-email__problem {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.ssp-email__problem .ssp-email__error {
+  justify-self: stretch;
+}
+
+.ssp-email__error {
+  padding: 10px 12px;
+  border: 1px solid #F0C7CB;
+  border-radius: var(--radius-control);
+  background: #FDF2F3;
+  color: var(--error);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ssp-email__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ssp-email__done {
+  display: grid;
+  justify-items: start;
+  gap: 18px;
+}
+
+.ssp-email__success {
+  padding: 12px 14px;
+  border: 1px solid #B9D1EC;
+  border-radius: var(--radius-control);
+  background: var(--primary-tint);
+  color: var(--ink);
+  font-size: 15.5px;
+  line-height: 1.45;
+}
+
+@media screen and (max-width: 640px) {
+  .ssp-email {
+    align-items: flex-start;
+    padding: 8px;
+  }
+
+  .ssp-email__dialog {
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+    padding: 18px 16px 20px;
+  }
+
+  .ssp-email__actions .ssp-btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* ---------- Print: only the two report pages, one per US Letter sheet ----------
+   A named page keeps the zero margin to the report; other pages of the site
+   print with the browser's normal margins. */
+
+@page ssp-report {
+  size: letter;
+  margin: 0;
+}
+
+@media print {
+  body.ssp-report-print,
+  body.ssp-report-print .ssp {
+    margin: 0;
+    padding: 0;
+    min-height: 0;
+    background: #FFFFFF !important;
+  }
+
+  body.ssp-report-print .ssp {
+    display: block;
+  }
+
+  body.ssp-report-print .ssp > :not(.ssp-main),
+  body.ssp-report-print .ssp-main > :not(.ssp-report),
+  body.ssp-report-print .ssp-report > .ssp-container > :not(.ssp-report__layout):not(.ssp-report__pages),
+  body.ssp-report-print .ssp-report__side,
+  body.ssp-report-print .ssp-email {
+    display: none !important;
+  }
+
+  body.ssp-report-print .ssp-report,
+  body.ssp-report-print .ssp-report .ssp-container,
+  body.ssp-report-print .ssp-report__layout,
+  body.ssp-report-print .ssp-report__pages {
+    display: block;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.ssp-report-print .ssp-report-doc {
+    display: block;
+  }
+
+  body.ssp-report-print .ssp-report-page {
+    page: ssp-report;
+    width: 8.5in;
+    height: 11in;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    overflow: hidden;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.ssp-report-print .ssp-report-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  body.ssp-report-print .ssp-report-page * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Browsers without named pages keep their own margins: let the pages flow
+     inside them rather than clip a fixed 8.5 x 11 in box. */
+  @supports not (page: ssp-report) {
+    body.ssp-report-print .ssp-report-page {
+      width: auto;
+      height: auto;
+      padding: 0;
+      overflow: visible;
+    }
+
+    body.ssp-report-print .ssp-report-foot {
+      position: static;
+      margin-top: 16pt;
+    }
+  }
+}

@@ -1,14 +1,17 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { formatCents } from '../../../shared/signal/money.js'
 import { bandGeometry, classifyRate, placeLabels, VERDICT } from '../../../shared/signal/payBand.js'
+import { POSITION_LABELS } from '../../../shared/signal/clientReport.js'
 
-// A horizontal advertised-pay band on ONE truthful dollar scale. P25/P75 shade
-// the middle half, the typical rate is a tick, and the visitor's rate is a
-// marker on the same scale. Labels are de-collided (marker positions never
-// move) and connected to their ticks with leader lines. The visual is hidden
-// from assistive tech; a text equivalent is rendered instead.
+// A horizontal advertised-pay band on ONE truthful dollar scale. The track is
+// split into three zones (Below market / Market range / Above market) at the
+// market low (P25) and high (P75), the median is a tick, and the client's rate
+// is a marker on the same scale. Labels are de-collided (marker positions
+// never move) and connected to their ticks with leader lines. The visual is
+// hidden from assistive tech; a text equivalent is rendered instead.
 
-const CAPTIONS = { p25: '25th pct', typical: 'typical', p75: '75th pct' }
+const CAPTIONS = { p25: 'Low', typical: 'Median', p75: 'High' }
+const ZONES = ['below', 'within', 'above']
 const FALLBACK = { width: 0, labelWidth: 78, pillWidth: 120 }
 
 function clamp(value, lo, hi) {
@@ -34,19 +37,19 @@ function textEquivalent({ geographyLabel, rateCents, p25Cents, typicalCents, p75
   const geo = geographyLabel && geographyLabel !== 'Nationwide' ? `${geographyLabel} advertised-pay band.` : 'Nationwide advertised-pay band.'
   const parts = [
     geo,
-    `Middle half of advertised rates: ${formatCents(p25Cents)} (25th percentile) to ${formatCents(p75Cents)} (75th percentile).`
+    `Market range: ${formatCents(p25Cents)} (market low, 25th percentile) to ${formatCents(p75Cents)} (market high, 75th percentile).`
   ]
-  if (Number.isSafeInteger(typicalCents)) parts.push(`Typical advertised rate: ${formatCents(typicalCents)}.`)
+  if (Number.isSafeInteger(typicalCents)) parts.push(`Market median: ${formatCents(typicalCents)}.`)
   if (Number.isSafeInteger(rateCents)) {
     const rate = formatCents(rateCents)
-    if (verdict === VERDICT.BELOW) parts.push(`Your rate, ${rate}, is below the lower end of the range.`)
-    else if (verdict === VERDICT.ABOVE) parts.push(`Your rate, ${rate}, is above the upper end of the range.`)
-    else if (verdict === VERDICT.WITHIN) parts.push(`Your rate, ${rate}, falls inside the range.`)
+    if (verdict === VERDICT.BELOW) parts.push(`The client's rate, ${rate}, is below the market range.`)
+    else if (verdict === VERDICT.ABOVE) parts.push(`The client's rate, ${rate}, is above the market range.`)
+    else if (verdict === VERDICT.WITHIN) parts.push(`The client's rate, ${rate}, falls inside the market range.`)
   }
   return parts.join(' ')
 }
 
-export default function PayBand({ rateCents = null, p25Cents, typicalCents = null, p75Cents, geographyLabel }) {
+export default function PayBand({ rateCents = null, p25Cents, typicalCents = null, p75Cents, geographyLabel, legend = true }) {
   const wrapRef = useRef(null)
   const labelRefs = useRef({})
   const pillRef = useRef(null)
@@ -98,6 +101,11 @@ export default function PayBand({ rateCents = null, p25Cents, typicalCents = nul
 
   const verdictClass = verdict ? ` ssp-band--${verdict}` : ''
   const { band } = geometry
+  const zoneWidths = {
+    below: band.fromPct,
+    within: Math.max(0, band.toPct - band.fromPct),
+    above: Math.max(0, 100 - band.toPct)
+  }
 
   return (
     <figure className={`ssp-band${verdictClass}`}>
@@ -105,16 +113,17 @@ export default function PayBand({ rateCents = null, p25Cents, typicalCents = nul
         {rateMarker && (
           <div className="ssp-band__rate-row">
             <span className="ssp-band__pill ssp-num" ref={pillRef} style={{ left: `${pillPct}%` }}>
-              <span className="ssp-band__pill-label">Your rate</span> {formatCents(rateMarker.cents)}
+              <span className="ssp-band__pill-label">Client</span> {formatCents(rateMarker.cents)}
             </span>
             <span className="ssp-band__stem" style={{ left: `${rateMarker.xPct}%` }} />
           </div>
         )}
         <div className="ssp-band__track">
-          <span
-            className="ssp-band__range"
-            style={{ left: `${band.fromPct}%`, width: `${Math.max(0, band.toPct - band.fromPct)}%` }}
-          />
+          <span className="ssp-band__zones">
+            {ZONES.map((zone) => (
+              <span key={zone} className={`ssp-band__zone ssp-band__zone--${zone}`} style={{ width: `${zoneWidths[zone]}%` }} />
+            ))}
+          </span>
           {tickMarkers.map((m) => (
             <span key={m.key} className={`ssp-band__tick ssp-band__tick--${m.key}`} style={{ left: `${m.xPct}%` }} />
           ))}
@@ -147,6 +156,16 @@ export default function PayBand({ rateCents = null, p25Cents, typicalCents = nul
             </span>
           ))}
         </div>
+        {legend && (
+          <ul className="ssp-band__legend">
+            {ZONES.map((zone) => (
+              <li key={zone} className={`ssp-band__key ssp-band__key--${zone}${verdict === zone ? ' is-current' : ''}`}>
+                <span className="ssp-band__swatch" />
+                {POSITION_LABELS[zone]}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       <figcaption className="ssp-visually-hidden">
         {textEquivalent({ geographyLabel, rateCents, p25Cents, typicalCents, p75Cents, verdict })}

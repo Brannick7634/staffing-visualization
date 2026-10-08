@@ -21,6 +21,8 @@ const ENV = {
 }
 const NO_MAIL_ENV = { AIRTABLE_API_KEY: 'patTEST', SIGNAL_SESSION_SECRET: SECRET, SIGNAL_SITE_URL: 'https://signal.example' }
 const PW = 'correct horse battery'
+// Sign-up requires an area: a listed city key here.
+const AREA = { state: 'TX', city: 'TX:houston' }
 const T0 = 1_800_000_000_000
 // Low cost keeps fixture rows fast; real hashes use cost 10.
 const hashOf = (pw) => bcrypt.hashSync(pw, 4)
@@ -132,13 +134,13 @@ describe('missing env fails closed', () => {
   test('forgot needs the email settings; signup does not', async () => {
     const m = mockFetch()
     assert.equal((await call(createForgotHandler({ env: NO_MAIL_ENV, fetchImpl: m.fetchImpl }), { method: 'POST', body: { email: 'a@b.co' } })).status, 503)
-    assert.equal((await call(createSubscribeHandler({ env: NO_MAIL_ENV, fetchImpl: m.fetchImpl }), { method: 'POST', body: { name: 'A', email: 'a@b.co', password: PW } })).status, 200)
+    assert.equal((await call(createSubscribeHandler({ env: NO_MAIL_ENV, fetchImpl: m.fetchImpl }), { method: 'POST', body: { name: 'A', email: 'a@b.co', password: PW, ...AREA } })).status, 200)
   })
 })
 
 describe('validation + escaping', () => {
   test('newsletter defaults to checked; email lowercased; password kept exactly', () => {
-    const v = validateSignup({ name: ' Ann ', email: ' Ann@Firm.COM ', password: '  spaced out  ' })
+    const v = validateSignup({ name: ' Ann ', email: ' Ann@Firm.COM ', password: '  spaced out  ', ...AREA })
     assert.equal(v.ok, true)
     assert.equal(v.value.newsletter, true)
     assert.equal(v.value.email, 'ann@firm.com')
@@ -146,7 +148,7 @@ describe('validation + escaping', () => {
   })
   test('rejects bad email, long name, non-boolean newsletter, missing password', () => {
     const v = validateSignup({ name: 'x'.repeat(101), email: 'nope', newsletter: 'yes' })
-    assert.deepEqual(Object.keys(v.fields).sort(), ['email', 'name', 'newsletter', 'password'])
+    assert.deepEqual(Object.keys(v.fields).sort(), ['email', 'name', 'newsletter', 'password', 'state'])
   })
   test('password rules: 8+ characters, at most 72 bytes', () => {
     assert.match(validatePassword(undefined), /Enter a password/)
@@ -185,6 +187,7 @@ describe('subscribe', () => {
     assert.equal(f[F.signedUpAt], new Date(T0).toISOString())
     assert.equal(f[F.lastSignInAt], new Date(T0).toISOString())
     assert.equal(f[F.states], 'TX')
+    assert.equal(f[F.city], 'Houston, TX')
     const written = JSON.stringify(m.calls.writes)
     assert.equal(written.includes(PW), false, 'plain password must never be stored')
     assert.match(r.headers['set-cookie'], /^ss_session=[^;]+; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000$/)
@@ -201,7 +204,7 @@ describe('subscribe', () => {
     const m = mockFetch(before)
     const h = createSubscribeHandler({ env: ENV, fetchImpl: m.fetchImpl })
     for (const email of ['Ann@Firm.com', 'old@firm.com']) {
-      const r = await call(h, { method: 'POST', body: { name: 'Mallory', email, password: 'attacker pw 123', newsletter: true } })
+      const r = await call(h, { method: 'POST', body: { name: 'Mallory', email, password: 'attacker pw 123', newsletter: true, ...AREA } })
       assert.equal(r.status, 409)
       assert.deepEqual(r.body, { error: { code: 'account_exists', message: 'An account with this email already exists. Sign in, or use Forgot password to set a new one.' } })
       assert.equal(r.headers['set-cookie'], undefined)
@@ -225,7 +228,7 @@ describe('subscribe', () => {
     assert.equal(m.calls.writes.length, 0)
   })
   test('Airtable failure -> 502 and no cookie', async () => {
-    const r = await call(createSubscribeHandler({ env: ENV, fetchImpl: mockFetch([], { fail: 'airtable' }).fetchImpl }), { method: 'POST', body: { name: 'Ann', email: 'ann@firm.com', password: PW } })
+    const r = await call(createSubscribeHandler({ env: ENV, fetchImpl: mockFetch([], { fail: 'airtable' }).fetchImpl }), { method: 'POST', body: { name: 'Ann', email: 'ann@firm.com', password: PW, ...AREA } })
     assert.equal(r.status, 502)
     assert.equal(r.headers['set-cookie'], undefined)
   })
@@ -479,7 +482,7 @@ describe('preferences', () => {
 describe('sessions follow the password', () => {
   test('a reset ends older sessions for account changes (signup with another person’s email)', async () => {
     const m = mockFetch()
-    const squat = await call(createSubscribeHandler({ env: ENV, fetchImpl: m.fetchImpl, now: () => new Date(T0) }), { method: 'POST', body: { name: 'Squatter', email: 'Victim@Corp.com', password: 'squatter pw 1' } })
+    const squat = await call(createSubscribeHandler({ env: ENV, fetchImpl: m.fetchImpl, now: () => new Date(T0) }), { method: 'POST', body: { name: 'Squatter', email: 'Victim@Corp.com', password: 'squatter pw 1', ...AREA } })
     assert.equal(squat.status, 200)
     const squatCookie = squat.headers['set-cookie'].split(';')[0]
     const prefs = createPreferencesHandler({ env: ENV, fetchImpl: m.fetchImpl })
@@ -518,8 +521,8 @@ describe('races', () => {
     const m = mockFetch([], { sync: { GET: 2, POST: 2 } })
     const h = createSubscribeHandler({ env: ENV, fetchImpl: m.fetchImpl })
     const [a, b] = await Promise.all([
-      call(h, { method: 'POST', ip: '1.1.1.1', body: { name: 'A', email: 'race@corp.com', password: 'password A 1' } }),
-      call(h, { method: 'POST', ip: '2.2.2.2', body: { name: 'B', email: 'race@corp.com', password: 'password B 2' } })
+      call(h, { method: 'POST', ip: '1.1.1.1', body: { name: 'A', email: 'race@corp.com', password: 'password A 1', ...AREA } }),
+      call(h, { method: 'POST', ip: '2.2.2.2', body: { name: 'B', email: 'race@corp.com', password: 'password B 2', ...AREA } })
     ])
     const won = [a, b].filter((r) => r.status === 200)
     const lost = [a, b].filter((r) => r.status === 409)
@@ -560,7 +563,7 @@ describe('request hygiene', () => {
   test('auth POSTs must be JSON (stops cross-site form posts): 415, no cookie, nothing read', async () => {
     const m = mockFetch([{ id: 'rec1', fields: { [F.email]: 'ann@firm.com', [F.passwordHash]: hashOf(PW) } }])
     const handlers = {
-      subscribe: [createSubscribeHandler({ env: ENV, fetchImpl: m.fetchImpl }), { name: 'A', email: 'new@corp.com', password: PW }],
+      subscribe: [createSubscribeHandler({ env: ENV, fetchImpl: m.fetchImpl }), { name: 'A', email: 'new@corp.com', password: PW, ...AREA }],
       login: [createLoginHandler({ env: ENV, fetchImpl: m.fetchImpl }), { email: 'ann@firm.com', password: PW }],
       forgot: [createForgotHandler({ env: ENV, fetchImpl: m.fetchImpl }), { email: 'ann@firm.com' }],
       reset: [createResetHandler({ env: ENV, fetchImpl: m.fetchImpl }), { token: 'x', password: PW }],

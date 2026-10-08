@@ -18,4 +18,11 @@ export default defineConfig({
   server: {
     fs: { deny: DEV_SERVER_DENY },
   },
+  // The PDF library is imported only on demand (Download PDF). Pre-bundling it
+  // up front stops the dev server from discovering it on the first click and
+  // reloading the page, which would lose the in-memory client pay rate.
+  // Dev only: production builds still load it as a lazy chunk.
+  optimizeDeps: {
+    include: ['@react-pdf/renderer'],
+  },
 })

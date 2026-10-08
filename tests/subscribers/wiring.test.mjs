@@ -7,7 +7,9 @@ import { ACCESS } from '../../shared/signal/contract.js'
 
 const SECRET = 'x'.repeat(40)
 
-test('signed subscriber cookie unlocks pay data; forged or simulated cookies do not', () => {
+// Local pay is public since 2026-10-08; the session still gates the client
+// report (create/print/download/email) and the full city rankings.
+test('signed subscriber cookie signs the reader in; forged or simulated cookies do not', () => {
   process.env.SIGNAL_SESSION_SECRET = SECRET
   const good = sessionToken('a@b.com', SECRET)
   assert.equal(sessionAccess({ headers: { cookie: `${SESSION_COOKIE}=${good}` } }).access, ACCESS.AUTHORIZED)
@@ -33,7 +35,7 @@ test('account routes: password sign-in wired, one-time sign-in links gone', asyn
   const root = new URL('../../', import.meta.url)
   const vercel = JSON.parse(readFileSync(new URL('vercel.json', root), 'utf8'))
   const rewrites = new Map(vercel.rewrites.map((r) => [r.source, r.destination]))
-  for (const name of ['login', 'forgot', 'reset', 'logout']) {
+  for (const name of ['login', 'forgot', 'reset', 'confirm', 'logout']) {
     assert.equal(rewrites.get(`/api/auth/${name}`), `/api/account?route=${name}`)
   }
   assert.equal(rewrites.get('/api/subscribe'), '/api/account?route=subscribe')
@@ -44,7 +46,7 @@ test('account routes: password sign-in wired, one-time sign-in links gone', asyn
   assert.ok(vercel.crons.length >= 1, 'crons kept')
   for (const gone of ['api/_lib/routes/magic-link.js', 'api/_lib/routes/verify.js']) assert.equal(existsSync(new URL(gone, root)), false, gone)
   const src = readFileSync(new URL('api/account.js', root), 'utf8')
-  for (const name of ['login', 'forgot', 'reset', 'logout', 'subscribe', 'unsubscribe', 'preferences']) assert.match(src, new RegExp(`'${name}': `))
+  for (const name of ['login', 'forgot', 'reset', 'confirm', 'logout', 'subscribe', 'unsubscribe', 'preferences']) assert.match(src, new RegExp(`'${name}': `))
   assert.doesNotMatch(src, /magic|verify/)
   const { default: account } = await import('../../api/account.js')
   const hit = (route, method = 'POST', reqHeaders = { 'content-type': 'application/json' }) => new Promise((resolve) => {

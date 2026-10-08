@@ -3,6 +3,7 @@
 // subscriber is emailed.
 //
 //   node scripts/monthly_report_email.mjs --preview [--month M] [--state TX] [--city Houston]
+//       (--city takes a name or a stored label: Houston, "Houston, TX", Katy)
 //       Render to logs/email-preview-M.{html,txt}. Sends nothing.
 //   node scripts/monthly_report_email.mjs --draft [--month M] [--state TX] [--city Houston]
 //       Send ONE email, to andy.kohler@marshmma.us only, subject "[DRAFT] ...",
@@ -24,8 +25,8 @@ import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { MONTH, cityKeyFor } from '../api/_lib/signal/report.js'
-import { sendEmail, unsubscribeUrl } from '../api/_lib/subscribers.js'
+import { MONTH } from '../api/_lib/signal/report.js'
+import { sendEmail, unsubscribeUrl, cityKeyFromStored } from '../api/_lib/subscribers.js'
 import { stateByCode } from '../shared/signal/geography.js'
 import { DRAFT_TO, DRAFT_SAMPLE_EMAIL, REQUIRED_SECRETS, parseSecrets, reportHash, eligibleSubscribers, checkApproval, renderEmail } from './lib/monthlyEmail.mjs'
 
@@ -71,7 +72,7 @@ function sampleArea() {
   if (!st) return null
   if (!stateByCode(st)) die(`unknown state ${st}`)
   const city = opt('--city')
-  return { state: st, cityKey: city ? cityKeyFor(st, city) : null }
+  return { state: st, cityKey: city ? cityKeyFromStored(st, city) : null }
 }
 
 async function listSubscribers(cfg) {

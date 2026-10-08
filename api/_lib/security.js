@@ -28,6 +28,40 @@ export function optionalSession(req) {
   return token ? verifySession(token) : null
 }
 
+// --- Same-origin check -------------------------------------------------------
+// The site's origin from SIGNAL_SITE_URL plus its www/apex twin (visitors may
+// be on either host). [] when the URL is unusable, so the check fails closed.
+export function siteOrigins(siteUrl) {
+  let u
+  try { u = new URL(String(siteUrl || '')) } catch { return [] }
+  if ((u.protocol !== 'https:' && u.protocol !== 'http:') || !u.host) return []
+  const host = u.host.toLowerCase()
+  const twin = host.startsWith('www.') ? host.slice(4) : `www.${host}`
+  return [`${u.protocol}//${host}`, `${u.protocol}//${twin}`]
+}
+
+// Origin of the page that sent the request: the Origin header (browsers send
+// it on every POST; the opaque "null" origin never matches), else the Referer.
+export function requestOrigin(req) {
+  const headers = req?.headers || {}
+  const origin = headers.origin
+  const raw = typeof origin === 'string' && origin ? origin : (typeof headers.referer === 'string' ? headers.referer : '')
+  if (!raw || raw === 'null') return null
+  try {
+    const u = new URL(raw)
+    return u.host ? `${u.protocol}//${u.host.toLowerCase()}` : null
+  } catch {
+    return null
+  }
+}
+
+// True only when the request comes from the site itself (cross-site request
+// forgery guard for state-changing POSTs that act with the session cookie).
+export function sameOrigin(req, env = process.env) {
+  const origin = requestOrigin(req)
+  return Boolean(origin) && siteOrigins(env.SIGNAL_SITE_URL).includes(origin)
+}
+
 // --- Rate limiting -----------------------------------------------------------
 // Best-effort, in-memory, per-IP fixed window. On Vercel each warm instance
 // keeps its own counter and cold starts reset it, so this slows abuse but is

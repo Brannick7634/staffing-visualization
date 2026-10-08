@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Footer from './components/Footer.jsx'
 import Header from './components/Header.jsx'
+import ReportAuthModal from './components/ReportAuthModal.jsx'
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
 import FreeAccessPage from './pages/FreeAccessPage.jsx'
 import HomePage from './pages/HomePage.jsx'
@@ -27,6 +28,22 @@ const DEV = import.meta.env.DEV
 const DevBanner = DEV ? lazy(() => import('./components/DevBanner.jsx')) : null
 const StatesLabPage = DEV ? lazy(() => import('./pages/StatesLabPage.jsx')) : null
 const StubPage = DEV ? lazy(() => import('./pages/StubPage.jsx')) : null
+
+// Client Pay Market Report pages: lazy so the report renderer stays out of the
+// homepage bundle.
+const SampleReportPage = lazy(() => import('./pages/SampleReportPage.jsx'))
+const ClientReportPage = lazy(() => import('./pages/ClientReportPage.jsx'))
+const ConfirmEmailPage = lazy(() => import('./pages/ConfirmEmailPage.jsx'))
+
+function PageLoading() {
+  return (
+    <div className="ssp-page">
+      <div className="ssp-container">
+        <p className="ssp-muted" role="status">Loading…</p>
+      </div>
+    </div>
+  )
+}
 
 const STUBS = ['market-report', 'hot-jobs', 'my-market', 'monthly-signal', 'about', 'contact']
 
@@ -108,7 +125,7 @@ export default function PreviewApp({ site = false }) {
 
   useEffect(() => {
     const previous = document.title
-    document.title = site ? 'The Staffing Signal — staffing pay benchmarks' : 'The Staffing Signal — homepage preview'
+    document.title = site ? 'The Staffing Signal — client pay market reports' : 'The Staffing Signal — homepage preview'
     return () => { document.title = previous }
   }, [site])
 
@@ -121,22 +138,27 @@ export default function PreviewApp({ site = false }) {
         <main id="ssp-main" className="ssp-main" tabIndex={-1}>
           <ScrollManager />
           {(site || !DEV) ? (
+            <Suspense fallback={<PageLoading />}>
             <Routes>
               <Route index element={<HomePage variant="b" />} />
               <Route path="free-access" element={<FreeAccessPage />} />
               <Route path="sign-in" element={<SignInPage />} />
               <Route path="forgot-password" element={<ForgotPasswordPage />} />
               <Route path="reset-password" element={<ResetPasswordPage />} />
+              <Route path="confirm-email" element={<ConfirmEmailPage />} />
               <Route path="preferences" element={<PreferencesPage />} />
               <Route path="email-preferences" element={<Navigate to="/preferences" replace />} />
               <Route path="methodology" element={<MethodologyPage />} />
               <Route path="privacy" element={<PrivacyPage />} />
               <Route path="report" element={<ReportPage />} />
               <Route path="report/:month" element={<ReportPage />} />
+              <Route path="sample-report" element={<SampleReportPage />} />
+              <Route path="client-report" element={<ClientReportPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </Suspense>
           ) : (
-          <Suspense fallback={null}>
+          <Suspense fallback={<PageLoading />}>
           <Routes>
             <Route path="privacy" element={<PrivacyPage />} />
             <Route index element={<HomePage variant="a" />} />
@@ -145,9 +167,12 @@ export default function PreviewApp({ site = false }) {
             <Route path="sign-in" element={<SignInPage />} />
             <Route path="forgot-password" element={<ForgotPasswordPage />} />
             <Route path="reset-password" element={<ResetPasswordPage />} />
+            <Route path="confirm-email" element={<ConfirmEmailPage />} />
             <Route path="preferences" element={<PreferencesPage />} />
             <Route path="methodology" element={<MethodologyPage />} />
             <Route path="states" element={<StatesLabPage />} />
+            <Route path="sample-report" element={<SampleReportPage />} />
+            <Route path="client-report" element={<ClientReportPage />} />
             {REPORT_ON && <Route path="report" element={<ReportPage />} />}
             {REPORT_ON && <Route path="report/:month" element={<ReportPage />} />}
             {STUBS.map((slug) => (
@@ -160,6 +185,7 @@ export default function PreviewApp({ site = false }) {
           )}
         </main>
         <Footer />
+        <ReportAuthModal />
       </div>
     </PreviewProvider>
   )

@@ -1,4 +1,10 @@
-// POST /api/subscribe  { name, email, password, company?, newsletter?, state?, city?, source? }
+// POST /api/subscribe  { name, email, password, state, city, company?, newsletter?, source? }
+// state + city are required (The Monthly Signal is sent by area): city is a
+// listed city key ('TX:houston') or a typed city name. City is stored as
+// 'Houston, TX' / '<typed name>, TX' and States as the state code. An
+// area-only problem answers 400 with its own code (state_required,
+// invalid_state, city_required, invalid_city, links_not_allowed); anything
+// else is invalid_fields. Both carry fields (messages) and codes.
 // Creates the subscriber with a bcrypt-hashed password and signs them in
 // straight away (session cookie). No email is sent. An email that already has
 // an account gets 409 and its row is left untouched, so signup can never be
@@ -6,7 +12,7 @@
 // Two signups for one email at the same moment can both pass the first check,
 // so after creating the row we look again: when an older row for the email
 // exists, ours is deleted and the caller gets the same 409 (no session).
-import { loadConfig, readBody, requireJson, RATE_LIMITED, sendJson, sendError, unavailable, methodNotAllowed, validateSignup, findByEmail, findAllByEmail, deleteRecord, createSubscriber, hashPassword, startSession } from '../subscribers.js'
+import { loadConfig, readBody, requireJson, RATE_LIMITED, sendJson, sendError, unavailable, methodNotAllowed, validateSignup, fieldErrorCode, findByEmail, findAllByEmail, deleteRecord, createSubscriber, hashPassword, startSession } from '../subscribers.js'
 import { rateLimit } from '../security.js'
 
 const exists = (res) => sendError(res, 409, 'account_exists', 'An account with this email already exists. Sign in, or use Forgot password to set a new one.')
@@ -33,7 +39,10 @@ export function createSubscribeHandler({ env = process.env, fetchImpl = globalTh
     const conf = loadConfig(env)
     if (!conf.ok) return unavailable(res)
     const checked = validateSignup(readBody(req))
-    if (!checked.ok) return sendError(res, 400, 'invalid_fields', 'Please check the highlighted fields.', { fields: checked.fields, field: checked.field })
+    if (!checked.ok) {
+      const { code, message } = fieldErrorCode(checked, 'Please check the highlighted fields.')
+      return sendError(res, 400, code, message, { fields: checked.fields, field: checked.field, codes: checked.codes })
+    }
     const { password, ...v } = checked.value
     const at = now()
     let created

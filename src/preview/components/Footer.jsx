@@ -3,6 +3,7 @@ import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import Wordmark from './Wordmark.jsx'
 
 const PREVIEW_LINKS = [
+  { to: '/preview/sample-report', label: 'Sample report' },
   { to: '/preview/methodology', label: 'How We Count' },
   { to: '/preview/about', label: 'About' },
   { to: '/preview/privacy', label: 'Privacy' },
@@ -12,6 +13,7 @@ const PREVIEW_LINKS = [
 
 // Production: real pages only (About/Contact copy not written yet).
 const SITE_LINKS = [
+  { to: '/sample-report', label: 'Sample report' },
   { to: '/methodology', label: 'How We Count' },
   { to: '/privacy', label: 'Privacy' },
   { to: '/preferences', label: 'Email Preferences' }

@@ -12,10 +12,10 @@ import path from 'node:path'
 import { sendJson } from '../signal/handlers.js'
 import { sessionAccess } from '../signal/sessionAccess.js'
 import { ACCESS } from '../../../shared/signal/contract.js'
-import { MONTH, REPORT_FORMAT, localFor, cityKeyFor } from '../signal/report.js'
+import { MONTH, REPORT_FORMAT, localFor } from '../signal/report.js'
 import { stateByCode } from '../../../shared/signal/geography.js'
 import { verifySession, sessionMatchesHash } from '../signalSession.js'
-import { loadConfig, findByEmail, F } from '../subscribers.js'
+import { loadConfig, findByEmail, F, cityKeyFromStored } from '../subscribers.js'
 
 export const DEFAULT_REPORT_DIR = fileURLToPath(new URL('../signal/data/report/', import.meta.url))
 const CITY = /^[A-Z]{2}:[a-z0-9-]{1,60}$/
@@ -25,12 +25,13 @@ export async function listMonths(dir = DEFAULT_REPORT_DIR) {
   return files.filter((f) => /^\d{4}-\d{2}\.json$/.test(f)).map((f) => f.slice(0, 7)).filter((m) => MONTH.test(m)).sort().reverse()
 }
 
-// Subscriber's saved area: first 2-letter line of States + City text.
+// Subscriber's saved area: first 2-letter line of States + City text
+// ('Houston, TX', 'Katy, TX' or an older bare 'Houston').
 export function areaFromRecord(fields) {
   const lines = String(fields?.[F.states] || '').split('\n').map((s) => s.trim())
   const state = lines.find((s) => /^[A-Z]{2}$/.test(s) && stateByCode(s)) || null
   const cityText = typeof fields?.[F.city] === 'string' ? fields[F.city] : ''
-  let cityKey = state && cityText ? cityKeyFor(state, cityText) : null
+  let cityKey = state && cityText ? cityKeyFromStored(state, cityText) : null
   if (!cityKey && state) cityKey = lines.find((s) => CITY.test(s) && s.startsWith(`${state}:`)) || null
   return { state, cityKey }
 }

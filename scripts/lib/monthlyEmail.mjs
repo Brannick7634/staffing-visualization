@@ -3,8 +3,7 @@
 // in scripts/monthly_report_email.mjs does the I/O. Unit-tested.
 import { createHash } from 'node:crypto'
 import { localFor, cityLabel, stateName } from '../../api/_lib/signal/report.js'
-import { F, isEmail, normalizeEmail } from '../../api/_lib/subscribers.js'
-import { areaFromRecord } from '../../api/_lib/routes/signal-report.js'
+import { F, isEmail, normalizeEmail, subscriberArea } from '../../api/_lib/subscribers.js'
 
 export const DRAFT_TO = 'andy.kohler@marshmma.us'
 export const DRAFT_SAMPLE_EMAIL = 'sample.subscriber@example.com'
@@ -28,6 +27,8 @@ export function parseSecrets(text) {
 export const reportHash = (report) => createHash('sha256').update(JSON.stringify({ ...report, generatedAt: null })).digest('hex').slice(0, 16)
 
 // Newsletter = true AND Unsubscribed != true AND a valid email. Deduped.
+// area = { state, cityKey } from the States + City fields (subscriberArea):
+// City 'Houston, TX' (listed) or 'Katy, TX' (typed) -> 'TX:houston' / 'TX:katy'.
 export function eligibleSubscribers(records) {
   const seen = new Set()
   const out = []
@@ -36,7 +37,7 @@ export function eligibleSubscribers(records) {
     const email = normalizeEmail(f[F.email])
     if (f[F.newsletter] !== true || f[F.unsubscribed] === true || !isEmail(email) || seen.has(email)) continue
     seen.add(email)
-    out.push({ id: r.id, email, name: typeof f[F.name] === 'string' ? f[F.name] : '', area: areaFromRecord(f) })
+    out.push({ id: r.id, email, name: typeof f[F.name] === 'string' ? f[F.name] : '', area: subscriberArea(f) })
   }
   return out
 }

@@ -50,9 +50,12 @@ export const DATA_MODE = Object.freeze({
  *
  * @typedef {Object} PayFigures  present ONLY when coverage === 'publishable'
  *   AND access is 'public' or 'authorized'
- * @property {number} p25Cents      integer cents
- * @property {number} typicalCents  integer cents ("Typical advertised rate", never "median")
- * @property {number} p75Cents      integer cents
+ * @property {number} p25Cents      integer cents ("Market Low")
+ * @property {number} typicalCents  integer cents: the median of advertised pay
+ *   (snapshot method.quantile "typical = median"), shown as "Market Median"
+ * @property {number} p75Cents      integer cents ("Market High")
+ * @property {number} firmCount     distinct staffing firms behind the cell
+ *   (checks.distinctFirms; aggregate, owner-approved 2026-10-08)
  * @property {string} typicalLabel
  * @property {'hourly'} payBasis
  * @property {'USD'} currency
@@ -64,14 +67,42 @@ export const DATA_MODE = Object.freeze({
  * @property {string} access        an ACCESS value
  * @property {string} [message]     plain-language explanation for non-publishable or locked states
  *
+ * @typedef {Object} MarketCity     built only from publishable city rows
+ * @property {string} key           'TX:houston'
+ * @property {string} label         'Houston, TX'
+ * @property {number} newPostings   all-jobs staffing postings in the window
+ * @property {number} staffingFirms distinct staffing firms posting in the city
+ * @property {number} windowDays
+ * @property {string} jobScope      'all jobs'   (no city rank: removed by owner decision)
+ *
+ * @typedef {Object} MarketState    built only from publishable momentum rows;
+ *   the selected state is shown even when it is cooling
+ * @property {string} code
+ * @property {string} label
+ * @property {number} momentumPct
+ * @property {number} windowDays
+ * @property {number} previousWindowDays
+ * @property {boolean} isEarlySignal
+ *
+ * @typedef {{ city: MarketCity|null, state: MarketState|null }} PayMarket
+ *
+ * @typedef {{ period: string, label: string, typicalCents: number|null }} TrendPoint
+ *   period 'YYYY-MM' for monthly snapshots (ascending), 'now' for the current
+ *   snapshot; typicalCents is null when that month's cell is absent or withheld
+ * @typedef {{ scope: 'state'|'nationwide', code?: string, label: string, points: TrendPoint[] }} TrendSeries
+ * @typedef {{ roleKey: string, snapshotDate: string, series: TrendSeries[] }} PayTrend
+ *   the state series is present only when a state was requested
+ *
  * @typedef {Object} PayResponse   GET /api/signal/pay?role=&state=&city=  (the rate is never a parameter)
  * @property {string} contractVersion
  * @property {string} dataMode
  * @property {Viewer} viewer
- * @property {{ roleKey: string, state: string|null, city: string|null }} request
+ * @property {{ roleKey: string, roleLabel?: string, state: string|null, city: string|null }} request
  * @property {PayResult & Partial<PayFigures>} result
  * @property {(PayResult & Partial<PayFigures>)|null} fallback
- * @property {Object} national      same shape as a snapshot nationalPay entry
+ * @property {Object} national      same shape as a snapshot nationalPay entry (plus firmCount when publishable)
+ * @property {PayMarket|null} market  null when nothing publishable
+ * @property {PayTrend|null} trend    null when there is no series
  *
  * @typedef {Object} SnapshotResponse  GET /api/signal/snapshot
  * @property {string} contractVersion

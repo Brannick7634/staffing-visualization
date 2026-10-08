@@ -12,15 +12,15 @@ import MonthlySignal from '../components/MonthlySignal.jsx'
 // (first trustworthy comparison: October vs September, early November).
 const REPORT_ON = import.meta.env.DEV || import.meta.env.VITE_SIGNAL_REPORT === '1'
 import ResultCard from '../components/ResultCard.jsx'
+import SamplePreview from '../components/SamplePreview.jsx'
 import SectorModule from '../components/SectorModule.jsx'
-import SignupForm from '../components/SignupForm.jsx'
 import TrustStrip from '../components/TrustStrip.jsx'
 import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import { simNotify } from '../api.js'
 
 // Homepage composition. Variant A follows the approved image (corrected);
-// Variant B puts the result directly under the button, collapses State/City on
-// phones and moves the free-access invitation up.
+// Variant B (live) stacks the calculator, the sample-report preview and the
+// Market Pay Insights, and moves the free-access invitation up.
 
 function dataModeLabel(mode) {
   if (import.meta.env.DEV && mode === DATA_MODE.DEVELOPMENT_EXAMPLE) return 'Development example'
@@ -35,7 +35,7 @@ function SnapshotStatus({ state, onRetry }) {
         {state === REQUEST.ERROR ? (
           <div className="ssp-card ssp-status" role="alert">
             <p className="ssp-status__title">We couldn't load the market snapshot.</p>
-            <p className="ssp-muted">No figures are shown instead of a guess. The pay check above still works on its own.</p>
+            <p className="ssp-muted">No figures are shown instead of a guess. The client pay report above still works on its own.</p>
             <button type="button" className="ssp-btn ssp-btn--secondary" onClick={onRetry}>Retry</button>
           </div>
         ) : (
@@ -53,7 +53,8 @@ function SnapshotStatus({ state, onRetry }) {
 export default function HomePage({ variant = 'a' }) {
   const {
     snapshot, snapshotState, reloadSnapshot, access, payCheck, isOutOfDate, retryPayCheck,
-    requestFocus, requestFreeAccess, pickRole, signedUp, pendingReturn, runPayCheck, setSelection, site: siteMount
+    requestFocus, requestFreeAccess, pickRole, signedUp, pendingReturn, runPayCheck, setSelection, createClientReport,
+    site: siteMount
   } = usePreview()
   const site = FORCE_SITE || siteMount
 
@@ -61,9 +62,14 @@ export default function HomePage({ variant = 'a' }) {
   const inviteContext = pendingReturn || (checked && !payCheck.isExample ? checked : null)
 
   const onCompareLocal = useCallback(() => requestFocus('state'), [requestFocus])
-  const onUnlock = useCallback(() => {
-    requestFreeAccess(checked, { navigateTo: false })
-  }, [requestFreeAccess, checked])
+  // The report CTA under the insights (and the rare locked-local gate) build
+  // the report from the comparison on screen, not from edited inputs.
+  // Never from the first-load example (a rate the visitor did not enter).
+  const onCreateReport = useCallback((options) => {
+    if (!checked || payCheck.isExample || typeof createClientReport !== 'function') return
+    createClientReport({ selection: checked, rateCents: payCheck.rateCents, intent: options?.intent })
+  }, [checked, createClientReport, payCheck.rateCents, payCheck.isExample])
+  const onEnterDetails = useCallback(() => requestFocus('role'), [requestFocus])
   const onSeeFallback = useCallback(() => {
     if (!checked) return
     const next = { ...checked, city: null }
@@ -75,10 +81,6 @@ export default function HomePage({ variant = 'a' }) {
     await simNotify({ roleKey: checked.roleKey, state: checked.state, city: checked.city })
   }, [checked])
   const onMarketUnlock = useCallback(() => requestFreeAccess(inviteContext), [requestFreeAccess, inviteContext])
-  const renderSignup = useCallback(
-    () => <SignupForm idPrefix="gate" context={checked} />,
-    [checked]
-  )
 
   const wide = variant === 'b'
   const result = (
@@ -89,13 +91,13 @@ export default function HomePage({ variant = 'a' }) {
       isExample={payCheck.isExample}
       isOutOfDate={isOutOfDate}
       onCompareLocal={onCompareLocal}
-      onUnlock={onUnlock}
+      onCreateReport={payCheck.isExample ? undefined : onCreateReport}
+      onEnterDetails={onEnterDetails}
       onSeeFallback={onSeeFallback}
       onNotify={site ? undefined : onNotify}
       onRetry={retryPayCheck}
       dataModeLabel={dataModeLabel(payCheck.response?.dataMode)}
       layout={wide ? 'wide' : 'stacked'}
-      renderSignup={renderSignup}
       snapshot={snapshot}
     />
   )
@@ -122,11 +124,12 @@ export default function HomePage({ variant = 'a' }) {
   if (wide) {
     return (
       <>
-        <section id="pay-check" className="ssp-hero ssp-hero--b" aria-label="Pay check">
+        <section id="pay-check" className="ssp-hero ssp-hero--b" aria-label="Client pay report">
           <div className="ssp-container">
             <Hero compact />
             <div className="ssp-hero__stack">
-              <Calculator layout="wide" collapsibleLocal />
+              <Calculator layout="wide" />
+              <SamplePreview />
               {result}
               <div className="ssp-hero__footnote">
                 <p className="ssp-hero__support">
@@ -151,13 +154,14 @@ export default function HomePage({ variant = 'a' }) {
 
   return (
     <>
-      <section id="pay-check" className="ssp-hero" aria-label="Pay check">
+      <section id="pay-check" className="ssp-hero" aria-label="Client pay report">
         <div className="ssp-container">
           <Hero />
           <div className="ssp-hero__tool">
             <Calculator layout="card" />
             {result}
           </div>
+          <SamplePreview />
         </div>
       </section>
       {REPORT_ON && <div id="monthly-signal" className="ssp-anchor"><MonthlySignal /></div>}

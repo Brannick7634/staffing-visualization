@@ -147,6 +147,17 @@ describe('parseHourlyRate: rejected inputs', () => {
     const codes = new Set(inputs.map((input) => parseHourlyRate(input).code))
     assert.deepEqual([...codes].sort(), ['malformed', 'missing', 'negative', 'not_a_number', 'too_large', 'too_many_decimals', 'zero'])
   })
+
+  test('messages speak about the client pay rate, not the visitor\'s own pay', () => {
+    assert.equal(parseHourlyRate('').message, "Enter your client's hourly pay rate.")
+    assert.equal(parseHourlyRate('abc').message, 'Enter the client pay rate as a number, like 17.50.')
+    assert.equal(parseHourlyRate('-5').message, 'Client pay rate cannot be negative.')
+    assert.equal(parseHourlyRate('0').message, 'Client pay rate must be more than $0.00.')
+    assert.match(parseHourlyRate('5000').message, /^Enter a client pay rate of \$999\.99 or less\./)
+    for (const input of ['', 'abc', '-5', '0', '17.555', '1000', '1e3']) {
+      assert.doesNotMatch(parseHourlyRate(input).message, /your hourly pay|^Hourly pay/i, input)
+    }
+  })
 })
 
 describe('toCents', () => {

@@ -22,7 +22,7 @@ function errorMessage(error) {
 }
 
 export default function SignInPage() {
-  const { access, homePath, pendingReturn, reloadSnapshot, returnToComparison, site: siteMount } = usePreview()
+  const { access, homePath, reloadSnapshot, returnAfterAuth, site: siteMount } = usePreview()
   const site = FORCE_SITE || siteMount
   const base = basePath(site)
   const navigate = useNavigate()
@@ -69,8 +69,9 @@ export default function SignInPage() {
     setPassword('')
     await reloadSnapshot()
     setBusy(false)
-    // Back to the comparison they were trying to unlock, else the pay check.
-    const returned = pendingReturn ? returnToComparison(pendingReturn) : false
+    // On to the report they were creating (or the comparison they were on),
+    // else the pay data on the homepage.
+    const returned = returnAfterAuth()
     if (!returned) navigate({ pathname: homePath, hash: '#pay-check' })
   }
 
@@ -83,8 +84,8 @@ export default function SignInPage() {
           <p className="ssp-eyebrow">Sign in</p>
           <h1 className="ssp-page__title">Welcome back.</h1>
           <p className="ssp-lede">
-            Already have free access? Sign in with your work email and password to unlock local comparisons and full
-            rankings.
+            Sign in with your work email and password to create, print, download and email Client Pay Market Reports,
+            and to see full city rankings.
           </p>
           <ul className="ssp-ticks">
             <li>You stay signed in on this device for 30 days, or until you sign out.</li>
@@ -96,9 +97,9 @@ export default function SignInPage() {
           {signedIn ? (
             <div className="ssp-freeaccess__done" role="status">
               <h2 className="ssp-card__title">You're already signed in.</h2>
-              <p>Local comparisons and full rankings are unlocked on this device.</p>
+              <p>You can create, print, download and email Client Pay Market Reports on this device.</p>
               <div className="ssp-freeaccess__links">
-                <Link to={{ pathname: homePath, hash: '#pay-check' }} className="ssp-btn ssp-btn--primary">Go to the pay check</Link>
+                <Link to={{ pathname: homePath, hash: '#pay-check' }} className="ssp-btn ssp-btn--primary">Go to pay data</Link>
                 <Link to={`${base}/preferences`} className="ssp-btn ssp-btn--secondary">My preferences</Link>
               </div>
             </div>
@@ -168,7 +169,7 @@ export default function SignInPage() {
                 <Link to={`${base}/forgot-password`} className="ssp-link">Forgot password</Link> to set one.
               </p>
               <p className="ssp-muted ssp-freeaccess__next">
-                New here? <Link to={`${base}/free-access`} className="ssp-link">Get free access</Link>
+                New here? <Link to={`${base}/free-access`} className="ssp-link">Sign up free</Link>
               </p>
             </>
           )}

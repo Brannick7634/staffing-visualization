@@ -43,7 +43,7 @@ function RoleButton({ role, onPickRole }) {
         type="button"
         className="ssp-roles__btn"
         onClick={() => onPickRole(role.key)}
-        aria-label={`Load ${role.label} into the pay check`}
+        aria-label={`Load ${role.label} into the client pay form`}
       >
         <span className="ssp-roles__name">{role.label}</span>
         <span className="ssp-roles__meta">
@@ -69,8 +69,8 @@ function RolesCard({ sector, onPickRole }) {
         <>
           <p className="ssp-sector__note ssp-muted">
             {healthcare
-              ? 'Not ranked: specialty demand counts were not supplied. Choose one to load it into the pay check.'
-              : 'Not ranked. Choose one to load it into the pay check.'}
+              ? 'Not ranked: specialty demand counts were not supplied. Choose one to load it into the client pay form.'
+              : 'Not ranked. Choose one to load it into the client pay form.'}
           </p>
           <ul className="ssp-roles">
             {list.map((role) => <RoleButton key={role.key} role={role} onPickRole={onPickRole} />)}

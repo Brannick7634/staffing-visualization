@@ -1,9 +1,12 @@
 // Browser client for the /api/signal/* endpoints used by the homepage preview.
 //
-// The visitor's proposed pay rate is NEVER sent: fetchPay asks only for the
-// benchmark bounds of a role and geography, and the verdict is computed in the
-// browser with shared/signal/payBand.js. Names, emails and passwords are sent
-// only in POST bodies to the signup/sign-in endpoints and are never logged here.
+// The client pay rate stays in the browser: it is never put in a URL, storage,
+// analytics or logs. fetchPay asks only for the benchmark bounds of a role and
+// geography, and the comparison is computed in the browser
+// (shared/signal/clientReport.js). The one exception is emailClientReport: the
+// rate goes to the server inside that POST body only, to build the emailed
+// report. Names, emails and passwords are sent only in POST bodies and are
+// never logged here.
 
 export class ApiError extends Error {
   constructor(status, code, message, details = null) {
@@ -79,7 +82,7 @@ export async function setSimAccess(access) {
   return devRequest('access', { method: 'POST', body: { access } })
 }
 
-export async function simSignup({ name, email, password, newsletter, context }) {
+export async function simSignup({ name, email, password, newsletter, context, state, city }) {
   return devRequest('signup', {
     method: 'POST',
     body: {
@@ -87,6 +90,8 @@ export async function simSignup({ name, email, password, newsletter, context }) 
       email,
       password,
       newsletter: Boolean(newsletter),
+      state: state || '',
+      city: city || '',
       context: context
         ? { roleKey: context.roleKey || null, state: context.state || null, city: context.city || null }
         : null
@@ -124,7 +129,9 @@ export async function signup(input) {
       password: input.password,
       newsletter: Boolean(input.newsletter),
       source: 'pay-first',
-      ...(input.state ? { state: input.state, city: input.city || '' } : {})
+      // Required: city is a listed key ('TX:houston') or a typed city name.
+      state: input.state || '',
+      city: input.city || ''
     }
   })
   return { ...data, simulated: false }
@@ -152,14 +159,53 @@ export async function resetPassword({ token, password }) {
   return request('/api/auth/reset', { method: 'POST', body: { token, password } })
 }
 
+// Email confirmation (production endpoints only; the dev account counts as
+// confirmed). Without a token: email the signed-in account a link.
+export async function requestEmailConfirmation() {
+  return request('/api/auth/confirm', { method: 'POST', body: {} })
+}
+
+export async function confirmEmail(token) {
+  return request('/api/auth/confirm', { method: 'POST', body: { token } })
+}
+
 export async function signOut() {
   if (!REAL_SIGNUP) return devRequest('logout', { method: 'POST', body: {} })
   return request('/api/auth/logout', { method: 'POST', body: {} })
 }
 
+// GET /api/preferences (signed-in only): the saved settings,
+// { name?, area: { state, cityKey, typedCity, label } | null, newsletter,
+//   sectors, states, cities }. 401 sign_in_required without a valid session.
+export async function fetchPreferences() {
+  if (!REAL_SIGNUP) return devRequest('preferences')
+  return request('/api/preferences')
+}
+
 export async function savePreferences(prefs) {
   if (!REAL_SIGNUP) return simPreferences(prefs)
   return request('/api/preferences', { method: 'POST', body: prefs })
+}
+
+// POST /api/signal/client-report/email (signed-in only). The body carries the
+// selection, the client pay rate (integer cents), up to 5 recipients and the
+// optional prepared-for/by and note text; the server rebuilds the figures
+// itself. Resolves { ok, sent, copySent, remainingToday }.
+export async function emailClientReport({ roleKey, state, city, rateCents, recipients, sendCopy, preparedFor, preparedBy, note }) {
+  return request('/api/signal/client-report/email', {
+    method: 'POST',
+    body: {
+      roleKey,
+      state: state || null,
+      city: state && city ? city : null,
+      rateCents,
+      recipients: Array.isArray(recipients) ? recipients : [],
+      sendCopy: Boolean(sendCopy),
+      ...(preparedFor ? { preparedFor } : {}),
+      ...(preparedBy ? { preparedBy } : {}),
+      ...(note ? { note } : {})
+    }
+  })
 }
 
 // GET /api/signal/report?month=YYYY-MM (latest when omitted). State/city are

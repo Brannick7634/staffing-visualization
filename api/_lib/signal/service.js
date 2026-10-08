@@ -3,8 +3,14 @@
 // Order of controls, always: validate the adapter value -> privacy rule
 // (suppressed for everyone) -> access policy (locked for signed-out viewers)
 // -> emit. Every response object is built from scratch with explicit fields;
-// adapter objects are never spread or passed through, so firm counts, shares,
-// identifiers or any other adapter-side field cannot reach the browser.
+// adapter objects are never spread or passed through, so shares, identifiers
+// or any other adapter-side field cannot reach the browser.
+//
+// Firm counts: only two aggregates are emitted (owner-approved 2026-10-08),
+// and only for rows that already passed the publication rule: a pay scope's
+// `firmCount` (checks.distinctFirms of that pay cell) and a market city's
+// `staffingFirms` (checks.distinctFirms of that city's posting row). Shares
+// (maxFirmShare) and firm identities are never emitted.
 //
 // Adapter data shape (all money in integer cents):
 // {
@@ -18,7 +24,8 @@
 //               historyNote, coverage, rows:[{ code, momentumPct, checks }] },
 //   pay: [{ roleKey, level:'nationwide'|'state'|'city', state, city, p25Cents, typicalCents,
 //           p75Cents, payBasis:'hourly'|'weekly_package', currency, checks, demand? }],
-//   mostPostedFamilies: { labels:[...], note }
+//   mostPostedFamilies: { labels:[...], note },
+//   monthly?: [{ month:'YYYY-MM', pay:[ same cell shape as `pay`, payBasis/currency optional ] }]
 // }
 // `checks` = { status, distinctFirms, maxFirmShare } (see privacy.js).
 //
@@ -35,7 +42,12 @@ import {
 
 export const TYPICAL_LABEL = 'Typical advertised rate'
 
+// Most recent monthly snapshots carried in a pay trend (oldest dropped first).
+export const TREND_MAX_MONTHS = 12
+
 const NATIONWIDE = 'Nationwide'
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/
 const MINUS = '−'
 const KNOWN_DATA_MODES = new Set(Object.values(DATA_MODE))
 const KNOWN_FRESHNESS = new Set(Object.values(FRESHNESS))
@@ -187,6 +199,7 @@ function evaluatePayScope({ cell, level, label, shortName, requested, viewerAcce
       p25Cents: figures.p25Cents,
       typicalCents: figures.typicalCents,
       p75Cents: figures.p75Cents,
+      firmCount: count(object(cell.checks).distinctFirms),
       typicalLabel: TYPICAL_LABEL,
       payBasis: 'hourly',
       currency: 'USD',
@@ -196,7 +209,19 @@ function evaluatePayScope({ cell, level, label, shortName, requested, viewerAcce
   }
 }
 
-function nationalEntry({ role, pay, dataMode }) {
+// Typical cents of one cell when it would be published today, else null.
+function publishedTypical(cell, dataMode) {
+  if (!cell) return null
+  const basisOk = (cell.payBasis === undefined || cell.payBasis === 'hourly') && (cell.currency === undefined || cell.currency === 'USD')
+  if (!basisOk) return null
+  const figures = figuresOf(cell)
+  if (!figures || !evaluatePayCell(cell, { mode: dataMode }).publishable) return null
+  return figures.typicalCents
+}
+
+// `withFirmCount` is set for the pay response only; the snapshot's
+// nationalPay list keeps its original shape.
+function nationalEntry({ role, pay, dataMode, withFirmCount = false }) {
   const cell = findPayCell(pay, role.key, 'nationwide', null, null)
   const { body, publishable } = evaluatePayScope({
     cell, level: 'nationwide', label: NATIONWIDE, shortName: 'nationwide', requested: false,
@@ -214,6 +239,7 @@ function nationalEntry({ role, pay, dataMode }) {
     entry.p25Cents = body.p25Cents
     entry.typicalCents = body.typicalCents
     entry.p75Cents = body.p75Cents
+    if (withFirmCount) entry.firmCount = body.firmCount
     entry.typicalLabel = body.typicalLabel
     entry.payBasis = body.payBasis
     entry.currency = body.currency
@@ -297,7 +323,8 @@ function publishableCityRows({ cityVolume, places, dataMode }) {
     if (!place || postings === null || seen.has(place.key)) continue
     if (!evaluatePublication(row.checks, { mode: dataMode }).publishable) continue
     seen.add(place.key)
-    rows.push({ cityKey: place.key, postings, place })
+    // `firms` is internal: only buildMarket emits it, as staffingFirms.
+    rows.push({ cityKey: place.key, postings, place, firms: count(object(row.checks).distinctFirms) })
   }
   return rankCities(rows)
 }
@@ -335,7 +362,7 @@ function buildCities({ cityVolume, rankedCities, allow, viewerAccess }) {
     })),
     more: authorized
       ? null
-      : { access: ACCESS.REQUIRES_FREE_ACCOUNT, description: 'Unlock the full city rankings and available local benchmarks.' }
+      : { access: ACCESS.REQUIRES_FREE_ACCOUNT, description: 'Unlock the full city rankings.' }
   }
 }
 
@@ -470,6 +497,94 @@ function buildFamilies(raw) {
   }
 }
 
+// ------------------------------------------------- pay response: market, trend
+
+// Market context for the requested place, from publishable rows only. The
+// selected state's momentum is shown whatever its sign. No city rank is
+// emitted (owner decision). Null when neither part has anything publishable
+// (and always for a nationwide request).
+function buildMarket({ data, places, dataMode, statePlace, cityPlace }) {
+  if (!statePlace) return null
+  let city = null
+  if (cityPlace) {
+    const cv = object(data.cityVolume)
+    const windowDays = count(cv.windowDays)
+    const known = publishableCityRows({ cityVolume: cv, places, dataMode })
+    const row = known.find((r) => r.cityKey === cityPlace.key) || null
+    // staffingFirms is null only in development data whose checks were never
+    // supplied; production rows always carry verified counts.
+    if (row && windowDays !== null) {
+      city = {
+        key: row.place.key,
+        label: row.place.label,
+        newPostings: row.postings,
+        staffingFirms: row.firms,
+        windowDays,
+        jobScope: text(cv.jobScope, 40) || 'all jobs'
+      }
+    }
+  }
+  let state = null
+  const m = object(data.momentum)
+  const windowDays = count(m.windowDays)
+  const previousWindowDays = count(m.previousWindowDays)
+  if (momentumCoverage(m) === COVERAGE.PUBLISHABLE && windowDays !== null && previousWindowDays !== null) {
+    const row = publishableMomentumRows({ momentum: m, places, dataMode }).find((r) => r.code === statePlace.code)
+    if (row) {
+      state = {
+        code: row.code,
+        label: row.place.label,
+        momentumPct: row.momentumPct,
+        windowDays,
+        previousWindowDays,
+        isEarlySignal: /early signal/i.test(`${text(m.historyNote, 200) || ''} ${text(m.basis, 400) || ''}`)
+      }
+    }
+  }
+  return city || state ? { city, state } : null
+}
+
+function monthLabel(month) {
+  const [, year, mm] = MONTH.exec(month)
+  return `${MONTH_NAMES[Number(mm) - 1]} ${year}`
+}
+
+// Valid monthly snapshots, ascending, de-duplicated, most recent TREND_MAX_MONTHS.
+function monthlySnapshots(monthly) {
+  const byMonth = new Map()
+  for (const raw of list(monthly)) {
+    const m = object(raw)
+    if (typeof m.month === 'string' && MONTH.test(m.month) && Array.isArray(m.pay) && !byMonth.has(m.month)) byMonth.set(m.month, m.pay)
+  }
+  return [...byMonth.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).slice(-TREND_MAX_MONTHS)
+}
+
+// Typical advertised pay over time for the role: one series for the requested
+// state (when a state was asked for) and one nationwide. Each point is a
+// monthly snapshot (null when that month's cell is absent or withheld) and the
+// final point is the current snapshot. A series with no figure at all is
+// dropped; null when there are no monthly snapshots or no series.
+function buildTrend({ data, role, statePlace, dataMode }) {
+  const months = monthlySnapshots(data.monthly)
+  if (months.length === 0) return null
+  const scopes = []
+  if (statePlace) scopes.push({ head: { scope: 'state', code: statePlace.code, label: statePlace.label }, level: 'state', state: statePlace.code })
+  scopes.push({ head: { scope: 'nationwide', label: NATIONWIDE }, level: 'nationwide', state: null })
+  const series = []
+  for (const { head, level, state } of scopes) {
+    const points = months.map(([month, pay]) => ({
+      period: month,
+      label: monthLabel(month),
+      typicalCents: publishedTypical(findPayCell(pay, role.key, level, state, null), dataMode)
+    }))
+    points.push({ period: 'now', label: 'Now', typicalCents: publishedTypical(findPayCell(data.pay, role.key, level, state, null), dataMode) })
+    if (points.some((p) => p.typicalCents !== null)) series.push({ ...head, points })
+  }
+  if (series.length === 0) return null
+  const exact = isoDate(object(data.snapshot).exactDate)
+  return { roleKey: role.key, snapshotDate: exact ? exact.slice(0, 10) : null, series }
+}
+
 // ---------------------------------------------------------------- builders
 
 export function buildSnapshotResponse({ data, dataMode, viewer, places = REAL_PLACES }) {
@@ -520,7 +635,7 @@ export function buildPayResponse({ data, dataMode, viewer, request, places = REA
     throw new Error('buildPayResponse: invalid geography')
   }
 
-  const national = nationalEntry({ role, pay: d.pay, dataMode: mode }).entry
+  const national = nationalEntry({ role, pay: d.pay, dataMode: mode, withFirmCount: true }).entry
   let result
   let fallback = null
 
@@ -562,6 +677,8 @@ export function buildPayResponse({ data, dataMode, viewer, request, places = REA
     request: { roleKey: role.key, roleLabel: role.label, state: statePlace ? statePlace.code : null, city: cityPlace ? cityPlace.key : null },
     result,
     fallback,
-    national
+    national,
+    market: buildMarket({ data: d, places, dataMode: mode, statePlace, cityPlace }),
+    trend: buildTrend({ data: d, role, statePlace, dataMode: mode })
   }
 }

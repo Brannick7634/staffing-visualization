@@ -1,7 +1,8 @@
 // Measurement stub for the homepage preview (brief §19).
 //
 // Logs to the dev console only; nothing is sent anywhere. Only whitelisted,
-// non-personal properties survive: never a name, email or proposed pay rate.
+// non-personal properties survive: never a name, email address, recipient,
+// note or client pay rate (the report events carry role and place level only).
 
 export const EVENTS = Object.freeze({
   PAY_CHECK_STARTED: 'pay_check_started',
@@ -16,10 +17,17 @@ export const EVENTS = Object.freeze({
   PREFERENCES_SAVED: 'preferences_saved',
   MARKET_REPORT_OPENED: 'market_report_opened',
   MONTHLY_ISSUE_OPENED: 'monthly_issue_opened',
-  RETURN_VISIT: 'return_visit'
+  RETURN_VISIT: 'return_visit',
+  REPORT_CREATE_CLICKED: 'report_create_clicked',
+  REPORT_GATE_SHOWN: 'report_gate_shown',
+  SAMPLE_REPORT_VIEWED: 'sample_report_viewed',
+  REPORT_VIEWED: 'report_viewed',
+  REPORT_PRINTED: 'report_printed',
+  REPORT_DOWNLOADED: 'report_downloaded',
+  REPORT_EMAILED: 'report_emailed'
 })
 
-const ALLOWED_PROPS = ['roleKey', 'sectorKey', 'geographyLevel', 'coverage', 'access', 'variant']
+export const ALLOWED_PROPS = ['roleKey', 'sectorKey', 'geographyLevel', 'coverage', 'access', 'variant']
 
 export function track(event, props = {}) {
   if (!import.meta.env.DEV) return

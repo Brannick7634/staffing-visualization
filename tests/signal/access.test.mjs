@@ -30,13 +30,12 @@ describe('access policy primitives', () => {
     assert.equal(normalizeViewerAccess('authorized'), 'authorized')
   })
 
-  test('nationwide pay is public; local pay needs free access', () => {
-    assert.equal(payAccess('nationwide', 'public'), 'public')
-    assert.equal(payAccess('nationwide', 'authorized'), 'public')
-    assert.equal(payAccess('state', 'public'), 'requires_free_account')
-    assert.equal(payAccess('city', 'public'), 'requires_free_account')
-    assert.equal(payAccess('state', 'authorized'), 'authorized')
-    assert.equal(payAccess('city', 'authorized'), 'authorized')
+  test('pay is public at every level, signed out or in (local pay is free)', () => {
+    for (const level of ['nationwide', 'state', 'city']) {
+      for (const viewer of ['public', 'authorized', undefined]) {
+        assert.equal(payAccess(level, viewer), 'public', `${level}/${viewer}`)
+      }
+    }
   })
 
   test('figures only for public or authorized access', () => {
@@ -76,7 +75,7 @@ describe('signed-out snapshot (development fixture)', () => {
     assert.deepEqual(snap.cities.rows.map((r) => r.key), ['NY:new-york', 'DC:washington', 'CA:los-angeles'])
     assert.deepEqual(snap.cities.rows.map((r) => r.postings), [3308, 1852, 810])
     assert.ok(snap.cities.rows.every((r) => r.access === 'public'))
-    assert.deepEqual(snap.cities.more, { access: 'requires_free_account', description: 'Unlock the full city rankings and available local benchmarks.' })
+    assert.deepEqual(snap.cities.more, { access: 'requires_free_account', description: 'Unlock the full city rankings.' })
     assert.deepEqual(snap.momentum.heating.rows.map((r) => [r.code, r.momentumPct]), [['AL', 142], ['CA', 135], ['AZ', 121], ['IL', 93], ['IN', 90]])
     assert.deepEqual(snap.momentum.cooling, { access: 'requires_free_account', rows: [] })
   })

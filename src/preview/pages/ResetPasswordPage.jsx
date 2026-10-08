@@ -111,9 +111,9 @@ export default function ResetPasswordPage() {
     body = (
       <div className="ssp-freeaccess__done" role="status">
         <h2 className="ssp-card__title ssp-focus-target" ref={panelHeadingRef} tabIndex={-1}>Your new password is set.</h2>
-        <p>You're signed in. Local comparisons and full rankings are unlocked on this device.</p>
+        <p>You're signed in. You can now create, print, download and email Client Pay Market Reports, and see the full city rankings on this device.</p>
         <div className="ssp-freeaccess__links">
-          <Link to={{ pathname: homePath, hash: '#pay-check' }} className="ssp-btn ssp-btn--primary">Go to the pay check</Link>
+          <Link to={{ pathname: homePath, hash: '#pay-check' }} className="ssp-btn ssp-btn--primary">Go to pay data</Link>
           <Link to={`${base}/preferences`} className="ssp-btn ssp-btn--secondary">My preferences</Link>
         </div>
       </div>

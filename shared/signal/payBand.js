@@ -3,8 +3,12 @@
 //
 // Browser-safe (no node: imports). Every input is integer cents. The band is a
 // dollar scale, not a percentile estimator: P25 and P75 do not tell us the
-// exact percentile of an entered rate, so nothing here computes one. The
-// separately supplied typical rate is never called a median.
+// exact percentile of an entered rate, so nothing here computes one.
+//
+// The typical rate IS the median of advertised pay (the snapshot's
+// method.quantile says "typical = median"), and the client pay report labels it
+// "Market Median". The three-way verdict below stays in "typical advertised
+// range" wording; the median-based report copy lives in clientReport.js.
 import { formatDiffCents } from './money.js'
 
 export const VERDICT = Object.freeze({ BELOW: 'below', WITHIN: 'within', ABOVE: 'above' })
@@ -43,19 +47,19 @@ export function verdictCopy(verdict, { rateCents, p25Cents, p75Cents, geographyL
 
   if (verdict === VERDICT.BELOW) {
     return {
-      headline: 'Below the typical advertised range.',
-      detail: `Your rate is ${formatDiffCents(p25Cents - rateCents)} below the lower end of this ${geo} range.`
+      headline: 'Client rate is below the typical advertised range.',
+      detail: `Your client's rate is ${formatDiffCents(p25Cents - rateCents)} below the lower end of this ${geo} range.`
     }
   }
   if (verdict === VERDICT.ABOVE) {
     return {
-      headline: 'Above the typical advertised range.',
-      detail: `Your rate is ${formatDiffCents(rateCents - p75Cents)} above the upper end of this ${geo} range. That does not make it the highest rate in the market.`
+      headline: 'Client rate is above the typical advertised range.',
+      detail: `Your client's rate is ${formatDiffCents(rateCents - p75Cents)} above the upper end of this ${geo} range. That does not make it the highest rate in the market.`
     }
   }
   return {
-    headline: 'Within the typical advertised range.',
-    detail: `Your rate falls inside the middle half of advertised rates for this ${geo} comparison.`
+    headline: 'Client rate is within the typical advertised range.',
+    detail: `Your client's rate falls inside the middle half of advertised rates for this ${geo} comparison.`
   }
 }
 

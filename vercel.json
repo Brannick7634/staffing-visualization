@@ -24,6 +24,10 @@
       "destination": "/api/account?route=reset"
     },
     {
+      "source": "/api/auth/confirm",
+      "destination": "/api/account?route=confirm"
+    },
+    {
       "source": "/api/auth/logout",
       "destination": "/api/account?route=logout"
     },
@@ -48,6 +52,10 @@
       "destination": "/api/signal-data?route=signal-report"
     },
     {
+      "source": "/api/signal/client-report/email",
+      "destination": "/api/signal-data?route=client-report-email"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
@@ -60,7 +68,7 @@
   ],
   "functions": {
     "api/signal-data.js": {
-      "includeFiles": "api/_lib/signal/data/report/**"
+      "includeFiles": "api/_lib/signal/data/{report,monthly}/**"
     }
   }
 }

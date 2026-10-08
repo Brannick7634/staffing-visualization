@@ -1,10 +1,7 @@
-import { useEffect, useId, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
-
-// Contextual gate shown only when a publishable local benchmark exists and the
-// visitor is signed out. It carries no local figures (the server never sent
-// any). Copy follows brief §9 with the visitor's own rate and place.
+// Safety net only: local pay is free, so the server should never lock a state
+// or city benchmark. If a locked response ever arrives (publishable, but
+// `requires_free_account` with no figures), this explains it without showing
+// or guessing any local figure, and offers the free account.
 export function shortRate(rateCents) {
   if (!Number.isSafeInteger(rateCents) || rateCents <= 0) return null
   const dollars = Math.floor(rateCents / 100)
@@ -13,26 +10,9 @@ export function shortRate(rateCents) {
   return cents === 0 ? `$${whole}` : `$${whole}.${String(cents).padStart(2, '0')}`
 }
 
-export default function LocalGate({ rateCents, placeName, onUnlock, signup = null }) {
-  const { site: siteMount } = usePreview()
-  const site = FORCE_SITE || siteMount
-  const [open, setOpen] = useState(false)
-  const panelId = useId()
-  const panelRef = useRef(null)
+export default function LocalGate({ rateCents, placeName, onUnlock }) {
   const rate = shortRate(rateCents)
-  const heading = `Sign up free to see ${placeName} rates`
-  const lead = rate ? `See how ${rate}/hour compares. ` : ''
-
-  useEffect(() => {
-    if (!open || !panelRef.current) return
-    const field = panelRef.current.querySelector('input')
-    if (field) field.focus()
-  }, [open])
-
-  function handleClick() {
-    if (typeof onUnlock === 'function') onUnlock()
-    if (signup) setOpen((value) => !value)
-  }
+  const lead = rate ? `See how your client’s ${rate}/hour compares. ` : ''
 
   return (
     <div className="ssp-lock ssp-gate">
@@ -43,43 +23,21 @@ export default function LocalGate({ rateCents, placeName, onUnlock, signup = nul
             <path d="M7 9V6.5a3 3 0 0 1 6 0V9" fill="none" stroke="currentColor" strokeWidth="1.8" />
           </svg>
         </span>
-        <h3 className="ssp-gate__title">{heading}</h3>
+        <h3 className="ssp-gate__title">Sign up free to see {placeName} rates</h3>
       </div>
       {/* Decorative placeholder only: the server never sends locked figures. */}
       <div className="ssp-gate__blur" aria-hidden="true">
         <span>$••.••<small>/hr median</small></span>
-        <span>$••.••<small>– $••.•• typical range</small></span>
+        <span>$••.••<small>– $••.•• market range</small></span>
       </div>
       <p className="ssp-gate__body">
-        {lead}Create a free account (name, work email and a password) to unlock this local benchmark and other available state and city comparisons.
+        {lead}A free account (name, work email and a password) shows this local benchmark and lets you create, print, download and email Client Pay Market Reports.
       </p>
-      <div className="ssp-gate__actions">
-        <button
-          type="button"
-          className="ssp-btn ssp-btn--primary"
-          onClick={handleClick}
-          aria-expanded={signup ? open : undefined}
-          aria-controls={signup ? panelId : undefined}
-        >
-          Unlock my local comparison
-        </button>
-      </div>
-      {signup && (
-        <p className="ssp-gate__signin ssp-muted">
-          Already have free access?{' '}
-          {/* onUnlock saves this comparison, so sign-in brings the reader back to it. */}
-          <Link
-            to={`${basePath(site)}/sign-in`}
-            className="ssp-link"
-            onClick={() => { if (typeof onUnlock === 'function') onUnlock() }}
-          >
-            Sign in
-          </Link>
-        </p>
-      )}
-      {signup && open && (
-        <div id={panelId} ref={panelRef} className="ssp-gate__panel">
-          {signup}
+      {typeof onUnlock === 'function' && (
+        <div className="ssp-gate__actions">
+          <button type="button" className="ssp-btn ssp-btn--primary" onClick={() => onUnlock()}>
+            Sign Up Free
+          </button>
         </div>
       )}
     </div>

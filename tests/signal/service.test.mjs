@@ -14,6 +14,11 @@ const NATIONAL_KEYS = [
 ]
 const FIGURE_KEYS = ['p25Cents', 'typicalCents', 'p75Cents']
 const FORBIDDEN_KEY = /firm|share|check|contribut|demand|publication|observation|posting_?id/i
+// Aggregates the owner approved for display on 2026-10-08 (Client Pay Market
+// Report): a pay scope's firm count, a market city's staffing-firm count and
+// its new-posting count. Only these exact key names are exempt; shares, firm
+// identities and raw checks stay forbidden.
+const ALLOWED_AGGREGATE_KEYS = new Set(['firmCount', 'staffingFirms', 'newPostings'])
 
 async function fixtureData() {
   const adapter = createFixtureAdapter()
@@ -39,7 +44,7 @@ function numericPaths(value) {
 
 function forbiddenKeys(value) {
   const out = []
-  walk(value, (key, child, path) => { if (FORBIDDEN_KEY.test(key)) out.push(path) })
+  walk(value, (key, child, path) => { if (FORBIDDEN_KEY.test(key) && !ALLOWED_AGGREGATE_KEYS.has(key)) out.push(path) })
   return out
 }
 
@@ -247,21 +252,35 @@ describe('pay builder with the development fixture', () => {
 describe('pay builder with synthetic cells (real gate)', () => {
   const CITY_OK = cell('city', [2137, 2419, 2683], PASS)
 
-  test('signed-out publishable local benchmark carries no numeric fields', () => {
-    const r = synthPay({ pay: [NATIONAL, STATE, CITY_OK], access: 'public' })
-    assert.equal(r.result.coverage, 'publishable')
-    assert.equal(r.result.access, 'requires_free_account')
-    assert.deepEqual(numericPaths(r.result), [])
-    for (const key of FIGURE_KEYS) assert.equal(key in r.result, false)
-    assert.equal(r.result.message, 'This Example City benchmark is available with free access.')
-    assert.equal(JSON.stringify(r).includes('2419'), false)
+  test('local pay is free: a signed-out viewer gets the same local figures', () => {
+    const pub = synthPay({ pay: [NATIONAL, STATE, CITY_OK], access: 'public' })
+    const auth = synthPay({ pay: [NATIONAL, STATE, CITY_OK], access: 'authorized' })
+    for (const r of [pub, auth]) {
+      assert.equal(r.result.coverage, 'publishable')
+      assert.equal(r.result.access, 'public')
+      assert.deepEqual([r.result.p25Cents, r.result.typicalCents, r.result.p75Cents], [2137, 2419, 2683])
+      assert.equal(r.result.firmCount, 12)
+      assert.equal(r.result.dataStatus, 'synthetic')
+      assert.equal('message' in r.result, false)
+    }
+    assert.deepEqual({ ...pub, viewer: null }, { ...auth, viewer: null })
+    assert.equal(JSON.stringify(pub).includes('requires_free_account'), false)
   })
 
-  test('authorized publishable local benchmark has figures', () => {
-    const r = synthPay({ pay: [NATIONAL, STATE, CITY_OK], access: 'authorized' })
-    assert.equal(r.result.access, 'authorized')
-    assert.deepEqual([r.result.p25Cents, r.result.typicalCents, r.result.p75Cents], [2137, 2419, 2683])
-    assert.equal(r.result.dataStatus, 'synthetic')
+  test('each figure scope carries its own firm count; nothing else from checks', () => {
+    const r = synthPay({ pay: [NATIONAL, STATE, cell('city', [2137, 2419, 2683], { status: 'verified', distinctFirms: 7, maxFirmShare: 0.31 })], access: 'public' })
+    assert.equal(r.result.firmCount, 7)
+    assert.equal(r.national.firmCount, 64)
+    assert.equal(JSON.stringify(r).includes('0.31'), false)
+    assert.deepEqual(forbiddenKeys(r), [])
+    // Development-example data whose checks were never supplied: unknown, not 0.
+    const dev = buildPayResponse({
+      data: { pay: [cell('city', [2137, 2419, 2683], { status: 'not_verified' })] },
+      dataMode: 'development_example', viewer: { access: 'public' },
+      request: { roleKey: 'example-role', state: 'EX', city: 'EX:example-city' }, places: SYNTHETIC_PLACES
+    })
+    assert.equal(dev.result.coverage, 'publishable')
+    assert.equal(dev.result.firmCount, null)
   })
 
   test('suppressed results carry no counts and no figures, for anyone', () => {
@@ -286,18 +305,19 @@ describe('pay builder with synthetic cells (real gate)', () => {
     assert.equal(r.result.coverage, 'publishable')
   })
 
-  test('suppressed city offers the state fallback with the state gate applied', () => {
+  test('suppressed city offers the state fallback, free for everyone', () => {
     const thin = cell('city', [2137, 2419, 2683], { status: 'verified', distinctFirms: 2, maxFirmShare: 0.4 })
-    const pub = synthPay({ pay: [NATIONAL, STATE, thin], access: 'public' })
-    assert.equal(pub.result.coverage, 'insufficient_sample')
-    assert.equal(pub.fallback.coverage, 'publishable')
-    assert.equal(pub.fallback.access, 'requires_free_account')
-    assert.deepEqual(pub.fallback.geography, { level: 'state', label: 'Example State (EX)', requested: false })
-    assert.deepEqual(numericPaths(pub.fallback), [])
-    const auth = synthPay({ pay: [NATIONAL, STATE, thin], access: 'authorized' })
-    assert.equal(auth.fallback.access, 'authorized')
-    assert.equal(auth.fallback.typicalCents, 2318)
-    assert.equal(auth.fallback.message, 'An Example State benchmark is available.')
+    for (const access of ['public', 'authorized']) {
+      const r = synthPay({ pay: [NATIONAL, STATE, thin], access })
+      assert.equal(r.result.coverage, 'insufficient_sample')
+      assert.deepEqual(numericPaths(r.result), [])
+      assert.equal(r.fallback.coverage, 'publishable')
+      assert.equal(r.fallback.access, 'public')
+      assert.deepEqual(r.fallback.geography, { level: 'state', label: 'Example State (EX)', requested: false })
+      assert.equal(r.fallback.typicalCents, 2318)
+      assert.equal(r.fallback.firmCount, 12)
+      assert.equal(r.fallback.message, 'An Example State benchmark is available.')
+    }
   })
 
   test('weekly travel packages are never compared with hourly pay', () => {
@@ -327,7 +347,7 @@ describe('synthetic States Lab scenarios', () => {
     assert.equal(out.watermark, 'SYNTHETIC TEST DATA')
     const keys = out.scenarios.map((s) => s.key)
     for (const key of [
-      'city-locked-signed-out', 'city-unlocked-authorized', 'city-insufficient-state-fallback-signed-out',
+      'city-public-signed-out', 'city-unlocked-authorized', 'city-insufficient-state-fallback-signed-out',
       'city-insufficient-state-fallback-authorized', 'four-firms-suppressed', 'five-firms-60pct-suppressed',
       'five-firms-50pct-publishable', 'large-demand-small-pay', 'stale-snapshot', 'backend-failure',
       'no-comparable-history', 'weekly-travel-package', 'verdict-above', 'verdict-within', 'verdict-below'
@@ -350,8 +370,19 @@ describe('synthetic States Lab scenarios', () => {
   test('scenario outcomes come from the real gate', async () => {
     const { scenarios } = await buildScenarios()
     const by = Object.fromEntries(scenarios.map((s) => [s.key, s]))
-    assert.equal(by['city-locked-signed-out'].response.result.access, 'requires_free_account')
-    assert.deepEqual(numericPaths(by['city-locked-signed-out'].response.result), [])
+    const free = by['city-public-signed-out'].response
+    assert.equal(free.viewer.access, 'public')
+    assert.equal(free.result.access, 'public')
+    assert.equal(free.result.typicalCents, by['city-unlocked-authorized'].response.result.typicalCents)
+    assert.equal(free.market.city.label, 'Example City, EX')
+    assert.equal(free.market.state.code, 'EX')
+    // No city rank anywhere in the market block (owner decision).
+    for (const s of scenarios) {
+      const market = s.response && s.response.market
+      if (market) assert.equal(/"rank|rankedCities/i.test(JSON.stringify(market)), false, s.key)
+    }
+    assert.deepEqual(free.trend.series.map((s) => s.scope), ['state', 'nationwide'])
+    assert.equal(by['city-insufficient-state-fallback-signed-out'].response.fallback.access, 'public')
     assert.equal(by['four-firms-suppressed'].response.result.coverage, 'insufficient_sample')
     assert.equal(by['five-firms-60pct-suppressed'].response.result.coverage, 'insufficient_sample')
     assert.equal(by['five-firms-50pct-publishable'].response.result.coverage, 'publishable')
