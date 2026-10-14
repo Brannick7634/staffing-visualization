@@ -6,13 +6,13 @@
 // invalid_state, city_required, invalid_city, links_not_allowed); anything
 // else is invalid_fields. Both carry fields (messages) and codes.
 // Creates the subscriber with a bcrypt-hashed password and signs them in
-// straight away (session cookie). No email is sent. An email that already has
+// straight away (session cookie) and emails a confirmation link. An email that already has
 // an account gets 409 and its row is left untouched, so signup can never be
 // used to overwrite someone else's password, name or preferences.
 // Two signups for one email at the same moment can both pass the first check,
 // so after creating the row we look again: when an older row for the email
 // exists, ours is deleted and the caller gets the same 409 (no session).
-import { loadConfig, readBody, requireJson, RATE_LIMITED, sendJson, sendError, unavailable, methodNotAllowed, validateSignup, fieldErrorCode, findByEmail, findAllByEmail, deleteRecord, createSubscriber, hashPassword, startSession } from '../subscribers.js'
+import { loadConfig, readBody, requireJson, RATE_LIMITED, sendJson, sendError, unavailable, methodNotAllowed, validateSignup, fieldErrorCode, findByEmail, findAllByEmail, deleteRecord, createSubscriber, hashPassword, startSession, sendEmailConfirmation } from '../subscribers.js'
 import { rateLimit } from '../security.js'
 
 const exists = (res) => sendError(res, 409, 'account_exists', 'An account with this email already exists. Sign in, or use Forgot password to set a new one.')
@@ -63,6 +63,16 @@ export function createSubscribeHandler({ env = process.env, fetchImpl = globalTh
       return exists(res)
     }
     startSession(res, conf.cfg, v.email, { now: at.getTime(), hash })
+    // Best effort: a mail failure never undoes the signup. The reader can ask
+    // for another link later; without mail settings, nothing is sent.
+    const mail = loadConfig(env, { needMail: true })
+    if (mail.ok) {
+      try {
+        await sendEmailConfirmation(mail.cfg, fetchImpl, v.email, { now: at.getTime() })
+      } catch {
+        console.error('[subscribers] signup: confirmation email failed')
+      }
+    }
     return sendJson(res, 200, { ok: true, signedIn: true, newsletter: v.newsletter })
   }
 }

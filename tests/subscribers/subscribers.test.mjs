@@ -167,7 +167,7 @@ describe('validation + escaping', () => {
 })
 
 describe('subscribe', () => {
-  test('creates the account with a bcrypt hash, signs in, sends no email', async () => {
+  test('creates the account with a bcrypt hash, signs in, emails a confirmation link', async () => {
     const m = mockFetch()
     const h = createSubscribeHandler({ env: ENV, fetchImpl: m.fetchImpl, now: () => new Date(T0) })
     let r
@@ -177,7 +177,9 @@ describe('subscribe', () => {
     assert.equal(r.status, 200)
     assert.deepEqual(r.body, { ok: true, signedIn: true, newsletter: false })
     assert.equal(r.headers['cache-control'], 'no-store')
-    assert.equal(m.calls.emails.length, 0)
+    assert.equal(m.calls.emails.length, 1)
+    assert.deepEqual(m.calls.emails[0].to, ['ann@firm.com'])
+    assert.match(JSON.stringify(m.calls.emails[0]), /confirm-email\?token=/)
     assert.equal(m.rows.length, 1)
     const f = m.rows[0].fields
     assert.equal(f[F.email], 'ann@firm.com')
@@ -489,7 +491,7 @@ describe('sessions follow the password', () => {
     assert.equal((await call(prefs, { method: 'POST', cookie: squatCookie, body: { newsletter: true } })).status, 200)
     // The real owner takes the address back with Forgot password.
     await call(createForgotHandler({ env: ENV, fetchImpl: m.fetchImpl, now: () => T0 + 1000 }), { method: 'POST', body: { email: 'victim@corp.com' } })
-    const reset = await call(createResetHandler({ env: ENV, fetchImpl: m.fetchImpl, now: () => T0 + 2000 }), { method: 'POST', body: { token: resetLinkToken(m.calls.emails[0]), password: 'owner new password' } })
+    const reset = await call(createResetHandler({ env: ENV, fetchImpl: m.fetchImpl, now: () => T0 + 2000 }), { method: 'POST', body: { token: resetLinkToken(m.calls.emails.at(-1)), password: 'owner new password' } })
     assert.equal(reset.status, 200)
     const writes = m.calls.writes.length
     const stale = await call(prefs, { method: 'POST', cookie: squatCookie, body: { newsletter: false } })
