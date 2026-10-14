@@ -126,6 +126,7 @@ export async function signup(input) {
     body: {
       name: input.name,
       email: input.email,
+      company: input.company || '',
       password: input.password,
       newsletter: Boolean(input.newsletter),
       source: 'pay-first',

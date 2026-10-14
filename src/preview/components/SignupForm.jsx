@@ -70,6 +70,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
   const site = FORCE_SITE || siteMount
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [company, setCompany] = useState('')
   const [password, setPassword] = useState('')
   const [newsletter, setNewsletter] = useState(true)
   // Required area: The Monthly Signal is sent by state and city.
@@ -126,7 +127,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
     setSubmitting(true)
     let result
     try {
-      result = await signup({ name: name.trim(), email: email.trim(), password, newsletter, context, ...pickerToRequest(area) })
+      result = await signup({ name: name.trim(), email: email.trim(), company: company.trim(), password, newsletter, context, ...pickerToRequest(area) })
     } catch (err) {
       setSubmitting(false)
       if (err?.status === 409 || err?.code === 'account_exists') {
@@ -149,6 +150,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
     track(EVENTS.SIGNUP_COMPLETED, { variant, roleKey: context?.roleKey || undefined })
     setName('')
     setEmail('')
+    setCompany('')
     setPassword('')
     markSignedUp()
     await reloadSnapshot()
@@ -209,6 +211,18 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
             aria-describedby={describe(errors.email && id('email-error'))}
           />
           {errors.email && <p id={id('email-error')} className="ssp-field-error"><span aria-hidden="true">!</span> {errors.email}</p>}
+        </div>
+        <div className="ssp-field">
+          <label htmlFor={id('company')} className="ssp-field__label">Company <span className="ssp-field__optional">(optional)</span></label>
+          <input
+            id={id('company')}
+            className="ssp-input"
+            type="text"
+            autoComplete="organization"
+            maxLength={150}
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+          />
         </div>
         <PasswordField
           id={id('password')}
