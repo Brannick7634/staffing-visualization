@@ -95,7 +95,7 @@ function uiOnlyScenarios(scenarios) {
       ...within,
       key: 'ui-out-of-date',
       title: 'Out of date (client state)',
-      description: 'Inputs changed after a result: the verdict is dimmed behind “Out of date — press Create Client Pay Report”.',
+      description: 'Inputs changed after a result: the verdict is dimmed behind a clickable “Inputs changed — click to update report”.',
       isOutOfDate: true
     })
   }

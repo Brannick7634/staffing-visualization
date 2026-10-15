@@ -49,7 +49,7 @@ function Field({ id, label, error, children, className = '' }) {
 export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecked }) {
   const {
     selection, setSelection, rateInput, setRateInput, runPayCheck, createClientReport, snapshot, focusRequest,
-    variant, payCheck, access
+    variant, payCheck, access, isOutOfDate
   } = usePreview()
   const [errors, setErrors] = useState({})
   const signedIn = access === ACCESS.AUTHORIZED
@@ -251,6 +251,11 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
               aria-describedby={describe(errors.rate && `${id('rate')}-error`, id('privacy'))}
             />
             <span className="ssp-money__suffix" aria-hidden="true">/hr</span>
+            {isOutOfDate && (
+              <button type="submit" className="ssp-money__update" aria-busy={busy ? 'true' : undefined}>
+                Update
+              </button>
+            )}
           </span>
         </Field>
 
@@ -262,7 +267,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
             aria-busy={busy ? 'true' : undefined}
             aria-describedby={signedIn ? undefined : id('account-hint')}
           >
-            Create Client Pay Report <span aria-hidden="true">→</span>
+            {isOutOfDate ? 'Update Client Pay Report' : 'Create Client Pay Report'} <span aria-hidden="true">→</span>
           </button>
         </div>
         {!signedIn && (

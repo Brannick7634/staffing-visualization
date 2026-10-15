@@ -317,9 +317,13 @@ export default function ResultCard({
         <div className="ssp-result__body" ref={bodyRef}>{body}</div>
         {outdated && (
           <div className="ssp-result__overlay">
-            <p className="ssp-result__overlay-msg" role="status">
-              <span aria-hidden="true">↻</span> Out of date — press Create Client Pay Report
-            </p>
+            <button
+              type="button"
+              className="ssp-result__overlay-msg"
+              onClick={() => document.querySelector('form.ssp-calc')?.requestSubmit()}
+            >
+              <span aria-hidden="true">↻</span> Inputs changed — click to update report
+            </button>
           </div>
         )}
       </div>
