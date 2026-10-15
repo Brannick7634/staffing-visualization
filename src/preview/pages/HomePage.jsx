@@ -19,8 +19,8 @@ import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import { simNotify } from '../api.js'
 
 // Homepage composition. Variant A follows the approved image (corrected);
-// Variant B (live) stacks the calculator, the sample-report preview and the
-// Market Pay Insights, and moves the free-access invitation up.
+// Variant B (live) stacks the calculator, the Market Pay Insights and the
+// sample-report preview, and moves the free-access invitation up.
 
 function dataModeLabel(mode) {
   if (import.meta.env.DEV && mode === DATA_MODE.DEVELOPMENT_EXAMPLE) return 'Development example'
@@ -129,8 +129,8 @@ export default function HomePage({ variant = 'a' }) {
             <Hero compact />
             <div className="ssp-hero__stack">
               <Calculator layout="wide" />
-              <SamplePreview />
               {result}
+              <SamplePreview />
               <div className="ssp-hero__footnote">
                 <p className="ssp-hero__support">
                   <span className="ssp-hero__check" aria-hidden="true">✓</span>
