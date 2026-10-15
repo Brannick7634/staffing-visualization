@@ -156,9 +156,13 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
       geographyLevel: selection.city ? 'city' : selection.state ? 'state' : 'nationwide',
       variant
     })
-    // createClientReport runs the comparison itself; runPayCheck is only a
-    // fallback for a context without it.
-    if (typeof createClientReport === 'function') createClientReport({ selection, rateCents: parsed.cents })
+    // The inline Update button (also Enter while out of date, as it is the
+    // form's first submit button) refreshes the result in place, with no
+    // sign-up gate or navigation. createClientReport runs the comparison
+    // itself; runPayCheck is only a fallback for a context without it.
+    const refreshOnly = event.nativeEvent?.submitter?.dataset?.refresh === 'true'
+    if (refreshOnly) runPayCheck({ selection, rateCents: parsed.cents })
+    else if (typeof createClientReport === 'function') createClientReport({ selection, rateCents: parsed.cents })
     else runPayCheck({ selection, rateCents: parsed.cents })
     if (typeof onChecked === 'function') onChecked()
   }
@@ -252,7 +256,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
             />
             <span className="ssp-money__suffix" aria-hidden="true">/hr</span>
             {isOutOfDate && (
-              <button type="submit" className="ssp-money__update" aria-busy={busy ? 'true' : undefined}>
+              <button type="submit" data-refresh="true" className="ssp-money__update" aria-busy={busy ? 'true' : undefined}>
                 Update
               </button>
             )}
@@ -267,7 +271,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
             aria-busy={busy ? 'true' : undefined}
             aria-describedby={signedIn ? undefined : id('account-hint')}
           >
-            {isOutOfDate ? 'Update Client Pay Report' : 'Create Client Pay Report'} <span aria-hidden="true">→</span>
+            Create Client Pay Report <span aria-hidden="true">→</span>
           </button>
         </div>
         {!signedIn && (

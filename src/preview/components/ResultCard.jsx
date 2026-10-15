@@ -320,7 +320,7 @@ export default function ResultCard({
             <button
               type="button"
               className="ssp-result__overlay-msg"
-              onClick={() => document.querySelector('form.ssp-calc')?.requestSubmit()}
+              onClick={() => document.querySelector('.ssp-money__update')?.click()}
             >
               <span aria-hidden="true">↻</span> Inputs changed — click to update report
             </button>
