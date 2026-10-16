@@ -127,7 +127,7 @@ function PayCard({ sector, nationalPay, mode }) {
               {showAll ? 'Show fewer' : `Show all ${rows.length} roles`}
             </button>
           )}
-          <p className="ssp-sector__foot ssp-muted">Staffing-firm postings only. Advertised pay, not actual pay.</p>
+          <p className="ssp-sector__foot ssp-muted">Hourly contract postings from verified staffing firms only. Advertised pay, not actual pay.</p>
         </>
       ) : (
         <div className="ssp-sector__empty">

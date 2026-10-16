@@ -116,7 +116,7 @@ export default function ReportPage() {
     <div className="ssp-section"><div className="ssp-container ssp-report">
       <p className="ssp-eyebrow">The Monthly Signal</p>
       <h1 className="ssp-h1">{d.label}</h1>
-      <p className="ssp-lede">Compared with {monthName(d.previousMonth)}. Staffing-firm postings only; advertised pay, not actual pay.</p>
+      <p className="ssp-lede">Compared with {monthName(d.previousMonth)}. Hourly contract postings from verified staffing firms only; advertised pay, not actual pay.</p>
 
       {signedIn && (
         <div className="ssp-report__area">

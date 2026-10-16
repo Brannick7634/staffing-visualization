@@ -56,7 +56,7 @@ export default function MonthlySignal() {
             </li>
           ))}
         </ul>
-        <p className="ssp-muted ssp-monthly__note">Staffing-firm postings only. Advertised pay, not actual pay.</p>
+        <p className="ssp-muted ssp-monthly__note">Hourly contract postings from verified staffing firms only. Advertised pay, not actual pay.</p>
       </div>
     </section>
   )
