@@ -9,9 +9,9 @@ import { EVENTS, track } from '../lib/track.js'
 // "Compare a client's pay rate": Sector -> Job Title -> State -> City ->
 // Client Pay Rate. State and City are always visible. The typed rate is
 // validated here with the shared parser and kept in memory only; it is never
-// put in a URL, storage or an analytics event. The CTA runs the comparison
-// (free, also for local markets) through createClientReport, which opens the
-// report when signed in and the free-account gate otherwise.
+// put in a URL, storage or an analytics event. The CTA, Compare Client Pay,
+// runs the free comparison only (no account). Creating a report is a separate
+// next action under the results (ReportCta -> createClientReport).
 
 const PRIVACY_PROMISE = 'The client pay rate you enter stays in your browser. It is never saved or put in links, and it is sent to our server only if you email a report, to build that report.'
 
@@ -48,7 +48,7 @@ function Field({ id, label, error, children, className = '' }) {
 
 export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecked }) {
   const {
-    selection, setSelection, rateInput, setRateInput, runPayCheck, createClientReport, snapshot, focusRequest,
+    selection, setSelection, rateInput, setRateInput, runPayCheck, snapshot, focusRequest,
     variant, payCheck, access, isOutOfDate
   } = usePreview()
   const [errors, setErrors] = useState({})
@@ -103,7 +103,8 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
 
   function onSector(event) {
     const sectorKey = event.target.value
-    setSelection({ sectorKey, roleKey: firstBenchmarkedRole(sectorKey, benchmarked), state: null, city: null })
+    // Keep the visitor's market: a sector or job change never clears a valid state/city.
+    setSelection({ sectorKey, roleKey: firstBenchmarkedRole(sectorKey, benchmarked) })
     clearError('role')
   }
 
@@ -130,7 +131,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
   function pickExample(roleKey) {
     const sector = sectorForRole(roleKey)
     if (!sector) return
-    setSelection({ sectorKey: sector.key, roleKey, state: null, city: null })
+    setSelection({ sectorKey: sector.key, roleKey })
     setErrors({})
   }
 
@@ -156,14 +157,10 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
       geographyLevel: selection.city ? 'city' : selection.state ? 'state' : 'nationwide',
       variant
     })
-    // The inline Update button (also Enter while out of date, as it is the
-    // form's first submit button) refreshes the result in place, with no
-    // sign-up gate or navigation. createClientReport runs the comparison
-    // itself; runPayCheck is only a fallback for a context without it.
-    const refreshOnly = event.nativeEvent?.submitter?.dataset?.refresh === 'true'
-    if (refreshOnly) runPayCheck({ selection, rateCents: parsed.cents })
-    else if (typeof createClientReport === 'function') createClientReport({ selection, rateCents: parsed.cents })
-    else runPayCheck({ selection, rateCents: parsed.cents })
+    // Compare Client Pay (and the inline Update) run the free comparison
+    // only: no account, no gate, no navigation. Creating a report is the
+    // separate next action under the results.
+    runPayCheck({ selection, rateCents: parsed.cents })
     if (typeof onChecked === 'function') onChecked()
   }
 
@@ -239,7 +236,8 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
           </Field>
         </div>
 
-        <Field id={id('rate')} label="Enter Client Pay Rate" error={errors.rate} className="ssp-calc__rate">
+        <Field id={id('rate')} label="Client Pay Rate" error={errors.rate} className="ssp-calc__rate">
+          <p id={id('rate-help')} className="ssp-calc__hint">Hourly wage offered to the worker, not the rate you bill your client.</p>
           <span className={`ssp-money${errors.rate ? ' has-error' : ''}`}>
             <span className="ssp-money__prefix" aria-hidden="true">$</span>
             <input
@@ -252,7 +250,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
               value={rateInput}
               onChange={onRate}
               aria-invalid={errors.rate ? 'true' : undefined}
-              aria-describedby={describe(errors.rate && `${id('rate')}-error`, id('privacy'))}
+              aria-describedby={describe(id('rate-help'), errors.rate && `${id('rate')}-error`, id('privacy'))}
             />
             <span className="ssp-money__suffix" aria-hidden="true">/hr</span>
             {isOutOfDate && (
@@ -271,11 +269,11 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
             aria-busy={busy ? 'true' : undefined}
             aria-describedby={signedIn ? undefined : id('account-hint')}
           >
-            Create Client Pay Report <span aria-hidden="true">→</span>
+            Compare Client Pay <span aria-hidden="true">→</span>
           </button>
         </div>
         {!signedIn && (
-          <p id={id('account-hint')} className="ssp-calc__hint">Free account to create, print, download or email the report</p>
+          <p id={id('account-hint')} className="ssp-calc__hint">No account needed to compare. A free account is required to create, print, download or email a personalized report.</p>
         )}
       </div>
 

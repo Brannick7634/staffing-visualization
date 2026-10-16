@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { basePath, FORCE_SITE, usePreview } from '../PreviewContext.jsx'
 import { gateChips } from '../lib/reportGate.js'
@@ -56,7 +56,6 @@ function ReportAuthDialog() {
   const site = FORCE_SITE || siteMount
   const base = basePath(site)
   const navigate = useNavigate()
-  const [signupOpen, setSignupOpen] = useState(false)
   const overlayRef = useRef(null)
   const dialogRef = useRef(null)
   const closeRef = useRef(closeReportGate)
@@ -127,12 +126,11 @@ function ReportAuthDialog() {
     }
   }, [])
 
-  // Expanding the sign-up form moves focus to its first field.
+  // The form is shown at once; start on its first field.
   useEffect(() => {
-    if (!signupOpen) return
     const field = document.getElementById('report-gate-name')
     if (field) field.focus()
-  }, [signupOpen])
+  }, [])
 
   function onBackdrop(event) {
     if (event.target === overlayRef.current) closeReportGate()
@@ -182,32 +180,20 @@ function ReportAuthDialog() {
           {BENEFITS.map((item) => <li key={item}>{item}</li>)}
         </ul>
 
-        <div className="ssp-modal__actions">
-          <button
-            type="button"
-            className="ssp-btn ssp-btn--primary ssp-btn--lg ssp-modal__action"
-            aria-expanded={signupOpen}
-            aria-controls="ssp-report-gate-signup"
-            onClick={() => setSignupOpen((value) => !value)}
-          >
-            Sign Up Free
-          </button>
-          <button type="button" className="ssp-btn ssp-btn--secondary ssp-btn--lg ssp-modal__action" onClick={onSignIn}>
-            Sign In
-          </button>
+        {/* The sign-up form shows immediately: no extra click to reveal it. */}
+        <div id="ssp-report-gate-signup" className="ssp-modal__signup">
+          <SignupForm
+            idPrefix="report-gate"
+            context={pendingReturn}
+            submitLabel="Create my free account"
+            onSuccess={() => closeReportGate()}
+          />
         </div>
 
-        <div id="ssp-report-gate-signup" className="ssp-modal__signup" hidden={!signupOpen}>
-          {signupOpen && (
-            <SignupForm
-              idPrefix="report-gate"
-              context={pendingReturn}
-              submitLabel="Create my free account"
-              onSuccess={() => closeReportGate()}
-            />
-          )}
-        </div>
-
+        <p className="ssp-modal__fine">
+          Already have an account?{' '}
+          <button type="button" className="ssp-linkbtn" onClick={onSignIn}>Sign in</button>
+        </p>
         <p className="ssp-modal__fine">Free account · no credit card</p>
         <p className="ssp-modal__sample">
           <Link to={`${base}/sample-report`} className="ssp-link" onClick={() => closeReportGate()}>

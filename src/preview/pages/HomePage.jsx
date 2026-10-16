@@ -66,9 +66,10 @@ export default function HomePage({ variant = 'a' }) {
   // the report from the comparison on screen, not from edited inputs.
   // Never from the first-load example (a rate the visitor did not enter).
   const onCreateReport = useCallback((options) => {
-    if (!checked || payCheck.isExample || typeof createClientReport !== 'function') return
+    // Never from a stale result: the inputs must match what is on screen.
+    if (!checked || payCheck.isExample || isOutOfDate || typeof createClientReport !== 'function') return
     createClientReport({ selection: checked, rateCents: payCheck.rateCents, intent: options?.intent })
-  }, [checked, createClientReport, payCheck.rateCents, payCheck.isExample])
+  }, [checked, createClientReport, payCheck.rateCents, payCheck.isExample, isOutOfDate])
   const onEnterDetails = useCallback(() => requestFocus('role'), [requestFocus])
   const onSeeFallback = useCallback(() => {
     if (!checked) return

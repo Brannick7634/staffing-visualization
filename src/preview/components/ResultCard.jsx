@@ -196,7 +196,7 @@ export default function ResultCard({
     body = (
       <div className="ssp-result__idle">
         <p className="ssp-muted">
-          Choose a job title and location, enter your client’s hourly pay rate and press <strong>Create Client Pay Report</strong>. The rate you enter stays in this browser.
+          Choose a job title and location, enter your client’s hourly pay rate and press <strong>Compare Client Pay</strong>. The rate you enter stays in this browser.
         </p>
       </div>
     )
@@ -265,7 +265,7 @@ export default function ResultCard({
       const cta = isExample
         ? <ReportCta example onEnterDetails={onEnterDetails} />
         : typeof onCreateReport === 'function'
-          ? <ReportCta signedIn={access === ACCESS.AUTHORIZED} reportHref={`${base}/client-report`} onCreateReport={onCreateReport} />
+          ? <ReportCta signedIn={access === ACCESS.AUTHORIZED} outdated={outdated} onCreateReport={onCreateReport} />
           : null
       parts.push(<MarketPayInsights key="insights" model={model} note={note} before={before} after={cta} />)
     } else {
@@ -322,7 +322,7 @@ export default function ResultCard({
               className="ssp-result__overlay-msg"
               onClick={() => document.querySelector('.ssp-money__update')?.click()}
             >
-              <span aria-hidden="true">↻</span> Inputs changed — click to update report
+              <span aria-hidden="true">↻</span> Inputs changed — click to update the comparison
             </button>
           </div>
         )}

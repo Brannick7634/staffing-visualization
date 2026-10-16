@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom'
-
 // The report hand-off under the insights.
 //   example: the first-load national example (a rate nobody entered), so it
 //            points to the calculator instead of offering a report.
@@ -9,7 +7,9 @@ import { Link } from 'react-router-dom'
 //            the check and saves where to return (job and place only).
 // data-gate-opener lets the gate give focus back to the matching button after
 // the results re-render.
-export default function ReportCta({ signedIn, example = false, reportHref, onCreateReport, onEnterDetails }) {
+// outdated: the inputs above no longer match this comparison, so no report
+//            can be created from it until the visitor presses Compare again.
+export default function ReportCta({ signedIn, example = false, outdated = false, onCreateReport, onEnterDetails }) {
   if (example) {
     return (
       <div className="ssp-reportcta">
@@ -27,17 +27,27 @@ export default function ReportCta({ signedIn, example = false, reportHref, onCre
       </div>
     )
   }
-  if (signedIn) {
+  if (outdated) {
+    return (
+      <div className="ssp-reportcta">
+        <div className="ssp-reportcta__copy">
+          <p className="ssp-reportcta__title">Your inputs changed</p>
+          <p className="ssp-reportcta__text">Press <strong>Compare Client Pay</strong> to update these results before creating a report.</p>
+        </div>
+      </div>
+    )
+  }
+  if (signedIn && typeof onCreateReport === 'function') {
     return (
       <div className="ssp-reportcta ssp-reportcta--in">
         <div className="ssp-reportcta__copy">
-          <p className="ssp-reportcta__title">Your Client Pay Market Report is ready</p>
-          <p className="ssp-reportcta__text">Two pages, US Letter. Print it, download the PDF or email it to your client.</p>
+          <p className="ssp-reportcta__title">Next: your Client Pay Report</p>
+          <p className="ssp-reportcta__text">Two pages, US Letter, built from this comparison. Print it, download the PDF or email it to your client.</p>
         </div>
         <div className="ssp-reportcta__actions">
-          <Link to={reportHref} className="ssp-btn ssp-btn--primary">
-            Open report <span aria-hidden="true">→</span>
-          </Link>
+          <button type="button" className="ssp-btn ssp-btn--primary" onClick={() => onCreateReport()}>
+            Create Client Pay Report <span aria-hidden="true">→</span>
+          </button>
         </div>
       </div>
     )
@@ -46,13 +56,13 @@ export default function ReportCta({ signedIn, example = false, reportHref, onCre
   return (
     <div className="ssp-reportcta">
       <div className="ssp-reportcta__copy">
-        <p className="ssp-reportcta__title">Get your own report</p>
+        <p className="ssp-reportcta__title">Next: your Client Pay Report</p>
         <p className="ssp-reportcta__text">
-          Create and download a customized Client Pay Market Report in seconds. Free account, no credit card.
+          Turn this comparison into a two-page report for your client. A free account is required to create, print, download or email it. No credit card.
         </p>
       </div>
       <div className="ssp-reportcta__actions">
-        <button type="button" className="ssp-btn ssp-btn--primary" data-gate-opener="results-signup" onClick={() => onCreateReport()}>Sign Up Free</button>
+        <button type="button" className="ssp-btn ssp-btn--primary" data-gate-opener="results-signup" onClick={() => onCreateReport()}>Create Client Pay Report</button>
         <button type="button" className="ssp-btn ssp-btn--secondary" data-gate-opener="results-signin" onClick={() => onCreateReport({ intent: 'sign-in' })}>Sign In</button>
       </div>
     </div>
