@@ -18,7 +18,8 @@ const PREVIEW_PAGES = [
 // Production nav: real pages only. Sample Report is public (no sign-up).
 const SITE_PAGES = [
   { to: '/sample-report', label: 'Sample Report' },
-  { to: '/methodology', label: 'How We Count' }
+  { to: '/methodology', label: 'How We Count' },
+  { to: '/#about', label: 'About' }
 ]
 
 export default function Header() {
@@ -89,12 +90,16 @@ export default function Header() {
             </li>
             {PAGES.map((page) => (
               <li key={page.label}>
-                <NavLink
-                  to={page.to}
-                  onClick={() => page.event && track(page.event, { variant })}
-                >
-                  {page.label}
-                </NavLink>
+                {page.to.includes('#')
+                  ? <Link to={page.to}>{page.label}</Link>
+                  : (
+                    <NavLink
+                      to={page.to}
+                      onClick={() => page.event && track(page.event, { variant })}
+                    >
+                      {page.label}
+                    </NavLink>
+                    )}
               </li>
             ))}
             {/* Phone menu only; on wider screens "Sign in" / "Sign out" sits

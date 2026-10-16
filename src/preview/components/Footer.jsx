@@ -11,9 +11,11 @@ const PREVIEW_LINKS = [
   { to: '/preview/contact', label: 'Contact' }
 ]
 
-// Production: real pages only (About/Contact copy not written yet).
+// Production: real pages only. About is a homepage section; Contact appears
+// there only when a verified destination is configured (VITE_CONTACT_URL).
 const SITE_LINKS = [
   { to: '/sample-report', label: 'Sample report' },
+  { to: '/#about', label: 'About' },
   { to: '/methodology', label: 'How We Count' },
   { to: '/privacy', label: 'Privacy' },
   { to: '/preferences', label: 'Email Preferences' }

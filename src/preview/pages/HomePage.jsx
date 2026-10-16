@@ -1,4 +1,5 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { DATA_MODE, REQUEST } from '../../../shared/signal/contract.js'
 import AccessInvite from '../components/AccessInvite.jsx'
 import Calculator from '../components/Calculator.jsx'
@@ -11,11 +12,12 @@ import MonthlySignal from '../components/MonthlySignal.jsx'
 // The monthly report stays hidden in production until VITE_SIGNAL_REPORT=1
 // (first trustworthy comparison: October vs September, early November).
 const REPORT_ON = import.meta.env.DEV || import.meta.env.VITE_SIGNAL_REPORT === '1'
+import AboutSection from '../components/AboutSection.jsx'
 import ResultCard from '../components/ResultCard.jsx'
 import SamplePreview from '../components/SamplePreview.jsx'
 import SectorModule from '../components/SectorModule.jsx'
 import TrustStrip from '../components/TrustStrip.jsx'
-import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
+import { FORCE_SITE, scrollToId, usePreview } from '../PreviewContext.jsx'
 import { simNotify } from '../api.js'
 
 // Homepage composition. Variant A follows the approved image (corrected);
@@ -56,6 +58,13 @@ export default function HomePage({ variant = 'a' }) {
     requestFocus, requestFreeAccess, pickRole, signedUp, pendingReturn, runPayCheck, setSelection, createClientReport,
     site: siteMount
   } = usePreview()
+  // Header/footer "About" links land on the homepage section.
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (hash !== '#about') return undefined
+    const frame = window.requestAnimationFrame(() => scrollToId('about'))
+    return () => window.cancelAnimationFrame(frame)
+  }, [hash])
   const site = FORCE_SITE || siteMount
 
   const checked = payCheck.selection
@@ -149,6 +158,7 @@ export default function HomePage({ variant = 'a' }) {
         {sectors}
         {coverage}
         {trust}
+        <AboutSection />
       </>
     )
   }
@@ -172,6 +182,7 @@ export default function HomePage({ variant = 'a' }) {
       {sectors}
       {invite}
       {trust}
+      <AboutSection />
     </>
   )
 }

@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { contactUrl } from '../../src/preview/lib/contact.js'
 
 const read = (rel) => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8')
 
@@ -46,5 +47,26 @@ describe('coverage before signup (brief §5)', () => {
   })
   test('fallback offered only when it passes publication checks', () => {
     assert.match(card, /fb && fb\.coverage === COVERAGE\.PUBLISHABLE/)
+  })
+})
+
+describe('homepage and About (brief §6)', () => {
+  test('brief copy present', () => {
+    const hero = read('src/preview/components/Hero.jsx')
+    assert.match(hero, /Know whether your client’s pay is competitive\./)
+    assert.match(hero, /View Sample Report/)
+    assert.match(hero, /Advertised pay, not actual wages paid\./)
+    assert.match(read('src/preview/components/AboutSection.jsx'), /Built by Andy Kohler/)
+  })
+  test('contact button only with a configured, valid destination', () => {
+    const about = read('src/preview/components/AboutSection.jsx')
+    assert.match(about, /\{href && \(/)
+    assert.ok(!/@[a-z0-9-]+\.(com|us|net)/i.test(about.replace(/mailto:\[\^/g, '')), 'no hard-coded address')
+    {
+      assert.equal(contactUrl(undefined), null)
+      assert.equal(contactUrl('javascript:alert(1)'), null)
+      assert.equal(contactUrl('http://x.com'), null)
+      assert.equal(contactUrl('https://example.com/book'), 'https://example.com/book')
+    }
   })
 })
