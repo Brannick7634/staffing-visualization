@@ -58,10 +58,11 @@ describe('homepage and About (brief §6)', () => {
     assert.match(hero, /Advertised pay, not actual wages paid\./)
     assert.match(read('src/preview/components/AboutSection.jsx'), /Built by Andy Kohler/)
   })
-  test('contact button only with a configured, valid destination', () => {
+  test('contact uses the approved address only, and only valid destinations', () => {
     const about = read('src/preview/components/AboutSection.jsx')
     assert.match(about, /\{href && \(/)
-    assert.ok(!/@[a-z0-9-]+\.(com|us|net)/i.test(about.replace(/mailto:\[\^/g, '')), 'no hard-coded address')
+    const addrs = (about + read('src/preview/components/Footer.jsx')).match(/[a-z0-9.]+@[a-z0-9-]+\.[a-z]+/gi) || []
+    assert.deepEqual([...new Set(addrs)], ['andy@thestaffingsignal.com'], 'only the approved address')
     {
       assert.equal(contactUrl(undefined), null)
       assert.equal(contactUrl('javascript:alert(1)'), null)
