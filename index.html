@@ -3,14 +3,44 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Staffing Signal</title>
+    <title>The Staffing Signal | Compare client pay with advertised staffing pay</title>
+    <meta name="description" content="Compare a client's proposed worker pay with advertised hourly pay from staffing firms for the same role and market, then turn available results into a client pay report." />
+    <link rel="canonical" href="https://www.thestaffingsignal.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="The Staffing Signal" />
+    <meta property="og:title" content="The Staffing Signal | Know whether your client's pay is competitive" />
+    <meta property="og:description" content="Compare advertised hourly pay for the role and market you serve. Advertised pay, not actual wages paid. Local coverage varies." />
+    <meta property="og:url" content="https://www.thestaffingsignal.com/" />
+    <meta property="og:image" content="https://www.thestaffingsignal.com/og-image.png" />
+    <meta property="og:image:width" content="1080" />
+    <meta property="og:image:height" content="1080" />
+    <meta property="og:image:alt" content="The Staffing Signal logo" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="The Staffing Signal | Know whether your client's pay is competitive" />
+    <meta name="twitter:description" content="Compare advertised hourly pay for the role and market you serve. Advertised pay, not actual wages paid." />
+    <meta name="twitter:image" content="https://www.thestaffingsignal.com/og-image.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      .boot-shell { min-height: 60vh; display: flex; align-items: center; justify-content: center; font-family: Inter, system-ui, sans-serif; color: #334E68; padding: 16px; text-align: center; }
+      .boot-shell__dot { width: 10px; height: 10px; border-radius: 50%; background: #2680C2; margin-right: 10px; animation: boot-pulse 1.2s ease-in-out infinite; }
+      @keyframes boot-pulse { 50% { opacity: .3; } }
+      @media (prefers-reduced-motion: reduce) { .boot-shell__dot { animation: none; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown until the app renders (React replaces it). -->
+      <div class="boot-shell" role="status" aria-live="polite">
+        <span class="boot-shell__dot" aria-hidden="true"></span>
+        <span>Loading The Staffing Signal…</span>
+      </div>
+    </div>
+    <noscript>
+      <p style="font-family: system-ui, sans-serif; padding: 16px;">The Staffing Signal needs JavaScript to compare pay. Please enable JavaScript and reload.</p>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

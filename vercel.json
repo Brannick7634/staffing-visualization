@@ -6,6 +6,21 @@
       "permanent": false
     }
   ],
+  "headers": [
+    {
+      "source": "/(client-report|preferences|email-preferences|sign-in|forgot-password|reset-password|confirm-email|free-access|login|signup|dashboard|company-data|market-intel|preview)(/.*)?",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/subscribe",

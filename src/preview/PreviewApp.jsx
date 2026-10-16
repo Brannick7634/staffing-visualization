@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { canonicalFor, isPrivatePath } from './lib/seo.js'
 import Footer from './components/Footer.jsx'
 import Header from './components/Header.jsx'
 import ReportAuthModal from './components/ReportAuthModal.jsx'
@@ -118,10 +119,32 @@ function usePreviewFavicon(enabled) {
   }, [enabled])
 }
 
+// Canonical link and robots meta follow the route (production site only).
+function useSeo(site) {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    if (!site) return
+    const canonical = document.querySelector('link[rel="canonical"]')
+    const priv = isPrivatePath(pathname)
+    if (canonical) canonical.setAttribute('href', canonicalFor(priv ? '/' : pathname))
+    let robots = document.querySelector('meta[name="robots"]')
+    if (priv) {
+      if (!robots) {
+        robots = document.createElement('meta')
+        robots.setAttribute('name', 'robots')
+        document.head.appendChild(robots)
+      }
+      robots.setAttribute('content', 'noindex, nofollow')
+    } else if (robots) robots.remove()
+  }, [site, pathname])
+}
+
 export default function PreviewApp({ site = false }) {
   useBodyClass('ssp-body')
   // Production keeps index.html's favicon (the Staffing Signal logo).
   usePreviewFavicon(!site)
+
+  useSeo(site)
 
   useEffect(() => {
     const previous = document.title
