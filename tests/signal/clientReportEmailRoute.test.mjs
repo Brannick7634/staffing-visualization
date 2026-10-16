@@ -7,6 +7,7 @@ import { createClientReportEmailHandler, validateEmailRequest, dailyCap, DEFAULT
 import { DAILY_RECIPIENT_LIMIT } from '../../shared/signal/clientReport.js'
 import { buildReportEmail } from '../../api/_lib/clientReportEmail.js'
 import { esc } from '../../api/_lib/html.js'
+import { DEFAULT_SNAPSHOT_PATH, KNOWN_CALC_VERSIONS } from '../../api/_lib/signal/productionAdapter.js'
 import { F, sendEmail } from '../../api/_lib/subscribers.js'
 import { sessionToken, passwordFingerprint, SESSION_COOKIE } from '../../api/_lib/signalSession.js'
 import { _resetRateLimits, sameOrigin, siteOrigins } from '../../api/_lib/security.js'
@@ -747,15 +748,19 @@ describe('dev server mount', () => {
     assert.equal(plugin.EMAIL_BODY_LIMIT_BYTES, 16 * 1024)
   })
 
-  test('SIGNAL_DEV_DATA=snapshot serves the committed snapshot without SIGNAL_FEED_ENABLED', async () => {
+  // Code/data pairing: the committed snapshot is served only when its
+  // calculation version is one this code knows; an older method is refused.
+  test('SIGNAL_DEV_DATA=snapshot reads the committed snapshot without SIGNAL_FEED_ENABLED (served only if its method is current)', async () => {
     const saved = process.env.SIGNAL_FEED_ENABLED
     delete process.env.SIGNAL_FEED_ENABLED
     try {
       const real = plugin.createDevAdapter({ dataSource: 'snapshot' })
       assert.equal(real.dataMode, 'production')
       const loaded = await real.load()
-      assert.equal(loaded.available, true)
-      assert.ok(Array.isArray(loaded.data.monthly))
+      const committed = JSON.parse(readFileSync(DEFAULT_SNAPSHOT_PATH, 'utf8'))
+      const current = KNOWN_CALC_VERSIONS.includes(committed.calcVersion)
+      assert.equal(loaded.available, current)
+      if (current) assert.ok(Array.isArray(loaded.data.monthly))
       assert.equal(plugin.createDevAdapter({ dataSource: undefined }).dataMode, 'development_example')
     } finally {
       if (saved !== undefined) process.env.SIGNAL_FEED_ENABLED = saved

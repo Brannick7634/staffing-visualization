@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { buildReport, localFor, cityKeyFor, previousMonth, monthLabel, THRESHOLDS, validateMonthly } from '../../api/_lib/signal/report.js'
+import { buildReport, localFor, cityKeyFor, previousMonth, monthLabel, THRESHOLDS, validateMonthly, reportMethodCurrent } from '../../api/_lib/signal/report.js'
 import { createReportHandler, areaFromRecord } from '../../api/_lib/routes/signal-report.js'
 import { F } from '../../api/_lib/subscribers.js'
 import { sessionToken, passwordFingerprint, SESSION_COOKIE } from '../../api/_lib/signalSession.js'
@@ -13,7 +13,7 @@ const ok = (firms = 8, share = 0.2) => ({ status: 'verified', distinctFirms: fir
 const pay = (roleKey, typ, n = 50, extra = {}) => ({ roleKey, level: 'nationwide', state: null, city: null, n, p25Cents: typ - 200, typicalCents: typ, p75Cents: typ + 200, checks: ok(), ...extra })
 function month(m, { payRows = [], states = [], cities = [], roles = [], total = 10000, roleStatus = {} } = {}) {
   return {
-    format: 'staffing-signal-monthly-aggregates', schemaVersion: 1, calcVersion: 'signal-month-1.0.0', baseCalcVersion: 'x', month: m,
+    format: 'staffing-signal-monthly-aggregates', schemaVersion: 1, calcVersion: 'signal-month-2.0.0', baseCalcVersion: 'x', month: m,
     reliability: { reliable: true }, totals: { postings: total, firms: 900, payObservations: 5000 }, roleStatus, pay: payRows, demand: { states, cities, roles }
   }
 }
@@ -24,6 +24,10 @@ describe('report builder', () => {
     assert.equal(previousMonth('2026-01'), '2025-12')
     assert.equal(monthLabel('2026-09'), 'September 2026')
     assert.throws(() => buildReport(month('2026-09'), month('2026-07')), /consecutive/)
+    // Method break: months from different calculation versions are never compared.
+    assert.throws(() => buildReport(month('2026-09'), { ...month('2026-08'), calcVersion: 'signal-month-1.0.0' }), /method_break/)
+    assert.equal(reportMethodCurrent({ sources: { month: 'signal-month-1.0.0', previous: 'signal-month-1.0.0' } }), false)
+    assert.equal(reportMethodCurrent({ sources: { month: 'signal-month-2.0.0', previous: 'signal-month-2.0.0' } }), true)
     assert.throws(() => validateMonthly({ ...month('2026-09'), reliability: { reliable: false } }, '2026-09'), /unreliable/)
   })
 
@@ -144,6 +148,17 @@ describe('GET /api/signal/report', () => {
     assert.equal((await call(pub, { method: 'POST' })).status, 405)
     const empty = createReportHandler({ dir: mkdtempSync(path.join(os.tmpdir(), 'rep0-')), resolveAccess: () => ({}) })
     assert.equal((await call(empty)).status, 404)
+  })
+
+  test('a report built with a superseded method is withdrawn (503), never served', async () => {
+    const d = mkdtempSync(path.join(os.tmpdir(), 'rep-old-'))
+    const old = buildReport(cur, prev)
+    old.sources = { month: 'signal-month-1.0.0', previous: 'signal-month-1.0.0', base: 'signal-agg-1.2.0' }
+    writeFileSync(path.join(d, '2026-09.json'), JSON.stringify(old))
+    const r = await call(createReportHandler({ dir: d, resolveAccess: () => ({ access: ACCESS.AUTHORIZED }) }))
+    assert.equal(r.status, 503)
+    assert.equal(r.body.error.code, 'report_method_superseded')
+    assert.equal(r.body.national, undefined)
   })
 
   test('area from subscriber record', () => {

@@ -1,10 +1,12 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  createProductionAdapter, validateSnapshot, validateMonthly, loadMonthlySnapshots, DEFAULT_SNAPSHOT_PATH, MAX_AGE_DAYS
+  createProductionAdapter, validateSnapshot, validateMonthly, loadMonthlySnapshots, DEFAULT_SNAPSHOT_PATH, MAX_AGE_DAYS,
+  KNOWN_CALC_VERSIONS, KNOWN_MONTHLY_CALC_VERSIONS
 } from '../../api/_lib/signal/productionAdapter.js'
 import { createSnapshotHandler, createPayHandler } from '../../api/_lib/signal/handlers.js'
 import { ROLES, roleByKey } from '../../shared/signal/taxonomy.js'
@@ -17,7 +19,7 @@ function sample(overrides = {}) {
   return {
     format: 'staffing-signal-aggregate-snapshot',
     schemaVersion: 1,
-    calcVersion: 'signal-agg-1.0.0',
+    calcVersion: 'signal-agg-2.0.0',
     generatedAt: '2026-10-04T10:00:00Z',
     snapshotDate: '2026-10-04',
     data: {
@@ -26,7 +28,7 @@ function sample(overrides = {}) {
       issueCards: [],
       cityVolume: { metric: 'm', windowDays: 45, scope: 's', jobScope: 'all jobs', rows: [{ cityKey: 'TX:houston', postings: 120, checks: ok() }] },
       momentum: { windowDays: 45, previousWindowDays: 45, coverage: 'publishable', rows: [{ code: 'TX', momentumPct: 12, checks: ok() }] },
-      pay: [{ roleKey: 'forklift-operator', level: 'nationwide', state: null, city: null, p25Cents: 1713, typicalCents: 1850, p75Cents: 2000, payBasis: 'hourly', currency: 'USD', checks: ok() }],
+      pay: [{ roleKey: 'forklift-operator', level: 'nationwide', state: null, city: null, p25Cents: 1713, typicalCents: 1850, p75Cents: 2000, payBasis: 'hourly', currency: 'USD', observations: 40, checks: ok() }],
       mostPostedFamilies: { labels: ['Warehouse Associate'], note: 'n' }
     },
     ...overrides
@@ -55,7 +57,7 @@ describe('production adapter fails closed', () => {
     const on = await adapterFor(sample()).load()
     assert.equal(on.available, true)
     assert.equal(on.data.snapshot.freshness, 'current')
-    assert.equal(on.data.snapshot.methodologyVersion, 'signal-agg-1.0.0')
+    assert.equal(on.data.snapshot.methodologyVersion, 'signal-agg-2.0.0')
   })
 
   test('default entrypoint stays off without SIGNAL_FEED_ENABLED', async () => {
@@ -130,7 +132,7 @@ describe('monthly snapshots (pay trend)', () => {
   const month = (m, overrides = {}) => ({
     format: 'staffing-signal-monthly-aggregates',
     schemaVersion: 1,
-    calcVersion: 'signal-month-1.0.0',
+    calcVersion: 'signal-month-2.0.0',
     month: m,
     reliability: { reliable: true },
     pay: [{ roleKey: 'forklift-operator', level: 'nationwide', state: null, city: null, n: 41, p25Cents: 1700, typicalCents: 1840, p75Cents: 1990, checks: ok(9) }],
@@ -146,7 +148,8 @@ describe('monthly snapshots (pay trend)', () => {
   test('loads valid months ascending, reduced to the fields the trend uses', async () => {
     const months = await loadMonthlySnapshots(monthlyDir({ '2026-09.json': month('2026-09'), '2026-08.json': month('2026-08'), 'notes.txt': 'x' }))
     assert.deepEqual(months.map((m) => m.month), ['2026-08', '2026-09'])
-    assert.deepEqual(Object.keys(months[0].pay[0]).sort(), ['checks', 'city', 'currency', 'level', 'p25Cents', 'p75Cents', 'payBasis', 'roleKey', 'state', 'typicalCents'])
+    assert.deepEqual(Object.keys(months[0].pay[0]).sort(), ['checks', 'city', 'currency', 'level', 'observations', 'p25Cents', 'p75Cents', 'payBasis', 'roleKey', 'state', 'typicalCents'])
+    assert.equal(months[0].pay[0].observations, 41)
   })
 
   test('a bad file is skipped on its own; the snapshot stays available', async () => {
@@ -171,10 +174,28 @@ describe('monthly snapshots (pay trend)', () => {
     assert.equal(validateMonthly(null), null)
   })
 
-  test('the committed monthly files validate', async () => {
+  // Method break (signal-month-2.0.0): months built with the old population
+  // are skipped, so no trend spans the change; they are not rebuilt from
+  // today's data. Months built with the current method load as before.
+  test('committed monthly files load only when built with the current method', async () => {
     const months = await loadMonthlySnapshots()
-    assert.ok(months.length >= 1)
+    const dir = new URL('../../api/_lib/signal/data/monthly/', import.meta.url)
+    for (const name of readdirSync(dir).filter((n) => /^\d{4}-\d{2}\.json$/.test(n))) {
+      const raw = JSON.parse(readFileSync(new URL(name, dir), 'utf8'))
+      const loaded = months.some((m) => m.month === raw.month)
+      assert.equal(loaded, KNOWN_MONTHLY_CALC_VERSIONS.includes(raw.calcVersion), name)
+    }
     assert.ok(months.every((m) => /^\d{4}-\d{2}$/.test(m.month) && m.pay.length > 0))
+  })
+
+  test('a pre-2.0.0 month is refused even when otherwise valid', () => {
+    assert.equal(validateMonthly(month('2026-09', { calcVersion: 'signal-month-1.0.0' })), null)
+    assert.ok(validateMonthly(month('2026-09')))
+  })
+
+  test('a month cell without an observation count is refused', () => {
+    const { n, ...noCount } = month('x').pay[0]
+    assert.equal(validateMonthly(month('2026-09', { pay: [noCount] })), null)
   })
 
   test('vercel.json bundles the monthly files with the pay function', () => {
@@ -185,8 +206,21 @@ describe('monthly snapshots (pay trend)', () => {
   })
 })
 
-describe('exported snapshot file', { skip: existsSync(DEFAULT_SNAPSHOT_PATH) ? false : 'no exported snapshot' }, () => {
+// Code and data are paired: a served snapshot from an older calculation
+// version is refused (feed unavailable), never shown under 2.0.0 methodology.
+describe('committed (served) snapshot file', { skip: existsSync(DEFAULT_SNAPSHOT_PATH) ? false : 'no exported snapshot' }, () => {
   const raw = existsSync(DEFAULT_SNAPSHOT_PATH) ? JSON.parse(readFileSync(DEFAULT_SNAPSHOT_PATH, 'utf8')) : null
+  test('is served only if it was built with a known calculation version', () => {
+    const ok = validateSnapshot(raw, { now: Date.parse(raw.generatedAt) })
+    assert.equal(Boolean(ok), KNOWN_CALC_VERSIONS.includes(raw.calcVersion))
+  })
+})
+
+// Candidate output of scripts/export_signal_snapshot.py (out/candidate/, gitignored;
+// skipped when it has not been generated on this machine).
+const CANDIDATE_PATH = fileURLToPath(new URL('../../out/candidate/signal-snapshot.json', import.meta.url))
+describe('candidate snapshot file', { skip: existsSync(CANDIDATE_PATH) ? false : 'no candidate snapshot generated' }, () => {
+  const raw = existsSync(CANDIDATE_PATH) ? JSON.parse(readFileSync(CANDIDATE_PATH, 'utf8')) : null
 
   test('validates as of its own generation time', () => {
     assert.ok(validateSnapshot(raw, { now: Date.parse(raw.generatedAt) }))
@@ -209,16 +243,22 @@ describe('exported snapshot file', { skip: existsSync(DEFAULT_SNAPSHOT_PATH) ? f
     assert.ok(!raw.data.pay.some((c) => c.checks.distinctFirms < 3 || c.checks.maxFirmShare > 0.5))
   })
 
-  test('every taxonomy role publishes a nationwide pay range', () => {
+  // 2.0.0 holds out non-hourly, non-contract and unverified-firm postings, so
+  // some taxonomy roles have no nationwide range; they must show as withheld
+  // or no data, never with a figure.
+  test('a taxonomy role has a nationwide range exactly when roleCoverage says publishable', () => {
     const nationwide = new Set(raw.data.pay.filter((c) => c.level === 'nationwide').map((c) => c.roleKey))
-    const missing = ROLES.map((r) => r.key).filter((key) => !nationwide.has(key))
-    assert.deepEqual(missing, [])
+    for (const r of ROLES) assert.equal(nationwide.has(r.key), raw.roleCoverage[r.key]?.nationwide === 'publishable', r.key)
   })
 
-  test('every new-sector role is accounted for in roleCoverage or reported as no data', () => {
-    const newSectors = new Set(['construction', 'skilled-trades', 'transportation', 'hospitality'])
-    const covered = ROLES.filter((r) => newSectors.has(r.sectorKey) && raw.roleCoverage[r.key]?.nationwide === 'publishable')
-    assert.ok(covered.length >= 10)
+  test('is the 2.0.0 population: counts, version and method recorded', () => {
+    assert.equal(raw.calcVersion, 'signal-agg-2.0.0')
+    assert.ok(raw.population.eligibleObservations > 0)
+    assert.ok(Object.keys(raw.population.heldOutByReason).includes('pay_period_annual'))
+    assert.equal(raw.proposedEvidenceStandard.status, 'proposed_not_active')
+    for (const c of raw.data.pay) assert.ok(c.observations >= c.checks.distinctFirms, c.roleKey)
+    assert.ok(raw.data.snapshot.observationWindow.firstPostingDate <= raw.data.snapshot.observationWindow.lastPostingDate)
+    assert.notEqual(raw.sourceBuiltAt.slice(0, 10), undefined)
   })
 
   test('city keys use the shared geography key format', () => {

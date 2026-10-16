@@ -12,7 +12,7 @@ import path from 'node:path'
 import { sendJson } from '../signal/handlers.js'
 import { sessionAccess } from '../signal/sessionAccess.js'
 import { ACCESS } from '../../../shared/signal/contract.js'
-import { MONTH, REPORT_FORMAT, localFor } from '../signal/report.js'
+import { MONTH, REPORT_FORMAT, localFor, reportMethodCurrent } from '../signal/report.js'
 import { stateByCode } from '../../../shared/signal/geography.js'
 import { verifySession, sessionMatchesHash } from '../signalSession.js'
 import { loadConfig, findByEmail, F, cityKeyFromStored } from '../subscribers.js'
@@ -73,6 +73,9 @@ export function createReportHandler({
     } catch {
       console.error('[signal] report load failed')
       return sendJson(res, 500, { error: { code: 'internal_error', message: 'Something went wrong loading the report.' } })
+    }
+    if (!reportMethodCurrent(report)) {
+      return sendJson(res, 503, { error: { code: 'report_method_superseded', message: 'This report was built with an earlier method and is withdrawn while figures are rebuilt.' }, months })
     }
     let access = ACCESS.PUBLIC
     try { access = (resolveAccess(req) || {}).access || ACCESS.PUBLIC } catch { access = ACCESS.PUBLIC }

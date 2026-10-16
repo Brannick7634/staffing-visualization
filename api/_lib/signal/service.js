@@ -10,11 +10,15 @@
 // and only for rows that already passed the publication rule: a pay scope's
 // `firmCount` (checks.distinctFirms of that pay cell) and a market city's
 // `staffingFirms` (checks.distinctFirms of that city's posting row). Shares
-// (maxFirmShare) and firm identities are never emitted.
+// (maxFirmShare) and firm identities are never emitted. A published pay scope
+// also carries `observationCount` (usable observations in that cell, 2.0.0):
+// an aggregate of an already-published cell (>= 3 firms, no firm > 50%), so it
+// identifies no firm and adds no share information.
 //
 // Adapter data shape (all money in integer cents):
 // {
-//   snapshot: { label, exactDate, freshness, lastSuccessfulRefresh, refreshCadence, methodologyVersion, note },
+//   snapshot: { label, exactDate, freshness, lastSuccessfulRefresh, refreshCadence, methodologyVersion, note,
+//               sourceRefreshedAt, observationWindow:{firstPostingDate,lastPostingDate}|null },
 //   coverage: { postings:{value,approximate,period}, firms:{value,approximate,period},
 //               payObservations:{value,approximate,note}, citiesLabel, reliablePayTitles,
 //               jobCityPayCombos:{value,approximate,note} },
@@ -23,7 +27,7 @@
 //   momentum: { windowDays, previousWindowDays, isRawGrowth, isPayChange, isForecast, basis,
 //               historyNote, coverage, rows:[{ code, momentumPct, checks }] },
 //   pay: [{ roleKey, level:'nationwide'|'state'|'city', state, city, p25Cents, typicalCents,
-//           p75Cents, payBasis:'hourly'|'weekly_package', currency, checks, demand? }],
+//           p75Cents, payBasis:'hourly'|'weekly_package', currency, observations, checks, demand? }],
 //   mostPostedFamilies: { labels:[...], note },
 //   monthly?: [{ month:'YYYY-MM', pay:[ same cell shape as `pay`, payBasis/currency optional ] }]
 // }
@@ -200,6 +204,8 @@ function evaluatePayScope({ cell, level, label, shortName, requested, viewerAcce
       typicalCents: figures.typicalCents,
       p75Cents: figures.p75Cents,
       firmCount: count(object(cell.checks).distinctFirms),
+      // Usable observations behind this published cell (aggregate count only).
+      observationCount: count(cell.observations),
       typicalLabel: TYPICAL_LABEL,
       payBasis: 'hourly',
       currency: 'USD',
@@ -239,7 +245,10 @@ function nationalEntry({ role, pay, dataMode, withFirmCount = false }) {
     entry.p25Cents = body.p25Cents
     entry.typicalCents = body.typicalCents
     entry.p75Cents = body.p75Cents
-    if (withFirmCount) entry.firmCount = body.firmCount
+    if (withFirmCount) {
+      entry.firmCount = body.firmCount
+      entry.observationCount = body.observationCount
+    }
     entry.typicalLabel = body.typicalLabel
     entry.payBasis = body.payBasis
     entry.currency = body.currency
@@ -270,8 +279,19 @@ function buildSnapshotMeta(raw) {
     lastSuccessfulRefresh: isoDate(s.lastSuccessfulRefresh),
     refreshCadence: text(s.refreshCadence, 40),
     methodologyVersion: text(s.methodologyVersion, 40),
-    note: text(s.note, 300)
+    note: text(s.note, 300),
+    // Kept distinct from the export time (lastSuccessfulRefresh): when the
+    // source pay table was rebuilt, and the posting dates actually used.
+    sourceRefreshedAt: isoDate(s.sourceRefreshedAt),
+    observationWindow: observationWindow(s.observationWindow)
   }
+}
+
+function observationWindow(raw) {
+  const w = object(raw)
+  const first = isoDate(w.firstPostingDate)
+  const last = isoDate(w.lastPostingDate)
+  return first && last ? { firstPostingDate: first, lastPostingDate: last } : null
 }
 
 function coverageItem(key, raw, label, period, note) {

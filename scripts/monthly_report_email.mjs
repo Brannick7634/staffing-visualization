@@ -25,7 +25,7 @@ import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { MONTH } from '../api/_lib/signal/report.js'
+import { MONTH, reportMethodCurrent } from '../api/_lib/signal/report.js'
 import { sendEmail, unsubscribeUrl, cityKeyFromStored } from '../api/_lib/subscribers.js'
 import { stateByCode } from '../shared/signal/geography.js'
 import { DRAFT_TO, DRAFT_SAMPLE_EMAIL, REQUIRED_SECRETS, parseSecrets, reportHash, eligibleSubscribers, checkApproval, renderEmail } from './lib/monthlyEmail.mjs'
@@ -96,6 +96,7 @@ async function main() {
   const reportFile = path.join(REPORTS, `${month}.json`)
   if (!existsSync(reportFile)) die(`no report file for ${month}`)
   const report = await readJson(reportFile)
+  if (!reportMethodCurrent(report)) die(`report ${month} was built with a superseded method (${report.sources?.month}); not sending`)
   const hash = reportHash(report)
   await mkdir(STATE_DIR, { recursive: true })
   const draftFile = path.join(STATE_DIR, `${month}.draft.json`)

@@ -21,6 +21,13 @@ export const REPORT_FORMAT = 'staffing-signal-monthly-report'
 export const REPORT_CALC_VERSION = 'signal-report-1.0.0'
 export const MONTHLY_FORMAT = 'staffing-signal-monthly-aggregates'
 export const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
+// Monthly archives built with the current benchmark population. A saved
+// report built from any other version (signal-month-1.0.0 used annual-to-hourly
+// conversions, non-contract postings and unverified firms) is withdrawn, not
+// served or emailed.
+export const CURRENT_MONTHLY_CALC_VERSIONS = Object.freeze(['signal-month-2.0.0'])
+export const reportMethodCurrent = (report) =>
+  CURRENT_MONTHLY_CALC_VERSIONS.includes(report?.sources?.month) && report?.sources?.month === report?.sources?.previous
 
 export const THRESHOLDS = Object.freeze({
   privacy: { minDistinctFirms: 5, maxFirmShare: 0.5, rule: 'cell must pass in BOTH months' },
@@ -188,6 +195,12 @@ function localSection(cur, prev, { level, state, city }, cmp) {
 }
 
 export function buildReport(cur, prev, { now = new Date() } = {}) {
+  // Method break: never compare months built with different calculation
+  // versions (e.g. signal-month-1.0.0 vs 2.0.0) - the change would be the
+  // method, not the market.
+  if (cur?.calcVersion !== prev?.calcVersion || cur?.baseCalcVersion !== prev?.baseCalcVersion) {
+    throw new Error(`method_break:${prev?.calcVersion}->${cur?.calcVersion}`)
+  }
   const month = cur.month
   if (prev.month !== previousMonth(month)) throw new Error('months_not_consecutive')
   const cmp = shortMonth(prev.month)
@@ -238,7 +251,7 @@ export function buildReport(cur, prev, { now = new Date() } = {}) {
     sources: { month: cur.calcVersion, previous: prev.calcVersion, base: cur.baseCalcVersion },
     thresholds: THRESHOLDS,
     notes: [
-      'Staffing-firm postings only. Advertised pay, not actual pay.',
+      'Verified staffing firms, contract/temporary postings, pay originally advertised per hour. Advertised pay, not actual pay.',
       `Compares ${monthLabel(month)} with ${monthLabel(prev.month)}. A figure appears only when it met the privacy rule (at least 3 firms, no firm over half) in both months.`,
       'Demand changes are shifts in share of all staffing-firm postings, so they are not distorted by how many postings we collected.'
     ],

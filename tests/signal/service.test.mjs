@@ -18,7 +18,10 @@ const FORBIDDEN_KEY = /firm|share|check|contribut|demand|publication|observation
 // Report): a pay scope's firm count, a market city's staffing-firm count and
 // its new-posting count. Only these exact key names are exempt; shares, firm
 // identities and raw checks stay forbidden.
-const ALLOWED_AGGREGATE_KEYS = new Set(['firmCount', 'staffingFirms', 'newPostings'])
+// Added 2026-10-16 (repair brief section 2, "show usable observation counts"):
+// a published pay scope's observationCount, and the snapshot's
+// observationWindow (posting dates, not a count). Neither identifies a firm.
+const ALLOWED_AGGREGATE_KEYS = new Set(['firmCount', 'staffingFirms', 'newPostings', 'observationCount', 'observationWindow'])
 
 async function fixtureData() {
   const adapter = createFixtureAdapter()
@@ -89,7 +92,8 @@ describe('snapshot builder', () => {
     assert.deepEqual(snapshot, {
       label: 'Early October 2026', exactDate: null, freshness: 'unknown', lastSuccessfulRefresh: null,
       refreshCadence: 'weekly', methodologyVersion: null,
-      note: 'Supplied example figures. Publication checks have not been verified.'
+      note: 'Supplied example figures. Publication checks have not been verified.',
+      sourceRefreshedAt: null, observationWindow: null
     })
   })
 

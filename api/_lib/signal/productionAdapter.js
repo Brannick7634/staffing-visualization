@@ -31,12 +31,19 @@ import { evaluatePublication } from './privacy.js'
 
 export const SNAPSHOT_FORMAT = 'staffing-signal-aggregate-snapshot'
 export const SNAPSHOT_SCHEMA_VERSION = 1
-export const KNOWN_CALC_VERSIONS = Object.freeze(['signal-agg-1.0.0', 'signal-agg-1.1.0', 'signal-agg-1.2.0'])
+// Only the current population method. 1.x snapshots admitted annual-to-hourly
+// conversions, non-contract postings and unverified firms; they are refused
+// (feed unavailable) rather than served next to 2.0.0 methodology text, so a
+// code rollback or a stale data file can never quietly restore them.
+export const KNOWN_CALC_VERSIONS = Object.freeze(['signal-agg-2.0.0'])
 export const MAX_AGE_DAYS = 10
 export const DEFAULT_SNAPSHOT_PATH = fileURLToPath(new URL('./data/signal-snapshot.json', import.meta.url))
 export const MONTHLY_FORMAT = 'staffing-signal-monthly-aggregates'
 export const MONTHLY_SCHEMA_VERSION = 1
-export const KNOWN_MONTHLY_CALC_VERSIONS = Object.freeze(['signal-month-1.0.0'])
+// Method break: signal-month-1.0.0 months used the old population and are not
+// comparable, so they are skipped and the pay trend is withheld until enough
+// 2.0.0 months exist. Old months are never rebuilt from today's data.
+export const KNOWN_MONTHLY_CALC_VERSIONS = Object.freeze(['signal-month-2.0.0'])
 export const DEFAULT_MONTHLY_DIR = fileURLToPath(new URL('./data/monthly/', import.meta.url))
 const MONTH_FILE = /^(\d{4}-(?:0[1-9]|1[0-2]))\.json$/
 
@@ -51,6 +58,20 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const isCount = (v) => Number.isSafeInteger(v) && v >= 0
 const isCents = (v) => Number.isSafeInteger(v) && v > 0
 const verified = (checks) => evaluatePublication(checks, PROD).publishable
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+// Source refresh (pay table build) — distinct from the export time and from
+// the posting dates actually used. Malformed values become null, never "now".
+function isoOrNull(v) {
+  if (typeof v !== 'string') return null
+  const t = Date.parse(v.replace(' ', 'T') + (/[zZ]|[+-]\d{2}:?\d{2}$/.test(v) || DATE_ONLY.test(v) ? '' : 'Z'))
+  return Number.isFinite(t) ? new Date(t).toISOString() : null
+}
+function windowOf(w) {
+  if (!isObj(w)) return null
+  const first = DATE_ONLY.test(w.firstPostingDate ?? '') ? w.firstPostingDate : null
+  const last = DATE_ONLY.test(w.lastPostingDate ?? '') ? w.lastPostingDate : null
+  return first && last && first <= last ? { firstPostingDate: first, lastPostingDate: last } : null
+}
 
 function validPayCell(c) {
   if (!isObj(c) || typeof c.roleKey !== 'string' || !LEVELS.has(c.level)) return false
@@ -59,6 +80,8 @@ function validPayCell(c) {
   if (c.level === 'city' && (!STATE.test(c.state ?? '') || !CITY.test(c.city ?? '') || !c.city.startsWith(`${c.state}:`))) return false
   if (![c.p25Cents, c.typicalCents, c.p75Cents].every(isCents)) return false
   if (c.p25Cents > c.typicalCents || c.typicalCents > c.p75Cents) return false
+  // Usable observation count: required, and never fewer than the firms counted.
+  if (!isCount(c.observations) || !isObj(c.checks) || !(c.observations >= c.checks.distinctFirms)) return false
   return c.payBasis === 'hourly' && c.currency === 'USD' && verified(c.checks)
 }
 
@@ -94,7 +117,9 @@ export function validateSnapshot(raw, { now = Date.now(), maxAgeDays = MAX_AGE_D
       ...d.snapshot,
       freshness: 'current',
       lastSuccessfulRefresh: new Date(generated).toISOString(),
-      methodologyVersion: raw.calcVersion
+      methodologyVersion: raw.calcVersion,
+      sourceRefreshedAt: isoOrNull(raw.sourceBuiltAt),
+      observationWindow: windowOf(d.snapshot.observationWindow)
     }
   }
 }
@@ -105,7 +130,7 @@ function validMonthlyPayCell(c) {
   if (!isObj(c)) return false
   if (c.payBasis !== undefined && c.payBasis !== 'hourly') return false
   if (c.currency !== undefined && c.currency !== 'USD') return false
-  return validPayCell({ ...c, payBasis: 'hourly', currency: 'USD' })
+  return validPayCell({ ...c, observations: c.n, payBasis: 'hourly', currency: 'USD' })
 }
 
 // validateMonthly(raw, expectedMonth) -> { month, pay } (pay cells reduced to
@@ -123,7 +148,7 @@ export function validateMonthly(raw, expectedMonth = null) {
     pay: raw.pay.map((c) => ({
       roleKey: c.roleKey, level: c.level, state: c.state, city: c.city,
       p25Cents: c.p25Cents, typicalCents: c.typicalCents, p75Cents: c.p75Cents,
-      payBasis: 'hourly', currency: 'USD',
+      payBasis: 'hourly', currency: 'USD', observations: c.n,
       checks: { status: c.checks.status, distinctFirms: c.checks.distinctFirms, maxFirmShare: c.checks.maxFirmShare }
     }))
   }
