@@ -45,6 +45,12 @@ export default function PrivacyPage() {
             signed in for up to 30 days, or until you sign out. If you forget your password, we email you a reset link; it
             works once and expires after 60 minutes. We use no advertising or tracking cookies.
           </p>
+          <h2>Usage counts</h2>
+          <p>
+            We count anonymous page actions, for example that a pay comparison was run or a report was opened, on our
+            own server. This counting uses no cookies, no visitor ID and no outside analytics service, and we do not store your IP
+            address, your browser details or the pay rate you enter. These counts are deleted after 13 months.
+          </p>
           <h2>Unsubscribing</h2>
           <p>
             Every email has an unsubscribe link. One click stops The Monthly Signal and our other updates, and we

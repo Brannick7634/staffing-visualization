@@ -1,9 +1,8 @@
 # Analytics events (repair brief §3)
 
-Status: **adapter implemented, delivery DISABLED. Live delivery is blocked**
-until a destination is approved. No analytics tool was found in the repo
-(no @vercel/analytics, GA, Plausible, Umami or PostHog in package.json,
-index.html, src/ or api/ env names).
+Status: **ON by default (approved by Andy 2026-10-16)**, first-party and
+cookie-free. Events go to our own collector at `/api/track` and are stored in
+our existing Postgres. No third-party analytics service is used.
 
 ## Interface
 `track(event, props, { dedupeKey })` in `src/preview/lib/track.js`.
@@ -34,15 +33,27 @@ index.html, src/ or api/ env names).
 | preferences_saved, market_report_opened, monthly_issue_opened, contact_clicked | As named |
 Legacy constants `report_printed`, `report_downloaded`, `report_emailed` remain defined for test compatibility but are never emitted.
 
-## Funnel (to build in the approved tool, not a new dashboard)
+## Funnel (reported in the weekly email)
 pay_check_started -> local_coverage_available | local_coverage_unavailable -> report_create_clicked -> report_gate_shown -> signup_completed -> report_viewed -> report_print_requested / report_download_started / report_email_accepted.
-Denominators: each step / pay_check_started. Coverage-failure rate = local_coverage_unavailable / local_benchmark_requested.
-No conversion-improvement claim until a baseline and a follow-up period both exist.
+Coverage rate = available / (available + unavailable). No conversion-improvement claim until a baseline and a follow-up period both exist.
+Page views are not measured: there is no page-view event, so the email says so instead of showing a number.
 
-## Configuration needed to turn it on (Andy's approval required)
-Build-time Vite variables (Vercel project env, Production scope only):
-```
-VITE_ANALYTICS_ENABLED=true
-VITE_ANALYTICS_ENDPOINT=https://<approved collector accepting POST JSON {event, props, path}>
-```
-The endpoint must be https and accept `application/json` beacons with no cookies. A free first-party option would be a small Vercel function writing to the existing Postgres (DATABASE_URL) - that is new storage and needs approval; Airtable must not be used as a collector. Verify with a production build pointed at a test endpoint and inspect the beacon bodies before enabling in Production.
+## What is collected and where
+- Collector: `POST /api/track`, rewritten in vercel.json to `api/account.js?route=track` (no new function file; Hobby caps functions). Code: `api/_lib/analytics.js`.
+- The server re-applies the allowlist and **rejects the whole event** on any unknown key, unknown/legacy event, unsafe value (emails, rates/numbers, free text, over 64 chars) or a path with query/hash. Body capped at 2 KB. Always answers fast (204/400); database errors never reach the page.
+- Stored: table `analytics_events(id, ts, event, props jsonb, path)`, created automatically if missing. Nothing else: no IP, user agent, cookie, visitor or session ID. Request bodies, IPs and user agents are never logged.
+- Retention: the weekly job deletes rows older than **13 months**.
+
+## Weekly report
+- `GET /api/analytics/weekly` (rewritten to `api/account.js?route=analytics-weekly`), called by Vercel Cron Mondays 12:00 UTC (`0 12 * * 1`).
+- Requires `Authorization: Bearer $CRON_SECRET` (Vercel Cron sends this automatically when CRON_SECRET is set); otherwise 401 and nothing is sent.
+- Counts last 7 days vs prior 7 days: comparisons started, coverage available/unavailable and rate, gate shown, signups completed, reports viewed, download started, print requested, email accepted/failed, with funnel denominators. With no rows it says there is no data. Emailed to andy@thestaffingsignal.com via the existing Resend sender.
+- Vercel Hobby plan: crons run at most once per day and timing is only accurate to the hour (may fire any time in 12:00-12:59 UTC); the Hobby limit on number of cron jobs is small, and this is the second one (the first is the daily dashboard-metrics recompute). Check the current Vercel limits if more are added.
+
+## Configuration
+- **CRON_SECRET must be set** in Vercel (Production), at least 16 random characters. Without it the weekly job refuses (401).
+- DATABASE_URL, RESEND_API_KEY and SIGNAL_FROM_EMAIL already exist; no change. If DATABASE_URL is missing, the collector silently drops events (204).
+- Kill switch: set build-time `VITE_ANALYTICS_ENABLED=false` and redeploy. `VITE_ANALYTICS_ENDPOINT` optionally overrides `/api/track`. Development builds send nothing unless an endpoint is set.
+
+## Privacy page sentence
+"We count anonymous page actions (for example, that a pay comparison was run or a report was opened) on our own server, with no cookies, no visitor ID, and no IP address or rate stored; these counts are deleted after 13 months."
