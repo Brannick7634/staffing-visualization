@@ -294,11 +294,15 @@ export default function EmailReportDialog({ model, request, onClose, onSignIn })
     }
     setSending(true)
     sendingRef.current = true
+    const evProps = { roleKey: request.roleKey, geographyLevel: model.scope.level }
+    track(EVENTS.REPORT_EMAIL_SUBMITTED, evProps)
     try {
       const response = await emailClientReport({ ...request, recipients: list, sendCopy, note: note.trim() })
-      track(EVENTS.REPORT_EMAILED, { roleKey: request.roleKey, geographyLevel: model.scope.level })
+      // Accepted by our server for sending; not proof of inbox delivery.
+      track(EVENTS.REPORT_EMAIL_ACCEPTED, evProps, { dedupeKey: String(Date.now()) })
       setResult(response)
     } catch (error) {
+      track(EVENTS.REPORT_EMAIL_FAILED, { ...evProps, reason: typeof error?.code === 'string' ? error.code : 'error' })
       // After a partial failure, keep only the people who were not sent it, so
       // a retry does not repeat anyone. The server names their positions in
       // this list (your own address is moved to the copy, so plain list order

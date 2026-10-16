@@ -103,12 +103,12 @@ export default function ClientReportPage() {
   useEffect(() => {
     if (!viewedKey || !signedIn || viewed.current === viewedKey) return
     viewed.current = viewedKey
-    track(EVENTS.REPORT_VIEWED, { roleKey: model.roleKey, geographyLevel: model.scope.level })
+    track(EVENTS.REPORT_VIEWED, { roleKey: model.roleKey, geographyLevel: model.scope.level }, { dedupeKey: viewedKey })
   }, [viewedKey, signedIn, model])
 
   const onPrint = useCallback(() => {
     if (!model) return
-    track(EVENTS.REPORT_PRINTED, { roleKey: model.roleKey, geographyLevel: model.scope.level })
+    track(EVENTS.REPORT_PRINT_REQUESTED, { roleKey: model.roleKey, geographyLevel: model.scope.level })
     window.print()
   }, [model])
 
@@ -126,9 +126,10 @@ export default function ClientReportPage() {
       link.click()
       link.remove()
       window.setTimeout(() => URL.revokeObjectURL(url), 30000)
-      track(EVENTS.REPORT_DOWNLOADED, { roleKey: model.roleKey, geographyLevel: model.scope.level })
+      track(EVENTS.REPORT_DOWNLOAD_STARTED, { roleKey: model.roleKey, geographyLevel: model.scope.level })
       setDownload({ busy: false, error: null })
     } catch {
+      track(EVENTS.REPORT_DOWNLOAD_FAILED, { roleKey: model.roleKey, geographyLevel: model.scope.level })
       setDownload({ busy: false, error: 'The PDF could not be created. Please try again, or use Print and choose “Save as PDF”.' })
     }
   }, [model, download.busy])

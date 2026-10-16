@@ -82,6 +82,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
   const [accountExists, setAccountExists] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const started = useRef(false)
+  const submittingRef = useRef(false)
   const nameRef = useRef(null)
   const emailRef = useRef(null)
   const passwordRef = useRef(null)
@@ -111,7 +112,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
 
   async function onSubmit(event) {
     event.preventDefault()
-    if (submitting) return
+    if (submitting || submittingRef.current) return
     if (!started.current) {
       started.current = true
       track(EVENTS.SIGNUP_STARTED, { variant, roleKey: context?.roleKey || undefined })
@@ -124,12 +125,15 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
       focusFirst(errs)
       return
     }
+    submittingRef.current = true
     setSubmitting(true)
     let result
     try {
       result = await signup({ name: name.trim(), email: email.trim(), company: company.trim(), password, newsletter, context, ...pickerToRequest(area) })
     } catch (err) {
       setSubmitting(false)
+      submittingRef.current = false
+      track(EVENTS.SIGNUP_FAILED, { variant, reason: err?.status === 409 || err?.code === 'account_exists' ? 'account_exists' : err?.status === 429 ? 'rate_limited' : 'error' })
       if (err?.status === 409 || err?.code === 'account_exists') {
         setAccountExists(true)
         return
@@ -147,7 +151,8 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
       }
       return
     }
-    track(EVENTS.SIGNUP_COMPLETED, { variant, roleKey: context?.roleKey || undefined })
+    // Only after the server confirmed account creation; once per page load.
+    if (!result?.simulated) track(EVENTS.SIGNUP_COMPLETED, { variant, roleKey: context?.roleKey || undefined })
     setName('')
     setEmail('')
     setCompany('')
@@ -155,6 +160,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
     markSignedUp()
     await reloadSnapshot()
     setSubmitting(false)
+    submittingRef.current = false
     const safeResult = {
       ok: true,
       simulated: result?.simulated === true,
