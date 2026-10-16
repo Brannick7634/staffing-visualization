@@ -12,7 +12,7 @@ const PREVIEW_LINKS = [
 ]
 
 // Production: real pages only. About is a homepage section; Contact appears
-// there only when a verified destination is configured (VITE_CONTACT_URL).
+// as a mailto link to andy@thestaffingsignal.com (approved by Andy 2026-10-16).
 const SITE_LINKS = [
   { to: '/sample-report', label: 'Sample report' },
   { to: '/#about', label: 'About' },
@@ -36,6 +36,7 @@ export default function Footer() {
             {LINKS.map((link) => (
               <li key={link.to}><Link to={link.to}>{link.label}</Link></li>
             ))}
+            {site && <li><a href="mailto:andy@thestaffingsignal.com">Contact</a></li>}
           </ul>
         </nav>
       </div>

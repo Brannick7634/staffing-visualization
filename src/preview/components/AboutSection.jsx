@@ -10,7 +10,7 @@ import { EVENTS, track } from '../lib/track.js'
 // never a dead one or a guessed address.
 function configuredContact() {
   try {
-    return contactUrl(import.meta.env?.VITE_CONTACT_URL)
+    return contactUrl(import.meta.env?.VITE_CONTACT_URL || 'mailto:andy@thestaffingsignal.com')
   } catch {
     return null
   }

@@ -72,7 +72,7 @@ export default function SignupForm({ idPrefix = 'signup', context = null, onSucc
   const [email, setEmail] = useState('')
   const [company, setCompany] = useState('')
   const [password, setPassword] = useState('')
-  const [newsletter, setNewsletter] = useState(true)
+  const [newsletter, setNewsletter] = useState(false)
   // Required area: The Monthly Signal is sent by state and city.
   const [area, setArea] = useState(() => pickerFromSelection(context))
   const areaTouched = useRef(false)

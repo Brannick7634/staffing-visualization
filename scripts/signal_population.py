@@ -89,11 +89,9 @@ def pay_reasons(posted_as, pay_group, per_diem, plausible, pay_from, currency):
     cur = (currency or "").strip().upper()
     if cur and cur != "USD":
         out.append("currency_not_usd")
-    elif not cur and pay_from != "description":
-        # Description pay is read only from "$" figures by the pipeline's
-        # extractor (DESC_HOURLY requires "$"), which is USD evidence for a US
-        # posting. Structured JSearch salaries carry no currency at all.
-        out.append("currency_not_stated")
+    # A blank currency is accepted (Andy, 2026-10-16): JSearch structured
+    # salaries never state one and the searches are U.S.-only. Only an
+    # explicit non-USD currency is excluded.
     return out
 
 

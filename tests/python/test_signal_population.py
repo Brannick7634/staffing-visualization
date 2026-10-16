@@ -51,7 +51,7 @@ class PayPeriod(unittest.TestCase):
     def test_currency(self):
         self.assertIn("currency_not_usd", pop.observation_reasons(obs(currency="CAD"), OK_FIRM))
         # Structured salary with no currency field (JSearch): held out.
-        self.assertIn("currency_not_stated", pop.observation_reasons(obs(currency=None), OK_FIRM))
+        self.assertNotIn("currency_not_stated", pop.observation_reasons(obs(currency=None), OK_FIRM))
         # Description pay is only ever read from "$" figures by the extractor.
         self.assertEqual(pop.observation_reasons(obs(currency=None, pay_from="description"), OK_FIRM), [])
 
