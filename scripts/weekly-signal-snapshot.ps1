@@ -29,7 +29,7 @@ function Invoke-Logged([scriptblock]$cmd) {
 try {
   Set-Location $repo
   Log 'export start'
-  $rc = Invoke-Logged { python scripts\export_signal_snapshot.py }
+  $rc = Invoke-Logged { python scripts\export_signal_snapshot.py --publish }
   if ($rc -ne 0) { throw "export failed (exit $rc)" }
 
   $branch = (git rev-parse --abbrev-ref HEAD).Trim()
