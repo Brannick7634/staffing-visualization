@@ -8,27 +8,37 @@ Nothing here edits the shared pipeline: pay_benchmarks.py, taxonomy.py and the
 databases are only read.
 
 Method (CALC_VERSION below; bump it when any of this changes):
-  * Staffing firms only. A company counts as a staffing firm unless Andy's
-    2026-10-02 cleanup flagged it "non-staffing employer" in search_targets.
-    Firm identity for the privacy rule = shared_company_id.
-  * Pay: pay_benchmarks.sqlite pay_observations, plausible rows, travel weekly
-    packages excluded. One value per posting = hourly_mid (midpoint of the
-    advertised range, salaries converted at 2,080 h/yr by pay_benchmarks.py).
+  * Population (signal-agg-2.0.0, scripts/signal_population.py): an advertised
+    pay observation counts only when the pay was ORIGINALLY posted per hour in
+    USD (no annual/weekly/monthly/daily conversions, travel packages, stipend /
+    per-diem titles), the posting's own labels say contract/temporary only, and
+    the company is POSITIVELY verified as a staffing firm (staffing segment or
+    JobsPipe agency/broker majority, with nothing conflicting). Unknown,
+    conflicting, mixed-label and missing-evidence records are held out; every
+    reason is counted in meta.population.
+  * Firm identity for the privacy rule = normalized company name (else domain,
+    else shared_company_id), so equivalent firms are not counted twice.
+  * Pay value: hourly_mid (midpoint of the advertised hourly range).
     P25 / P75 = Python statistics.quantiles(n=4, method='exclusive')
     (the (n+1)p rule, same as Excel QUARTILE.EXC); typical = median.
-  * Demand: canonical_jobs, US, reposts and repeat fingerprints dropped.
-    "New posting" date = COALESCE(posting_date, first_seen_date).
+    Every pay cell carries its usable observation count.
+  * Demand: canonical_jobs, US, reposts and repeat fingerprints dropped, verified
+    staffing firms only. "New posting" date = COALESCE(posting_date, first_seen_date).
     City volume = new postings in the latest 45 days. Momentum = state's
     latest-45 / previous-45 ratio relative to the all-state ratio, minus 1.
   * Privacy rule on EVERY metric (pay cell, city row, momentum row — each
     comparison window — and posting families): >= 3 distinct firms and no
-    firm > 50% of the metric's observations. Failing cells are omitted; only
-    their count is recorded under "withheld". Fail closed: a cell with any
-    missing input is withheld.
+    firm > 50% of the metric's observations. UNCHANGED from 1.2.0. Passing it
+    is publication eligibility, not a claim of statistical strength.
+  * Dates kept distinct: snapshotDate (export day), generatedAt (export time),
+    sourceBuiltAt (pay table refresh), observationWindow (posting dates of the
+    observations actually used).
 
 Usage:
-  python scripts/export_signal_snapshot.py [--pipeline DIR] [--out FILE] [--dry-run]
-Exit codes: 0 written, 2 refused (stale source / reproduction drift / no data).
+  python scripts/export_signal_snapshot.py [--pipeline DIR] [--out FILE] [--publish] [--dry-run]
+By default the snapshot is a CANDIDATE written to out/candidate/ (gitignored);
+only --publish writes the served file api/_lib/signal/data/signal-snapshot.json.
+Exit codes: 0 written, 2 refused (stale source / no data).
 """
 import argparse
 import datetime as dt
@@ -44,7 +54,10 @@ from collections import Counter, defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
-CALC_VERSION = "signal-agg-1.2.0"  # 1.2.0 (2026-10-06): privacy minimum 5 -> 3 firms. 1.1.0 (2026-10-04): expanded role mapping
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import signal_population as pop  # noqa: E402
+
+CALC_VERSION = "signal-agg-2.0.0"  # 2.0.0 (2026-10-16): hourly-only / contract-only / verified-firm population, firm-name identity, observation counts. 1.2.0: 1.2.0 (2026-10-06): privacy minimum 5 -> 3 firms. 1.1.0 (2026-10-04): expanded role mapping
 SCHEMA_VERSION = 1
 FORMAT = "staffing-signal-aggregate-snapshot"
 MIN_FIRMS = 3
@@ -52,10 +65,10 @@ MAX_SHARE = 0.5
 WINDOW_DAYS = 45
 MAX_SOURCE_AGE_DAYS = 10
 CITY_ROWS_CAP = 300
-TRAVEL = "Travel weekly package"
 
 REPO = Path(__file__).resolve().parents[1]
-DEFAULT_OUT = REPO / "api" / "_lib" / "signal" / "data" / "signal-snapshot.json"
+PUBLISHED_OUT = REPO / "api" / "_lib" / "signal" / "data" / "signal-snapshot.json"
+DEFAULT_OUT = REPO / "out" / "candidate" / "signal-snapshot.json"
 DEFAULT_PIPELINE = Path(os.path.expanduser("~")) / (
     "OneDrive/Desktop/Email Sequnce Folder/MasterLeadsList/Airtable Set up/Tomorrow Land Set up/"
     "Claude Project/Updated Claude Docs/Workstation Docs/jsearch-pipeline-v2-remediated")
@@ -297,54 +310,19 @@ def pay_figures(values):
 
 
 # --------------------------------------------------------------------- build
-def build(pipeline, today, staffing_cids=None):
-    db = Path(pipeline) / "db"
-    sys.path.insert(0, str(Path(pipeline) / "src"))
-    import taxonomy as tx  # pipeline's own title classifier (read-only use)
+def pay_cells(observations):
+    """Pay cells from (role, state, city, value, firm) tuples -> (cells, withheld, role coverage).
 
-    j = sqlite3.connect(f"file:{(db / 'jsearch.sqlite').as_posix()}?mode=ro", uri=True, timeout=120)
-    p = sqlite3.connect(f"file:{(db / 'pay_benchmarks.sqlite').as_posix()}?mode=ro", uri=True, timeout=120)
-
-    built_at = p.execute("SELECT built_at FROM meta").fetchone()[0]
-    built_date = dt.date.fromisoformat(built_at[:10])
-    if (today - built_date).days > MAX_SOURCE_AGE_DAYS:
-        raise SystemExit(f"REFUSED: pay_benchmarks built {built_at}, older than {MAX_SOURCE_AGE_DAYS} days")
-
-    non_staffing = {r[0] for r in j.execute(
-        "SELECT shared_company_id FROM search_targets WHERE COALESCE(search_error,'') LIKE 'non-staffing employer%'")}
-    job = {}
-    for jid, cid, detail, rf in j.execute(
-            "SELECT canonical_job_id, shared_company_id, role_detail, role_family FROM canonical_jobs"):
-        job[jid] = (cid, detail if (rf and "Nurse" in rf) else None)
-
-    allow = set(staffing_cids) if staffing_cids is not None else None
-
-    def staffing(cid):
-        if cid is None:
-            return False
-        return cid in allow if allow is not None else cid not in non_staffing
-
-    # ---- pay
+    Shared by the export and coverage_impact.py so before/after use one rule."""
     groups = defaultdict(list)  # (role, level, state, cityKey) -> [(value, firm)]
-    pay_obs = 0
-    for jid, occ, title, st, city, mid, pg in p.execute(
-            "SELECT canonical_job_id, occupation, job_title, state, city, hourly_mid, pay_group "
-            "FROM pay_observations WHERE plausible AND hourly_mid IS NOT NULL"):
-        cid, detail = job.get(jid, (None, None))
-        if pg == TRAVEL or not staffing(cid):
-            continue
-        pay_obs += 1
-        role = role_for(occ, detail, title)
-        if not role:
-            continue
-        groups[(role, "nationwide", None, None)].append((mid, cid))
+    for role, st, city, mid, firm in observations:
+        groups[(role, "nationwide", None, None)].append((mid, firm))
         sc = state_code(st)
         if sc:
-            groups[(role, "state", sc, None)].append((mid, cid))
+            groups[(role, "state", sc, None)].append((mid, firm))
             ck = city_key(city, sc)
             if ck:
-                groups[(role, "city", sc, ck)].append((mid, cid))
-
+                groups[(role, "city", sc, ck)].append((mid, firm))
     pay, withheld_pay = [], Counter()
     role_cov = defaultdict(lambda: {"nationwide": "no_data", "stateCells": 0, "cityCells": 0,
                                     "withheldCells": 0, "observations": 0})
@@ -361,11 +339,54 @@ def build(pipeline, today, staffing_cids=None):
             continue
         p25, typ, p75 = pay_figures([v for v, _ in rows])
         pay.append({"roleKey": role, "level": level, "state": sc, "city": ck, "p25Cents": p25,
-                    "typicalCents": typ, "p75Cents": p75, "payBasis": "hourly", "currency": "USD", "checks": c})
+                    "typicalCents": typ, "p75Cents": p75, "payBasis": "hourly", "currency": "USD",
+                    "observations": len(rows), "checks": c})
         if level == "nationwide":
             rc["nationwide"] = "publishable"
         else:
             rc[f"{level}Cells"] += 1
+    return pay, withheld_pay, role_cov
+
+
+def connect(pipeline):
+    db = Path(pipeline) / "db"
+    j = sqlite3.connect(f"file:{(db / 'jsearch.sqlite').as_posix()}?mode=ro", uri=True, timeout=120)
+    j.execute("ATTACH DATABASE ? AS p", (f"file:{(db / 'pay_benchmarks.sqlite').as_posix()}?mode=ro",))
+    return j
+
+
+def build(pipeline, today):
+    sys.path.insert(0, str(Path(pipeline) / "src"))
+    import taxonomy as tx  # pipeline's own title classifier (read-only use)
+
+    j = connect(pipeline)
+    built_at = j.execute("SELECT built_at FROM p.meta").fetchone()[0]
+    built_date = dt.date.fromisoformat(built_at[:10])
+    if (today - built_date).days > MAX_SOURCE_AGE_DAYS:
+        raise SystemExit(f"REFUSED: pay_benchmarks built {built_at}, older than {MAX_SOURCE_AGE_DAYS} days")
+
+    firms = pop.load_firms(j)
+
+    def firm_of(cid):
+        """Privacy-rule identity of a verified staffing firm, else None."""
+        f = firms.get(cid) if cid is not None else None
+        return f[2] if f and f[0] == "verified" else None
+
+    # ---- pay
+    reasons, eligible, dates = Counter(), [], []
+    for o in pop.iter_observations(j, firms):
+        if o["reasons"]:
+            reasons.update(set(o["reasons"]))
+            continue
+        role = role_for(o["occupation"], o["detail"], o["title"])
+        if not role:
+            reasons["role_unmapped"] += 1
+            continue
+        eligible.append((role, o["state"], o["city"], o["mid"], o["firm_key"]))
+        if o["posted"] or o["last_seen"]:
+            dates.append(o["posted"] or o["last_seen"])
+    pay_obs = len(eligible)
+    pay, withheld_pay, role_cov = pay_cells(eligible)
 
     # ---- demand
     cut_latest = (today - dt.timedelta(days=WINDOW_DAYS)).isoformat()
@@ -382,28 +403,29 @@ def build(pipeline, today, staffing_cids=None):
             "WHERE COALESCE(duplicate_status,'new') <> 'repost' AND d >= ? AND d <= ? "
             "AND (country IS NULL OR upper(country) IN ('US','USA','UNITED STATES'))",
             (cut_prev, today.isoformat())):
-        if not staffing(cid):
+        firm = firm_of(cid)
+        if firm is None:
             continue
         if fp:
             if fp in seen_fp:
                 continue
             seen_fp.add(fp)
         postings_90 += 1
-        firms_90.add(cid)
+        firms_90.add(firm)
         if title not in occ_cache:
             o = tx.classify_occupation(title or "")
             occ_cache[title] = o[1] if o and o[1] else None
         if occ_cache[title]:
-            fam[occ_cache[title]].append(cid)
+            fam[occ_cache[title]].append(firm)
         sc = state_code(st)
         if not sc:
             continue
         latest = d >= cut_latest
-        state_win["cur" if latest else "prev"][sc].append(cid)
+        state_win["cur" if latest else "prev"][sc].append(firm)
         if latest:
             ck = city_key(city, sc)
             if ck:
-                city_firms[ck].append(cid)
+                city_firms[ck].append(firm)
 
     city_rows, withheld_city = [], 0
     for ck, firm_ids in sorted(city_firms.items(), key=lambda kv: -len(kv[1])):
@@ -442,12 +464,14 @@ def build(pipeline, today, staffing_cids=None):
     if nat:
         top = max(nat, key=lambda c: role_cov[c["roleKey"]]["observations"])
         cards.append({"key": f"pay-{top['roleKey']}", "kind": "pay", "title": "Most-advertised pay snapshot.",
-                      "ref": {"roleKey": top["roleKey"]}, "basis": "Staffing-firm postings only. Advertised pay, not actual pay."})
+                      "ref": {"roleKey": top["roleKey"]}, "basis": "Verified staffing firms, contract/temporary postings, pay advertised per hour. Advertised pay, not actual pay."})
     if city_rows:
         cards.append({"key": "volume-top-city", "kind": "volume", "title": "Highest observed city volume.",
                       "ref": {"cityKey": city_rows[0]["cityKey"]}, "basis": "Observed postings, not verified open orders."})
 
     city_count = len(city_rows) + withheld_city
+    window = {"firstPostingDate": min(dates) if dates else None, "lastPostingDate": max(dates) if dates else None,
+              "basis": "posting date (else last seen) of the observations used; pay table covers postings seen in the 90 days before sourceRefreshedAt"}
     data = {
         "snapshot": {
             "label": today.strftime("Week of %B %d, %Y").replace(" 0", " "),
@@ -456,13 +480,15 @@ def build(pipeline, today, staffing_cids=None):
             "lastSuccessfulRefresh": today.isoformat(),
             "refreshCadence": "weekly",
             "methodologyVersion": CALC_VERSION,
-            "note": "Staffing-firm postings only. Advertised pay, not actual pay.",
+            "note": "Verified staffing firms, contract/temporary postings, pay originally advertised per hour. Advertised pay, not actual pay.",
+            "sourceRefreshedAt": built_at,
+            "observationWindow": window,
         },
         "coverage": {
             "postings": {"value": postings_90, "approximate": False, "period": "last 90 days"},
             "firms": {"value": len(firms_90), "approximate": False, "period": "last 90 days"},
             "payObservations": {"value": pay_obs, "approximate": False,
-                                "note": "Includes salaries converted at 2,080 hours/year"},
+                                "note": "Contract/temporary postings from verified staffing firms with pay originally advertised per hour"},
             "citiesLabel": f"{len(city_rows) + 0:,}",
             "reliablePayTitles": sum(1 for c in nat),
             "jobCityPayCombos": {"value": sum(1 for c in pay if c["level"] == "city"), "approximate": False,
@@ -489,13 +515,19 @@ def build(pipeline, today, staffing_cids=None):
         "method": {
             "privacyRule": {"minDistinctFirms": MIN_FIRMS, "maxFirmShare": MAX_SHARE, "shareOperator": "<=",
                             "appliesTo": "every pay cell, city row, momentum row (each window) and posting family"},
-            "firmIdentity": "shared_company_id",
-            "staffingFirms": "all companies except search_targets flagged 'non-staffing employer' (2026-10-02)",
-            "payValue": "hourly_mid per posting; travel weekly packages excluded",
+            "firmIdentity": "normalized company name, else domain, else shared_company_id (signal_population.firm_key)",
+            "staffingFirms": "positively verified only: staffing segment or JobsPipe agency/broker majority, no conflicting evidence",
+            "payValue": "hourly_mid of pay originally advertised per hour (USD); no period conversions, travel packages or stipends",
+            "employment": "posting labels contract/temporary only; full-time/part-time alone, mixed and missing labels held out",
+            "sourceFields": pop.SOURCE_FIELDS,
             "quantile": "statistics.quantiles(n=4, method='exclusive'); typical = median",
             "newPosting": "COALESCE(posting_date, first_seen_date); reposts and repeat fingerprints dropped",
             "cityVolumeWindowDays": WINDOW_DAYS,
         },
+        "population": {"version": pop.POPULATION_VERSION, "eligibleObservations": pay_obs,
+                       "heldOutByReason": dict(sorted(reasons.items())),
+                       "reasonsOverlap": True},
+        "proposedEvidenceStandard": PROPOSED_STANDARD,
         "withheld": {"pay": dict(withheld_pay), "cityVolume": withheld_city, "momentum": withheld_mom},
         "roleCoverage": {k: role_cov[k] for k in sorted(role_cov)},
         "data": data,
@@ -503,43 +535,48 @@ def build(pipeline, today, staffing_cids=None):
     return meta, city_count
 
 
-# Supplied October fixture national figures (cents): reproduction guard.
-FIXTURE = {"registered-nurse": (4100, 5000, 6200), "icu-registered-nurse": (4800, 5738, 6503),
-           "warehouse-associate": (1700, 1900, 2200), "forklift-operator": (1713, 1850, 2000)}
+# PROPOSAL ONLY - not applied to publication. Recorded in the snapshot so the
+# coverage report and reviewers see the same numbers; see docs/repair/COVERAGE_IMPACT.md.
+PROPOSED_STANDARD = {
+    "status": "proposed_not_active",
+    "minObservations": 10,
+    "labels": [
+        {"label": "Broader evidence", "rule": ">= 10 firms and >= 30 observations"},
+        {"label": "Moderate evidence", "rule": ">= 5 firms and >= 10 observations"},
+        {"label": "Limited evidence", "rule": "passes the publication rule but below Moderate"},
+    ],
+}
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pipeline", default=str(DEFAULT_PIPELINE))
-    ap.add_argument("--out", default=str(DEFAULT_OUT))
+    ap.add_argument("--out", help=f"output file (default {DEFAULT_OUT.relative_to(REPO)})")
+    ap.add_argument("--publish", action="store_true",
+                    help=f"write the SERVED snapshot {PUBLISHED_OUT.relative_to(REPO)} (release step, needs approval)")
     ap.add_argument("--today", help="YYYY-MM-DD (testing)")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--staffing-cids", help="JSON list of shared_company_ids to use as the staffing-firm set "
-                    "(reproduces the October fixture with the 2026-10-02 list)")
     a = ap.parse_args()
     today = dt.date.fromisoformat(a.today) if a.today else dt.date.today()
-    cids = json.load(open(a.staffing_cids, encoding="utf-8")) if a.staffing_cids else None
-    snap, _ = build(a.pipeline, today, cids)
+    snap, _ = build(a.pipeline, today)
     d = snap["data"]
-    nat = {c["roleKey"]: (c["p25Cents"], c["typicalCents"], c["p75Cents"]) for c in d["pay"] if c["level"] == "nationwide"}
-    drift = {k: (nat.get(k), v) for k, v in FIXTURE.items() if nat.get(k) != v}
-    print(f"{CALC_VERSION} snapshot {snap['snapshotDate']}: pay cells {len(d['pay'])} "
+    print(f"{CALC_VERSION} snapshot {snap['snapshotDate']}: eligible pay observations "
+          f"{snap['population']['eligibleObservations']:,}, pay cells {len(d['pay'])} "
           f"(withheld {snap['withheld']['pay']}), city rows {len(d['cityVolume']['rows'])} "
           f"(withheld {snap['withheld']['cityVolume']}), momentum {len(d['momentum']['rows'])} "
           f"(withheld {snap['withheld']['momentum']}), families {len(d['mostPostedFamilies']['labels'])}")
-    print("fixture reproduction:", "exact" if not drift else f"DRIFT {drift}")
     if not d["pay"] or not d["cityVolume"]["rows"]:
         print("REFUSED: no publishable pay or city data")
         return 2
     if a.dry_run:
         return 0
-    out = Path(a.out)
+    out = Path(a.out) if a.out else PUBLISHED_OUT if a.publish else DEFAULT_OUT
     out.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=out.parent, suffix=".tmp")
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         json.dump(snap, fh, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, out)
-    print("wrote", out, f"{out.stat().st_size:,} bytes")
+    print("wrote", out, f"{out.stat().st_size:,} bytes", "(PUBLISHED path)" if out == PUBLISHED_OUT else "(candidate)")
     return 0
 
 

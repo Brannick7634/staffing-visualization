@@ -9,3 +9,6 @@ yarn-error.log
 logs/
 vercel-setup-secrets.txt
 dev-fixtures/
+
+# Candidate (unpublished) Staffing Signal aggregates - never served
+out/

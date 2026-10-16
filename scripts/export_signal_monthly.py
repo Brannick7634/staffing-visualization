@@ -1,6 +1,7 @@
 """Monthly archive of Staffing Signal aggregates (one calendar month).
 
-Writes api/_lib/signal/data/monthly/YYYY-MM.json from the same READ-ONLY
+Writes CANDIDATE out/candidate/monthly/YYYY-MM.json (--out-dir api/_lib/signal/data/monthly
+only as an approved release step) from the same READ-ONLY
 pipeline databases, role mapping, firm identity, quantile method and privacy
 rule as scripts/export_signal_snapshot.py (imported, not copied). Only the time
 window differs: everything is scoped to postings whose
@@ -41,12 +42,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import export_signal_snapshot as base  # noqa: E402
+import signal_population as pop  # noqa: E402
 
-MONTH_CALC_VERSION = "signal-month-1.0.0"
+MONTH_CALC_VERSION = "signal-month-2.0.0"  # 2.0.0 (2026-10-16): signal-agg-2.0.0 population + observation cutoff. METHOD BREAK: 1.0.0 months are not comparable
 FORMAT = "staffing-signal-monthly-aggregates"
 SCHEMA_VERSION = 1
 COLLECTION_GRACE_DAYS = 2  # collection must start on or before day 1 + 2
-DEFAULT_OUT_DIR = base.REPO / "api" / "_lib" / "signal" / "data" / "monthly"
+PUBLISHED_OUT_DIR = base.REPO / "api" / "_lib" / "signal" / "data" / "monthly"
+DEFAULT_OUT_DIR = base.REPO / "out" / "candidate" / "monthly"
 
 
 def month_bounds(month):
@@ -87,14 +90,13 @@ def counts_rows(groups, make_row):
     return rows, withheld
 
 
-def build_month(pipeline, month, today, staffing_cids=None):
+def build_month(pipeline, month, today):
     db = Path(pipeline) / "db"
     sys.path.insert(0, str(Path(pipeline) / "src"))
     import taxonomy as tx  # pipeline's own title classifier (read-only use)
 
-    j = sqlite3.connect(f"file:{(db / 'jsearch.sqlite').as_posix()}?mode=ro", uri=True, timeout=120)
-    p = sqlite3.connect(f"file:{(db / 'pay_benchmarks.sqlite').as_posix()}?mode=ro", uri=True, timeout=120)
-    built_at = p.execute("SELECT built_at FROM meta").fetchone()[0]
+    j = base.connect(pipeline)
+    built_at = j.execute("SELECT built_at FROM p.meta").fetchone()[0]
     first = j.execute("SELECT min(substr(first_seen_date,1,10)) FROM canonical_jobs").fetchone()[0]
     collection_start = dt.date.fromisoformat(first) if first else None
     ok, why = reliability(month, today, collection_start, dt.date.fromisoformat(built_at[:10]))
@@ -103,35 +105,33 @@ def build_month(pipeline, month, today, staffing_cids=None):
 
     start, end = month_bounds(month)
     lo, hi = start.isoformat(), end.isoformat()
-    non_staffing = {r[0] for r in j.execute(
-        "SELECT shared_company_id FROM search_targets WHERE COALESCE(search_error,'') LIKE 'non-staffing employer%'")}
-    allow = set(staffing_cids) if staffing_cids is not None else None
+    firms = pop.load_firms(j)
 
     def staffing(cid):
-        if cid is None:
-            return False
-        return cid in allow if allow is not None else cid not in non_staffing
+        """Privacy-rule identity of a verified staffing firm, else None."""
+        f = firms.get(cid) if cid is not None else None
+        return f[2] if f and f[0] == "verified" else None
 
-    job = {}
-    for jid, cid, detail, rf, fs in j.execute(
-            "SELECT canonical_job_id, shared_company_id, role_detail, role_family, substr(first_seen_date,1,10) "
-            "FROM canonical_jobs"):
-        job[jid] = (cid, detail if (rf and "Nurse" in rf) else None, fs)
+    first_seen = dict(j.execute("SELECT canonical_job_id, substr(first_seen_date,1,10) FROM canonical_jobs"))
 
-    # ---- pay (same filters as the weekly snapshot, month window)
+    # ---- pay: the signal-agg-2.0.0 population, month window, and only records
+    # already OBSERVED by the month's end (no reconstruction from later data).
     groups = defaultdict(list)
-    pay_obs = 0
-    for jid, occ, title, st, city, mid, pg, pdate in p.execute(
-            "SELECT canonical_job_id, occupation, job_title, state, city, hourly_mid, pay_group, "
-            "substr(posting_date,1,10) FROM pay_observations WHERE plausible AND hourly_mid IS NOT NULL"):
-        cid, detail, fs = job.get(jid, (None, None, None))
-        d = pdate or fs
-        if not d or d < lo or d > hi or pg == base.TRAVEL or not staffing(cid):
+    pay_obs, late = 0, 0
+    for o in pop.iter_observations(j, firms):
+        fs = first_seen.get(o["jid"])
+        d = o["posted"] or fs
+        if not d or d < lo or d > hi or o["reasons"]:
+            continue
+        if not fs or fs > hi:
+            late += 1
             continue
         pay_obs += 1
-        role = base.role_for(occ, detail, title)
+        role = base.role_for(o["occupation"], o["detail"], o["title"])
         if not role:
             continue
+        cid = o["firm_key"]
+        st, city, mid = o["state"], o["city"], o["mid"]
         groups[(role, "nationwide", "", "")].append((mid, cid))
         sc = base.state_code(st)
         if sc:
@@ -157,21 +157,23 @@ def build_month(pipeline, month, today, staffing_cids=None):
     # ---- demand (new postings dated in the month)
     seen_fp = set()
     st_g, city_g, role_g = defaultdict(list), defaultdict(list), defaultdict(list)
-    total, firms = 0, set()
+    total, firm_set = 0, set()
     occ_cache = {}
     for title, st, city, cid, fp, detail, rf, d in j.execute(
             "SELECT job_title, state, city, shared_company_id, fingerprint_hash, role_detail, role_family, "
             "substr(COALESCE(posting_date, first_seen_date), 1, 10) AS d FROM canonical_jobs "
             "WHERE COALESCE(duplicate_status,'new') <> 'repost' AND d >= ? AND d <= ? "
-            "AND (country IS NULL OR upper(country) IN ('US','USA','UNITED STATES'))", (lo, hi)):
-        if not staffing(cid):
+            "AND substr(first_seen_date,1,10) <= ? "
+            "AND (country IS NULL OR upper(country) IN ('US','USA','UNITED STATES'))", (lo, hi, hi)):
+        cid = staffing(cid)
+        if cid is None:
             continue
         if fp:
             if fp in seen_fp:
                 continue
             seen_fp.add(fp)
         total += 1
-        firms.add(cid)
+        firm_set.add(cid)
         if title not in occ_cache:
             o = tx.classify_occupation(title or "")
             occ_cache[title] = o[1] if o and o[1] else None
@@ -205,11 +207,16 @@ def build_month(pipeline, month, today, staffing_cids=None):
             "window": "COALESCE(posting_date, first_seen_date) inside the calendar month",
             "privacyRule": {"minDistinctFirms": base.MIN_FIRMS, "maxFirmShare": base.MAX_SHARE, "shareOperator": "<=",
                             "appliesTo": "every pay cell and every demand count"},
-            "payValue": "hourly_mid per posting; travel weekly packages excluded",
+            "population": f"{pop.POPULATION_VERSION} (scripts/signal_population.py): hourly-advertised USD pay, "
+                          "contract/temporary labels only, positively verified staffing firms",
+            "observationCutoff": "only postings first seen on or before the month's last day",
+            "firmStatusAsOf": "company classifications as of the export (not as of the month)",
+            "methodBreak": "not comparable with signal-month-1.0.0 months; trends must not span the break",
             "quantile": "statistics.quantiles(n=4, method='exclusive'); typical = median",
             "demand": "new staffing-firm postings; reposts and repeat fingerprints dropped",
         },
-        "totals": {"postings": total, "firms": len(firms), "payObservations": pay_obs},
+        "totals": {"postings": total, "firms": len(firm_set), "payObservations": pay_obs,
+                   "heldOutObservedAfterMonthEnd": late},
         "roleStatus": dict(sorted(role_status.items())),
         "pay": pay,
         "demand": {"states": states, "cities": cities, "roles": roles},
