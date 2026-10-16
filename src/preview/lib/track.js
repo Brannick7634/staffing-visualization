@@ -1,11 +1,11 @@
 // Product measurement for the site (repair brief §3).
 //
-// One interface, `track(event, props)`, used by every caller. Delivery is
-// DISABLED by default: nothing leaves the browser unless both build-time
-// variables are set (see docs/repair/ANALYTICS_EVENTS.md):
-//   VITE_ANALYTICS_ENABLED=true
-//   VITE_ANALYTICS_ENDPOINT=<approved first-party collector URL>
-// In development, events are also logged to the console.
+// One interface, `track(event, props)`, used by every caller. Delivery is ON
+// in production builds, to our own first-party collector at /api/track
+// (see docs/repair/ANALYTICS_EVENTS.md). Kill switch at build time:
+//   VITE_ANALYTICS_ENABLED=false
+// VITE_ANALYTICS_ENDPOINT may override the endpoint. Dev builds send nothing
+// unless an endpoint is set; they log events to the console.
 //
 // Privacy rules enforced here, not left to callers:
 // - Only allowlisted property keys survive, and only short machine values
@@ -97,6 +97,8 @@ function readEnv() {
   }
 }
 
+export const DEFAULT_ENDPOINT = '/api/track'
+
 const sent = new Set()
 let sink = null
 
@@ -106,8 +108,13 @@ export function buildPayload(event, props, href) {
 }
 
 function defaultSink(env) {
-  const endpoint = env.VITE_ANALYTICS_ENDPOINT
-  if (String(env.VITE_ANALYTICS_ENABLED) !== 'true' || typeof endpoint !== 'string' || !/^https:\/\//.test(endpoint)) return null
+  if (String(env.VITE_ANALYTICS_ENABLED) === 'false') return null
+  const endpoint = env.VITE_ANALYTICS_ENDPOINT || DEFAULT_ENDPOINT
+  // Same-origin path, or an absolute https URL. Anything else is refused.
+  if (typeof endpoint !== 'string' || !(/^https:\/\//.test(endpoint) || /^\/[A-Za-z0-9/_-]+$/.test(endpoint))) return null
+  // Never send from dev or tests unless an endpoint is set explicitly.
+  if (env.DEV && !env.VITE_ANALYTICS_ENDPOINT) return null
+  if (typeof window === 'undefined') return null
   return (payload) => {
     const body = JSON.stringify(payload)
     if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {

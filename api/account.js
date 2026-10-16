@@ -1,5 +1,6 @@
 // Subscriber endpoints: /api/subscribe, /api/auth/login, /api/auth/forgot,
-// /api/auth/reset, /api/auth/confirm, /api/auth/logout, /api/unsubscribe, /api/preferences.
+// /api/auth/reset, /api/auth/confirm, /api/auth/logout, /api/unsubscribe, /api/preferences,
+// /api/track and /api/analytics/weekly (cron).
 import subscribe from './_lib/routes/subscribe.js'
 import login from './_lib/routes/login.js'
 import forgot from './_lib/routes/forgot.js'
@@ -8,8 +9,9 @@ import confirm from './_lib/routes/confirm.js'
 import logout from './_lib/routes/logout.js'
 import unsubscribe from './_lib/routes/unsubscribe.js'
 import preferences from './_lib/routes/preferences.js'
+import { collect, weekly } from './_lib/analytics.js'
 
-const ROUTES = { 'subscribe': subscribe, 'login': login, 'forgot': forgot, 'reset': reset, 'confirm': confirm, 'logout': logout, 'unsubscribe': unsubscribe, 'preferences': preferences }
+const ROUTES = { 'subscribe': subscribe, 'login': login, 'forgot': forgot, 'reset': reset, 'confirm': confirm, 'logout': logout, 'unsubscribe': unsubscribe, 'preferences': preferences, 'track': collect, 'analytics-weekly': weekly }
 
 // One serverless function for several URLs (Vercel Hobby allows 12 functions).
 // vercel.json rewrites each public URL here with ?route=<name>.

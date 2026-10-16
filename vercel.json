@@ -71,6 +71,14 @@
       "destination": "/api/signal-data?route=client-report-email"
     },
     {
+      "source": "/api/track",
+      "destination": "/api/account?route=track"
+    },
+    {
+      "source": "/api/analytics/weekly",
+      "destination": "/api/account?route=analytics-weekly"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
@@ -79,6 +87,10 @@
     {
       "path": "/api/dashboard-metrics?recompute=1",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/analytics/weekly",
+      "schedule": "0 12 * * 1"
     }
   ],
   "functions": {
