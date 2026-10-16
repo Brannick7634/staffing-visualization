@@ -34,3 +34,17 @@ describe('comparison-to-report journey (brief §4)', () => {
     assert.ok(!/localStorage|sessionStorage|searchParams|URLSearchParams/.test(calc))
   })
 })
+
+describe('coverage before signup (brief §5)', () => {
+  const card = read('src/preview/components/ResultCard.jsx')
+  test('explicit population label and unavailable-city wording', () => {
+    assert.match(card, /City benchmark/)
+    assert.match(card, /State benchmark/)
+    assert.match(card, /Nationwide benchmark/)
+    assert.match(card, /Not enough verified observations for/)
+    assert.match(card, /View the available/)
+  })
+  test('fallback offered only when it passes publication checks', () => {
+    assert.match(card, /fb && fb\.coverage === COVERAGE\.PUBLISHABLE/)
+  })
+})

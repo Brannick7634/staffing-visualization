@@ -63,6 +63,16 @@ function dataDay(response, snapshot) {
 }
 
 // 'Data updated October 6, 2026 · from 204 staffing firms · advertised pay'
+// Which population the figures describe. The requested city/state and the
+// benchmark geography can differ (fallbackNote explains when they do).
+const POPULATION = { city: 'City benchmark', state: 'State benchmark', nationwide: 'Nationwide benchmark' }
+
+function insufficientText(result, place, roleLabel) {
+  const level = result?.geography?.level
+  const where = level === 'city' ? 'this city' : level === 'state' ? 'this state' : place
+  return `Not enough verified observations for ${roleLabel ? 'this job' : 'this selection'} in ${where}.`
+}
+
 function metaLine(model) {
   const day = formatIsoDay(model.snapshotDate)
   const text = [day && `Data updated ${day}`, firmsPhrase(model.figures.firmCount), 'advertised pay'].filter(Boolean).join(' · ')
@@ -215,16 +225,16 @@ export default function ResultCard({
         const fbPlace = placeName(fb)
         parts.push(
           <Notice key="insufficient">
-            <p>We don't have enough comparable {place} pay data to publish this benchmark. {/^[aeiou]/i.test(fbPlace) ? 'An' : 'A'} {fbPlace} benchmark is available.</p>
+            <p>{insufficientText(result, place, roleLabel)} View the available {fbPlace} {fb.geography?.level === 'nationwide' ? '' : 'state '}benchmark instead.</p>
             <button type="button" className="ssp-btn ssp-btn--primary ssp-btn--sm" onClick={() => onSeeFallback && onSeeFallback()}>
-              See the {fbPlace} benchmark
+              View the {fbPlace} benchmark
             </button>
           </Notice>
         )
       } else if (!model) {
         parts.push(
           <Notice key="insufficient">
-            <p>We don't have enough comparable {place} pay data to publish this benchmark.</p>
+            <p>{insufficientText(result, place, roleLabel)} No other benchmark for this job passes our publication checks yet, so no figures are shown.</p>
           </Notice>
         )
       }
@@ -285,7 +295,7 @@ export default function ResultCard({
 
   const message = announce({ requestState, response, isExample, model })
   const showFooter = ready || requestState === REQUEST.LOADING
-  const subject = ready ? (model ? `${model.roleLabel} · ${model.scope.label}` : `${roleLabel} · ${geoLabel(result)}`) : null
+  const subject = ready ? (model ? `${model.roleLabel} · ${model.scope.label} · ${POPULATION[model.scope.level] || 'Benchmark'}` : `${roleLabel} · ${geoLabel(result)}`) : null
 
   return (
     <section
