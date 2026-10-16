@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { canonicalFor, isPrivatePath } from './lib/seo.js'
+import { EVENTS, track } from './lib/track.js'
 import Footer from './components/Footer.jsx'
 import Header from './components/Header.jsx'
 import ReportAuthModal from './components/ReportAuthModal.jsx'
@@ -124,6 +125,7 @@ function useSeo(site) {
   const { pathname } = useLocation()
   useEffect(() => {
     if (!site) return
+    track(EVENTS.PAGE_VIEW)
     const canonical = document.querySelector('link[rel="canonical"]')
     const priv = isPrivatePath(pathname)
     if (canonical) canonical.setAttribute('href', canonicalFor(priv ? '/' : pathname))

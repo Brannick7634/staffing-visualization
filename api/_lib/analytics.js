@@ -13,7 +13,7 @@ import { sendEmail } from './subscribers.js'
 // Must match src/preview/lib/track.js (a test enforces this). Legacy
 // overclaiming names (report_printed etc.) are deliberately not accepted.
 export const KNOWN_EVENTS = new Set([
-  'pay_check_started', 'national_result_viewed', 'local_benchmark_requested',
+  'page_view', 'pay_check_started', 'national_result_viewed', 'local_benchmark_requested',
   'local_coverage_available', 'local_coverage_unavailable', 'gate_shown',
   'signup_started', 'signup_failed', 'signup_completed', 'first_local_result_viewed',
   'preferences_saved', 'market_report_opened', 'monthly_issue_opened', 'return_visit',
@@ -132,6 +132,7 @@ export function computeReport(rows) {
     const avail = g('local_coverage_available')
     const unavail = g('local_coverage_unavailable')
     return {
+      pageViews: g('page_view'),
       comparisonsStarted: g('pay_check_started'),
       coverageAvailable: avail,
       coverageUnavailable: unavail,
@@ -168,6 +169,7 @@ export function buildEmail(report, { start, end: endDate } = {}) {
     lines = [
       `Last 7 days vs the 7 days before.${c.total ? '' : ' No events at all this week.'}`,
       '',
+      row('Page views', 'pageViews'),
       row('Comparisons started', 'comparisonsStarted'),
       `Local coverage: ${c.coverageAvailable} available, ${c.coverageUnavailable} unavailable, rate ${pct(c.coverageAvailable, c.coverageAvailable + c.coverageUnavailable)} (prior ${pct(pr.coverageAvailable, pr.coverageAvailable + pr.coverageUnavailable)})`,
       row('Signup gate shown', 'gateShown'),
@@ -182,7 +184,7 @@ export function buildEmail(report, { start, end: endDate } = {}) {
       `  Coverage available / comparisons started: ${c.coverageAvailable} / ${c.comparisonsStarted} = ${pct(c.coverageAvailable, c.comparisonsStarted)}`,
       `  Report actions / reports viewed: ${actions} / ${c.reportsViewed} = ${pct(actions, c.reportsViewed)}`,
       '',
-      'Page views are not measured (no page-view event exists), so none are shown.',
+      'Page views count each page opened in the site; there is no visitor ID, so they are not unique visitors.',
       'Download started and print requested mean the browser was asked, not that a file was saved or printed. Email accepted means our server accepted it, not that it was delivered.'
     ]
   }

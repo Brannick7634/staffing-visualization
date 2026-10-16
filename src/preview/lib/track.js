@@ -18,6 +18,7 @@
 //   repeated clicks, retries and re-renders cannot inflate them.
 
 export const EVENTS = Object.freeze({
+  PAGE_VIEW: 'page_view',
   PAY_CHECK_STARTED: 'pay_check_started',
   NATIONAL_RESULT_VIEWED: 'national_result_viewed',
   LOCAL_BENCHMARK_REQUESTED: 'local_benchmark_requested',
