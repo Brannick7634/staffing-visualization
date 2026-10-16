@@ -62,8 +62,10 @@ const LEVEL_BY_KEY = new Map(COMPETITIVENESS_LEVELS.map((level) => [level.key, l
 // Keys come from payBand.classifyRate.
 export const POSITION_LABELS = Object.freeze({ below: 'Below market', within: 'Market range', above: 'Above market' })
 
-export const DISCLAIMER = 'Market data is based on aggregated advertised pay in staffing-firm job postings and is intended for informational purposes only. It is advertised pay, not actual pay. Market conditions may vary based on employer, experience, shift, industry, geography and other factors.'
-export const METHOD_NOTE = `Local figures are published only when at least 3 staffing firms report and no single firm accounts for more than half of the data. Figures from fewer than ${LIMITED_DATA_MIN_FIRMS} firms are marked as a directional guide. Full method: thestaffingsignal.com/methodology`
+export const DISCLAIMER = 'Market data is based on aggregated hourly pay advertised in contract and temporary job postings from verified staffing firms and is intended for informational purposes only. It is advertised pay, not actual pay. Market conditions may vary based on employer, experience, shift, industry, geography and other factors.'
+// Method signal-agg-2.0.0. Keep in step with scripts/export_signal_snapshot.py
+// and the methodology page; screen, print, PDF and email all use this string.
+export const METHOD_NOTE = `Uses pay originally advertised per hour for contract or temporary roles by verified staffing firms; annual, weekly and travel-package pay is excluded. Local figures are published only when at least 3 staffing firms report and no single firm accounts for more than half of the data. Figures from fewer than ${LIMITED_DATA_MIN_FIRMS} firms are marked as a directional guide. Full method: thestaffingsignal.com/methodology`
 
 function isCents(value) {
   return Number.isSafeInteger(value) && value > 0
@@ -268,7 +270,8 @@ export function buildClientReportModel({
     p25Cents: picked.p25Cents,
     typicalCents: picked.typicalCents,
     p75Cents: picked.p75Cents,
-    firmCount: Number.isSafeInteger(picked.firmCount) && picked.firmCount >= 0 ? picked.firmCount : null
+    firmCount: Number.isSafeInteger(picked.firmCount) && picked.firmCount >= 0 ? picked.firmCount : null,
+    observationCount: Number.isSafeInteger(picked.observationCount) && picked.observationCount > 0 ? picked.observationCount : null
   }
   const gap = marketGap(rateCents, figures.typicalCents)
   const positionKey = classifyRate(rateCents, figures.p25Cents, figures.p75Cents)

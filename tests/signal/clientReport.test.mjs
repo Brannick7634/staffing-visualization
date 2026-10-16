@@ -251,7 +251,7 @@ describe('buildClientReportModel', () => {
     assert.deepEqual(m.scope, { level: 'city', label: 'Houston, TX' })
     assert.equal(m.usedFallback, false)
     assert.equal(m.fallbackNote, null)
-    assert.deepEqual(m.figures, { ...HOUSTON, firmCount: 4 })
+    assert.deepEqual(m.figures, { ...HOUSTON, firmCount: 4, observationCount: null })
     assert.equal(m.limitedData, true)
     assert.equal(m.limitedDataNote, 'Based on a small number of staffing firms (4). Treat these figures as a directional guide.')
     assert.equal(m.rateCents, 1700)
@@ -275,8 +275,8 @@ describe('buildClientReportModel', () => {
     assert.equal(m.preparedFor, '')
     assert.equal(m.preparedBy, '')
     assert.equal(m.fileName, 'Client-Pay-Market-Report_Forklift-Operator_Houston-TX.pdf')
-    assert.equal(m.disclaimer, 'Market data is based on aggregated advertised pay in staffing-firm job postings and is intended for informational purposes only. It is advertised pay, not actual pay. Market conditions may vary based on employer, experience, shift, industry, geography and other factors.')
-    assert.equal(m.methodNote, 'Local figures are published only when at least 3 staffing firms report and no single firm accounts for more than half of the data. Figures from fewer than 5 firms are marked as a directional guide. Full method: thestaffingsignal.com/methodology')
+    assert.equal(m.disclaimer, 'Market data is based on aggregated hourly pay advertised in contract and temporary job postings from verified staffing firms and is intended for informational purposes only. It is advertised pay, not actual pay. Market conditions may vary based on employer, experience, shift, industry, geography and other factors.')
+    assert.equal(m.methodNote, 'Uses pay originally advertised per hour for contract or temporary roles by verified staffing firms; annual, weekly and travel-package pay is excluded. Local figures are published only when at least 3 staffing firms report and no single firm accounts for more than half of the data. Figures from fewer than 5 firms are marked as a directional guide. Full method: thestaffingsignal.com/methodology')
   })
 
   test('limited-data note: a known firm count under 5 only', () => {
@@ -320,7 +320,7 @@ describe('buildClientReportModel', () => {
     assert.deepEqual(m.scope, { level: 'state', label: 'Texas' })
     assert.equal(m.usedFallback, true)
     assert.equal(m.fallbackNote, 'There is no reliable Houston, TX figure yet, so this report uses Texas.')
-    assert.deepEqual(m.figures, { ...TEXAS, firmCount: 19 })
+    assert.deepEqual(m.figures, { ...TEXAS, firmCount: 19, observationCount: null })
     assert.equal(m.competitiveness.key, 'below') // 1700*10 = 17000 is not under 1800*9 = 16200
     assert.match(m.executiveSummary, /^Staffing firms in Texas are advertising Forklift Operator positions/)
     assert.match(m.takeaway, /median for Forklift Operator in Texas\. /)
@@ -332,7 +332,7 @@ describe('buildClientReportModel', () => {
     assert.deepEqual(m.scope, { level: 'nationwide', label: 'Nationwide' })
     assert.equal(m.usedFallback, true)
     assert.equal(m.fallbackNote, 'There is no reliable Houston, TX figure yet, so this report uses nationwide figures.')
-    assert.deepEqual(m.figures, { ...NATIONAL, firmCount: 158 })
+    assert.deepEqual(m.figures, { ...NATIONAL, firmCount: 158, observationCount: null })
     assert.match(m.executiveSummary, /^Staffing firms across the U\.S\. are advertising/)
     assert.match(m.takeaway, /median for Forklift Operator across the U\.S\. Moving the rate/)
     assert.doesNotMatch(m.takeaway, /\.\./)
@@ -357,7 +357,7 @@ describe('buildClientReportModel', () => {
     const locked = { geography: { level: 'city', label: 'Houston, TX', requested: true }, coverage: 'publishable', access: 'requires_free_account', message: 'Locked.' }
     const m = model(1700, { result: { ...locked, ...HOUSTON }, fallback: { ...TEXAS_FALLBACK, access: 'requires_free_account' } })
     assert.equal(m.scope.level, 'nationwide')
-    assert.deepEqual(m.figures, { ...NATIONAL, firmCount: 158 })
+    assert.deepEqual(m.figures, { ...NATIONAL, firmCount: 158, observationCount: null })
   })
 
   test('null when no scope has figures or the rate is unusable', () => {

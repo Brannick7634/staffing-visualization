@@ -214,7 +214,11 @@ export function reportView(model) {
       model.preparedBy ? { key: 'by', label: 'Prepared by', value: model.preparedBy } : null
     ].filter(Boolean),
     role: model.roleLabel,
-    firmLine: firms ? `from ${count(firms)} staffing ${plural(firms, 'firm', 'firms')}` : null,
+    firmLine: firms
+      ? (isPositiveInt(figures.observationCount) && figures.observationCount >= firms
+          ? `from ${count(figures.observationCount)} advertised ${plural(figures.observationCount, 'rate', 'rates')} across ${count(firms)} staffing ${plural(firms, 'firm', 'firms')}`
+          : `from ${count(firms)} staffing ${plural(firms, 'firm', 'firms')}`)
+      : null,
     limitedNote: model.limitedDataNote || null,
     fallbackNote: model.fallbackNote || null,
     tiles: [

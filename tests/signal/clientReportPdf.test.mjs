@@ -140,6 +140,10 @@ describe('reportView', () => {
     const wide = reportView(buildClientReportModel({ payResponse: payResponse({ result: { geography: { level: 'city', label: 'Houston, TX' }, ...figures({ p25Cents: 1750, typicalCents: 2000, p75Cents: 2420 }, 5) } }), rateCents: 2100, now: NOW }))
     assert.equal(wide.limitedNote, null)
     assert.equal(wide.firmLine, 'from 5 staffing firms')
+    // 2.0.0: the usable observation count travels with the firm count to every format.
+    const counted = buildClientReportModel({ payResponse: payResponse({ result: { geography: { level: 'city', label: 'Houston, TX' }, ...figures({ p25Cents: 1750, typicalCents: 2000, p75Cents: 2420 }, 5), observationCount: 23 } }), rateCents: 2100, now: NOW })
+    assert.equal(counted.figures.observationCount, 23)
+    assert.equal(reportView(counted).firmLine, 'from 23 advertised rates across 5 staffing firms')
   })
 
   test('snapshot week label tolerates bad input', () => {

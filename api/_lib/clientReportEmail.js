@@ -50,7 +50,7 @@ export function buildReportEmail({ model, senderLabel, senderEmail, note = '' })
   const footer = `Sent via ${SITE_NAME} (${SITE_HOST}) on behalf of ${senderEmail}. Replies go to ${senderEmail}.`
   const attached = 'The full two-page report is attached as a PDF.'
   const rows = figureRows(model)
-  const caveat = 'Advertised pay in staffing-firm job postings, not actual pay. Pay is one factor in filling an order; it does not guarantee a fill.'
+  const caveat = 'Hourly pay advertised in contract and temporary postings by verified staffing firms, not actual pay. Pay is one factor in filling an order; it does not guarantee a fill.'
 
   const text = [
     intro,
