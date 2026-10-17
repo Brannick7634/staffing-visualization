@@ -21,12 +21,12 @@ export function localAvailabilityNote({ availability, roleKey, roleLabel, state,
   const states = Array.isArray(entry.states) ? entry.states : []
   const cities = Array.isArray(entry.cities) ? entry.cities : []
   if (city) {
-    if (cities.includes(city)) return `A ${cityName || 'city'} benchmark is published for ${job}.`
+    if (cities.includes(city)) return `${cityName || 'This city'} has a published benchmark for ${job}.`
     if (states.includes(state)) return `No ${cityName || 'city'} benchmark for ${job} yet; you'll see the ${stateName || 'state'} figure instead.`
     return `No ${cityName || 'city'} or ${stateName || 'state'} benchmark for ${job} yet; you'll see the nationwide figure instead.`
   }
   if (state) {
-    if (states.includes(state)) return `A ${stateName || 'state'} benchmark is published for ${job}.`
+    if (states.includes(state)) return `${stateName || 'This state'} has a published benchmark for ${job}.`
     return `No ${stateName || 'state'} benchmark for ${job} yet; you'll see the nationwide figure instead.`
   }
   if (!states.length && !cities.length) return `${job} has a nationwide figure only; no state or city benchmarks are published yet.`

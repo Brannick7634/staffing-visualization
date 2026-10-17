@@ -188,7 +188,8 @@ export function createProductionAdapter({
   monthlyDir = DEFAULT_MONTHLY_DIR,
   enabled = () => process.env.SIGNAL_FEED_ENABLED === '1',
   now = () => Date.now(),
-  maxAgeDays = MAX_AGE_DAYS
+  maxAgeDays = MAX_AGE_DAYS,
+  maxSourceAgeDays = MAX_SOURCE_AGE_DAYS
 } = {}) {
   let monthly = null
   const loadMonthly = () => {
@@ -205,7 +206,7 @@ export function createProductionAdapter({
       } catch {
         return UNAVAILABLE
       }
-      const data = validateSnapshot(raw, { now: now(), maxAgeDays })
+      const data = validateSnapshot(raw, { now: now(), maxAgeDays, maxSourceAgeDays })
       if (!data) return UNAVAILABLE
       return { available: true, data: { ...data, monthly: monthlyDir ? await loadMonthly() : [] } }
     }

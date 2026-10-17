@@ -21,8 +21,8 @@ test('bundled snapshot: local availability for the audited roles matches roleCov
 test('notes never promise a local value that is not published', () => {
   const n = (o) => localAvailabilityNote({ availability: avail, roleLabel: 'Job', ...o })
   assert.match(n({ roleKey: 'forklift-operator', state: 'TX', stateName: 'Texas' }), /No Texas benchmark .* nationwide figure/)
-  assert.match(n({ roleKey: 'forklift-operator', state: 'OH', stateName: 'Ohio' }), /An? Ohio benchmark is published/)
-  assert.match(n({ roleKey: 'warehouse-associate', state: 'NY', city: 'NY:new-york', stateName: 'New York', cityName: 'New York' }), /New York benchmark is published/)
+  assert.match(n({ roleKey: 'forklift-operator', state: 'OH', stateName: 'Ohio' }), /Ohio has a published benchmark/)
+  assert.match(n({ roleKey: 'warehouse-associate', state: 'NY', city: 'NY:new-york', stateName: 'New York', cityName: 'New York' }), /New York has a published benchmark/)
   assert.match(n({ roleKey: 'registered-nurse', state: 'CA', city: 'CA:los-angeles', stateName: 'California', cityName: 'Los Angeles' }), /No Los Angeles benchmark .* California figure instead/)
   assert.match(n({ roleKey: 'general-laborer', state: 'VA', city: 'VA:richmond', stateName: 'Virginia', cityName: 'Richmond' }), /Virginia figure instead/)
   assert.match(n({ roleKey: 'general-laborer' }), /1 state \(Virginia\), no cities yet/)

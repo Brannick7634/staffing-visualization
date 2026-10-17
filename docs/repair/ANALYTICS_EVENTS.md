@@ -36,7 +36,7 @@ Legacy constants `report_printed`, `report_downloaded`, `report_emailed` remain 
 ## Funnel (reported in the weekly email)
 pay_check_started -> local_coverage_available | local_coverage_unavailable -> report_create_clicked -> report_gate_shown -> signup_completed -> report_viewed -> report_print_requested / report_download_started / report_email_accepted.
 Coverage rate = available / (available + unavailable). No conversion-improvement claim until a baseline and a follow-up period both exist.
-Page views are not measured: there is no page-view event, so the email says so instead of showing a number.
+(Updated 2026-10-16: superseded.) A `page_view` event now exists and is counted per page opened, with no visitor ID, so it is not unique visitors. Property values are limited to known enum/taxonomy keys and paths to known routes (`shared/signal/analyticsRules.js`). The weekly email shows per-action ratios labelled as event ratios, not person-level conversion.
 
 ## What is collected and where
 - Collector: `POST /api/track`, rewritten in vercel.json to `api/account.js?route=track` (no new function file; Hobby caps functions). Code: `api/_lib/analytics.js`.

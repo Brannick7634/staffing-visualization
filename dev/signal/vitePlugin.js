@@ -41,7 +41,7 @@ const EMAIL_PATH = `${PREFIX}/client-report/email`
 // The adapter for SIGNAL_DEV_DATA: 'snapshot' = the real committed files,
 // anything else = the development fixture.
 export function createDevAdapter({ dataSource = process.env.SIGNAL_DEV_DATA, fixturePath } = {}) {
-  if (dataSource === 'snapshot') return createProductionAdapter({ enabled: () => true, maxAgeDays: DEV_SNAPSHOT_MAX_AGE_DAYS })
+  if (dataSource === 'snapshot') return createProductionAdapter({ enabled: () => true, maxAgeDays: DEV_SNAPSHOT_MAX_AGE_DAYS, maxSourceAgeDays: DEV_SNAPSHOT_MAX_AGE_DAYS + 7 })
   return createFixtureAdapter(fixturePath ? { fixturePath } : {})
 }
 

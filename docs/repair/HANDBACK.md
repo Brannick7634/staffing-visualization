@@ -1,4 +1,6 @@
-# Staffing Signal repair — handback (2026-10-16)
+# Staffing Signal repair — handback (2026-10-16) — HISTORICAL
+
+> **Historical record, kept as written.** It describes the branch before it was merged and deployed (master 933e52e, live 2026-10-16) and before analytics/contact were added. Its test counts are not a fresh independent result. Current status: `RELEASE_STATUS.md` in this folder.
 
 Branch `repair/staffing-signal-2026-10` (worktree `C:\Users\andyb\dev\sv-repair`), cut from `origin/master` b3baf82. Not pushed, merged or deployed.
 Tests: baseline 492/492 → now 517/517 (`npm test`, includes 19 Python fixture tests). `npm run build` passes.
