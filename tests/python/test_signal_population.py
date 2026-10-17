@@ -86,6 +86,24 @@ class Firms(unittest.TestCase):
         self.assertEqual(pop.firm_status("Light Industrial", None, None)[0], "verified")
         self.assertEqual(pop.firm_status(None, None, {"agency": 9, "employer": 1})[0], "verified")
 
+    def test_agency_and_broker_votes_combine(self):
+        fs = pop.firm_status
+        self.assertEqual(fs(None, None, {"agency": 4, "broker": 4, "employer": 5}), ("verified", "provider"))
+        # exact tie is not a majority and is negative
+        self.assertEqual(fs(None, None, {"agency": 3, "broker": 2, "employer": 5})[0], "unknown")
+        # unknown/other votes count in the denominator
+        self.assertEqual(fs(None, None, {"agency": 3, "broker": 2, "unknown": 6})[0], "unknown")
+        self.assertEqual(fs(None, None, {"agency": 4, "broker": 2, "unknown": 5})[0], "verified")
+        # plurality without majority, employer smaller: no provider evidence either way
+        self.assertEqual(fs(None, None, {"agency": 3, "employer": 2, "unknown": 4}), ("unknown", "no evidence"))
+        # negative flag still wins a conflict over a combined majority
+        self.assertEqual(fs(None, ["non-staffing employer"], {"agency": 4, "broker": 4, "employer": 1})[0], "conflicting")
+
+    def test_posting_level_employer_still_excluded_for_verified_firm(self):
+        o = {"posted_as": "hourly", "pay_group": "hourly", "plausible": 1, "pay_from": 20, "currency": "USD",
+             "labels": {"contract"}, "posting_employer_type": "employer"}
+        self.assertIn("firm_conflicting", pop.observation_reasons(o, ("verified", "provider", "n:x")))
+
     def test_conflicts_excluded(self):
         self.assertEqual(pop.firm_status("Healthcare Staffing", None, {"employer": 5, "agency": 1})[0], "conflicting")
         self.assertEqual(pop.firm_status("Light Industrial", ["non-staffing employer (disabled 2026-10-02)"], None)[0], "conflicting")

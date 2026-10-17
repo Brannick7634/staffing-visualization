@@ -21,7 +21,13 @@ Earlier notes (`HANDBACK.md`) are kept as a dated historical record.
 
 Audited roles against the served snapshot (a test enforces these): forklift operator 2 states (OH, PA) / 0 cities; general laborer 1 (VA) / 0; warehouse associate 10 / 1 (New York); registered nurse 4 (CA, MD, NJ, NY) / 1 (New York).
 
-## R1 — read-only impact (decision needed)
+## R1 — DECIDED 2026-10-16: agency + broker votes combine (implemented)
+
+Rule in `scripts/signal_population.py` `firm_status`: provider evidence when agency + broker together are more than half of ALL classified postings (unknown/other included in the denominator). Otherwise employer votes at least equal to agency + broker count against the company, so an exact tie is never verified. Explicit flags and posting-level employer exclusions are unchanged. New fixtures cover the 4/4/5 case, ties, unknown votes, negative flags and posting-level employers.
+
+**Real effect: 0 companies change status, so the published snapshot is unchanged (still 4,472 observations, 510 cells).** The +10 / +2 estimate below was wrong. That comparison also loosened the negative test (employer had to be a majority to count against), which is not what was approved. The served snapshot was not regenerated, because its contents would be identical.
+
+### Original read-only comparison (superseded)
 
 Current rule: a company counts as a staffing provider only if **agency or broker alone** is its single largest JobsPipe category. Alternative tested: **agency + broker combined** form a majority (more than half) of its classified postings.
 

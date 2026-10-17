@@ -133,9 +133,14 @@ def firm_status(segment, flags, provider_votes):
     """('verified' | 'unknown' | 'conflicting', evidence) for one company.
 
     Positive evidence: a staffing segment in company_identity.staffing_segment,
-    or JobsPipe classifying the majority of the company's postings as agency /
-    broker. Negative evidence: a non-staffing search_targets flag, a PEO / EOR /
-    vendor segment, or JobsPipe classifying the majority as 'employer'."""
+    or agency + broker votes COMBINED forming a strict majority (more than half)
+    of ALL the company's JobsPipe-classified postings (every category, including
+    unknown/other, is in the denominator). Andy approved combining 2026-10-16.
+    Negative evidence: a non-staffing search_targets flag, a PEO / EOR / vendor
+    segment, or (when agency + broker is not a majority) employer votes at least
+    equal to agency + broker. An exact tie (half provider, half employer) is
+    therefore negative, never verified. Posting-level 'employer' exclusions are
+    applied separately in observation_reasons."""
     seg = (segment or "").strip().lower()
     pos, neg = [], []
     if seg in STAFFING_SEGMENTS:
@@ -147,10 +152,12 @@ def firm_status(segment, flags, provider_votes):
             neg.append("flag")
     votes = provider_votes or {}
     if votes:
-        top = max(votes, key=lambda k: (votes[k], k))
-        if top in ("agency", "broker"):
+        total = sum(n for n in votes.values() if n)
+        provider = (votes.get("agency") or 0) + (votes.get("broker") or 0)
+        employer = votes.get("employer") or 0
+        if total and provider * 2 > total:
             pos.append("provider")
-        elif top == "employer":
+        elif employer and employer >= provider:
             neg.append("provider")
     if pos and neg:
         return "conflicting", "+".join(pos) + " vs " + "+".join(neg)
