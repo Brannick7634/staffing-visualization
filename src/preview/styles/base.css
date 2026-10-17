@@ -3377,5 +3377,6 @@ body.ssp-body {
 .ssp-about__inner { border-top: 1px solid #D9E2EC; padding-top: 24px; max-width: 46em; }
 .ssp-about__title { font-size: 22px; margin: 0 0 8px; color: #102A43; }
 .ssp-about__text { font-size: 16px; line-height: 1.6; color: #334E68; margin: 0; }
+.ssp-about__text + .ssp-about__text { margin-top: 28px; }
 .ssp-about__contact { margin-top: 16px; }
 .ssp-calc__rate .ssp-calc__hint { margin: 0 0 6px; }
