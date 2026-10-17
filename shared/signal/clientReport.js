@@ -244,7 +244,8 @@ export function buildClientReportModel({
   preparedFor = '',
   preparedBy = '',
   sample = false,
-  snapshotDate = null
+  snapshotDate = null,
+  freshness = null
 } = {}) {
   if (!payResponse || typeof payResponse !== 'object' || !isCents(rateCents)) return null
 
@@ -285,6 +286,8 @@ export function buildClientReportModel({
     reportDateIso: isoDay(date),
     reportDateLabel: dayLabel(date),
     snapshotDate: snapshotDate ?? (trend && typeof trend.snapshotDate === 'string' ? trend.snapshotDate : null),
+    // { recalculated, sourceRebuilt, window } labels from shared/signal/freshness.js, or null
+    freshness: freshness && typeof freshness === 'object' ? freshness : null,
     roleKey,
     roleLabel,
     requested,

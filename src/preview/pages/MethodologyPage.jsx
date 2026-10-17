@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { freshnessFacts, freshnessParts } from '../../../shared/signal/freshness.js'
 import { COMPETITIVENESS_LEVELS } from '../../../shared/signal/clientReport.js'
 import { formatCents } from '../../../shared/signal/money.js'
 import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
@@ -279,9 +280,10 @@ export default function MethodologyPage() {
 
           <Section id="fresh" title="Freshness">
             <p>
-              Data refreshes weekly; The Monthly Signal is published monthly. Nothing here is real time. We show the
-              date of the last successful refresh next to results
-              {meta?.lastSuccessfulRefresh ? ` (currently ${meta.lastSuccessfulRefresh})` : ' — that date is not available yet'}.
+              Data refreshes weekly; The Monthly Signal is published monthly. Nothing here is real time. We show three
+              separate dates: when the benchmarks were recalculated, when the source pay table was last rebuilt, and the
+              posting dates of the observations used. None of them is the date every posting was collected.
+              {(() => { const parts = freshnessParts(freshnessFacts(meta)); return parts.length ? ` Currently: ${parts.join('; ')}.` : ' Those dates are not available yet.' })()}
             </p>
           </Section>
 

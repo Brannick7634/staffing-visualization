@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  createProductionAdapter, validateSnapshot, validateMonthly, loadMonthlySnapshots, DEFAULT_SNAPSHOT_PATH, MAX_AGE_DAYS,
+  createProductionAdapter, validateSnapshot, validateMonthly, loadMonthlySnapshots, DEFAULT_SNAPSHOT_PATH, MAX_AGE_DAYS, MAX_SOURCE_AGE_DAYS,
   KNOWN_CALC_VERSIONS, KNOWN_MONTHLY_CALC_VERSIONS
 } from '../../api/_lib/signal/productionAdapter.js'
 import { createSnapshotHandler, createPayHandler } from '../../api/_lib/signal/handlers.js'
@@ -21,6 +21,7 @@ function sample(overrides = {}) {
     schemaVersion: 1,
     calcVersion: 'signal-agg-2.0.0',
     generatedAt: '2026-10-04T10:00:00Z',
+    sourceBuiltAt: '2026-10-04 00:45:09',
     snapshotDate: '2026-10-04',
     data: {
       snapshot: { label: 'Week of October 4, 2026', exactDate: '2026-10-04', refreshCadence: 'weekly', note: 'n' },
@@ -81,6 +82,21 @@ describe('production adapter fails closed', () => {
     for (const generatedAt of [stale, '2026-10-09T00:00:00Z', undefined, 'yesterday']) {
       assert.deepEqual(await adapterFor(sample({ generatedAt })).load(), { available: false }, String(generatedAt))
     }
+  })
+
+  test('source age is checked separately from export age', async () => {
+    // A fresh export of old source data must not look fresh.
+    const fresh = new Date(NOW - 3600000).toISOString()
+    const oldSource = new Date(NOW - (MAX_SOURCE_AGE_DAYS + 1) * 86400000).toISOString()
+    const edgeSource = new Date(NOW - (MAX_SOURCE_AGE_DAYS - 1) * 86400000).toISOString()
+    assert.deepEqual(await adapterFor(sample({ generatedAt: fresh, sourceBuiltAt: oldSource })).load(), { available: false })
+    assert.deepEqual(await adapterFor(sample({ generatedAt: fresh, sourceBuiltAt: undefined })).load(), { available: false })
+    assert.deepEqual(await adapterFor(sample({ generatedAt: fresh, sourceBuiltAt: 'last week' })).load(), { available: false })
+    // Source rebuilt after the export is impossible -> refused.
+    assert.deepEqual(await adapterFor(sample({ generatedAt: new Date(NOW - 2 * 86400000).toISOString(), sourceBuiltAt: fresh })).load(), { available: false })
+    const ok = await adapterFor(sample({ generatedAt: fresh, sourceBuiltAt: edgeSource })).load()
+    assert.equal(ok.available, true)
+    assert.equal(ok.data.snapshot.sourceRefreshedAt, edgeSource.replace(/\.\d{3}Z$/, '.000Z'))
   })
 
   test('unknown format, schema or calculation version is unavailable', async () => {

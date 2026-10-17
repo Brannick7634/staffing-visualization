@@ -8,6 +8,7 @@ import MarketPayInsights, { MarketFiguresOnly } from './insights/MarketPayInsigh
 import ReportCta from './insights/ReportCta.jsx'
 import { firmsPhrase, formatIsoDay, gapSentence } from './insights/format.js'
 import { usePreview } from '../PreviewContext.jsx'
+import { freshnessFacts, freshnessParts } from '../../../shared/signal/freshness.js'
 
 // Renders every coverage/access state of a pay response. When any scope has
 // figures, the "Market Pay Insights" come from buildClientReportModel (the
@@ -74,8 +75,9 @@ function insufficientText(result, place, roleLabel) {
 }
 
 function metaLine(model) {
+  const dates = freshnessParts(model.freshness)
   const day = formatIsoDay(model.snapshotDate)
-  const text = [day && `Data updated ${day}`, firmsPhrase(model.figures.firmCount), 'advertised pay'].filter(Boolean).join(' · ')
+  const text = [...(dates.length ? dates : [day && `Benchmarks recalculated ${day}`]), firmsPhrase(model.figures.firmCount), 'advertised pay'].filter(Boolean).join(' · ')
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
@@ -164,8 +166,8 @@ export default function ResultCard({
   const outdated = Boolean(ready && isOutOfDate)
   const day = ready ? dataDay(response, snapshot) : null
   const model = useMemo(
-    () => (ready ? buildClientReportModel({ payResponse: response, rateCents, snapshotDate: day }) : null),
-    [ready, response, rateCents, day]
+    () => (ready ? buildClientReportModel({ payResponse: response, rateCents, snapshotDate: day, freshness: freshnessFacts(snapshotMeta(response, snapshot)) }) : null),
+    [ready, response, rateCents, day, snapshot]
   )
 
   // An out-of-date answer must not be read or used as if it matched the new

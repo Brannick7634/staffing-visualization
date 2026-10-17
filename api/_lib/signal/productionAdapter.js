@@ -12,6 +12,9 @@
 //   * the file is missing, unreadable or not JSON;
 //   * format / schema / calculation version are not the ones this code knows;
 //   * generatedAt is missing, in the future, or older than MAX_AGE_DAYS;
+//   * sourceBuiltAt (source pay table rebuild) is missing, later than
+//     generatedAt, or older than MAX_SOURCE_AGE_DAYS. Checked separately so
+//     re-exporting old source data can't make it look fresh;
 //   * any row is malformed or its privacy checks are not verified passes.
 // One bad row rejects the whole snapshot: a broken export is not partly trusted.
 //
@@ -37,6 +40,8 @@ export const SNAPSHOT_SCHEMA_VERSION = 1
 // code rollback or a stale data file can never quietly restore them.
 export const KNOWN_CALC_VERSIONS = Object.freeze(['signal-agg-2.0.0'])
 export const MAX_AGE_DAYS = 10
+// The source table rebuilds weekly (Sunday); two missed rebuilds = unusable.
+export const MAX_SOURCE_AGE_DAYS = 15
 export const DEFAULT_SNAPSHOT_PATH = fileURLToPath(new URL('./data/signal-snapshot.json', import.meta.url))
 export const MONTHLY_FORMAT = 'staffing-signal-monthly-aggregates'
 export const MONTHLY_SCHEMA_VERSION = 1
@@ -94,7 +99,7 @@ function validMomentumRow(r) {
 }
 
 // validateSnapshot(raw, { now }) -> adapter data object, or null if unusable.
-export function validateSnapshot(raw, { now = Date.now(), maxAgeDays = MAX_AGE_DAYS } = {}) {
+export function validateSnapshot(raw, { now = Date.now(), maxAgeDays = MAX_AGE_DAYS, maxSourceAgeDays = MAX_SOURCE_AGE_DAYS } = {}) {
   if (!isObj(raw)) return null
   if (raw.format !== SNAPSHOT_FORMAT || raw.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) return null
   if (!KNOWN_CALC_VERSIONS.includes(raw.calcVersion)) return null
@@ -102,6 +107,10 @@ export function validateSnapshot(raw, { now = Date.now(), maxAgeDays = MAX_AGE_D
   if (!Number.isFinite(generated)) return null
   const age = now - generated
   if (age < -DAY_MS || age > maxAgeDays * DAY_MS) return null
+  const sourceIso = isoOrNull(raw.sourceBuiltAt)
+  if (!sourceIso) return null
+  const source = Date.parse(sourceIso)
+  if (source > generated + 60000 || now - source > maxSourceAgeDays * DAY_MS) return null
 
   const d = raw.data
   if (!isObj(d) || !isObj(d.snapshot) || !isObj(d.coverage) || !isObj(d.cityVolume) || !isObj(d.momentum)) return null

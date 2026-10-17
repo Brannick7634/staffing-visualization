@@ -207,7 +207,13 @@ export function reportView(model) {
     meta: [
       { key: 'date', label: 'Report date', value: model.reportDateLabel },
       { key: 'location', label: 'Location', value: model.scope.label },
-      { key: 'data', label: 'Data', value: snapshotWeekLabel(model.snapshotDate) }
+      ...(model.freshness?.recalculated
+        ? [
+            { key: 'data', label: 'Benchmarks recalculated', value: model.freshness.recalculated },
+            model.freshness.sourceRebuilt ? { key: 'source', label: 'Source pay table rebuilt', value: model.freshness.sourceRebuilt } : null,
+            model.freshness.window ? { key: 'window', label: 'Postings dated', value: model.freshness.window } : null
+          ].filter(Boolean)
+        : [{ key: 'data', label: 'Data', value: snapshotWeekLabel(model.snapshotDate) }])
     ],
     prepared: [
       model.preparedFor ? { key: 'for', label: 'Prepared for', value: model.preparedFor } : null,

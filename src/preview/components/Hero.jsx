@@ -1,4 +1,5 @@
 import { DATA_MODE, FRESHNESS, REQUEST } from '../../../shared/signal/contract.js'
+import { freshnessFacts, freshnessParts } from '../../../shared/signal/freshness.js'
 import { Link } from 'react-router-dom'
 import { usePreview } from '../PreviewContext.jsx'
 
@@ -26,13 +27,6 @@ function HeroActions() {
   )
 }
 
-function formatDate(value) {
-  if (typeof value !== 'string' || value === '') return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
-}
-
 export function Freshness({ className = '' }) {
   const { snapshot, snapshotState } = usePreview()
   let text
@@ -46,8 +40,8 @@ export function Freshness({ className = '' }) {
     if (snapshot.dataMode === DATA_MODE.DEVELOPMENT_EXAMPLE) parts.push('development example')
     if (import.meta.env.DEV && snapshot.dataMode === DATA_MODE.SYNTHETIC) parts.push('synthetic test data')
     if (meta.freshness === FRESHNESS.STALE) parts.push('stale: the latest weekly refresh has not completed')
-    const refreshed = formatDate(meta.lastSuccessfulRefresh)
-    parts.push(`last successful refresh: ${refreshed || 'not available yet'}`)
+    const dates = freshnessParts(freshnessFacts(meta))
+    parts.push(...(dates.length ? dates.map((d) => d.charAt(0).toLowerCase() + d.slice(1)) : ['recalculation date not available yet']))
     text = parts.join(' · ')
   }
   return (

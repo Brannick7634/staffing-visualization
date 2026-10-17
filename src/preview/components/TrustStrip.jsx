@@ -1,15 +1,15 @@
 import { Link } from 'react-router-dom'
 import '../styles/sections.css'
 import { usePreview } from '../PreviewContext.jsx'
+import { freshnessFacts, freshnessParts } from '../../../shared/signal/freshness.js'
 
 // Four plain-language trust points (brief §6.I) plus the publication rule.
 // The refresh line uses the snapshot's last successful refresh and says
 // plainly when that date isn't available.
 
 function refreshLine(meta) {
-  const date = meta?.lastSuccessfulRefresh
-  if (typeof date === 'string' && date !== '') return `Last successful refresh: ${date}`
-  return 'Last successful refresh: not available yet'
+  const parts = freshnessParts(freshnessFacts(meta))
+  return parts.length ? parts.join(' · ') : 'Recalculation date: not available yet'
 }
 
 function Icon({ name }) {

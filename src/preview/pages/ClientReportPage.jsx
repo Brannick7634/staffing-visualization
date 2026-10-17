@@ -5,6 +5,7 @@ import { PREPARED_TEXT_MAX, buildClientReportModel, containsLink } from '../../.
 import { geographyLabel } from '../../../shared/signal/geography.js'
 import { formatCents, parseHourlyRate } from '../../../shared/signal/money.js'
 import { roleByKey } from '../../../shared/signal/taxonomy.js'
+import { freshnessFacts } from '../../../shared/signal/freshness.js'
 import { renderClientReportPdfBlob } from '../../../shared/signal/clientReportPdf.js'
 import ClientReportDocument from '../components/ClientReportDocument.jsx'
 import EmailReportDialog from '../components/EmailReportDialog.jsx'
@@ -86,7 +87,8 @@ export default function ClientReportPage() {
       rateCents,
       preparedFor: safeFor,
       preparedBy: safeBy,
-      snapshotDate: payCheck.response?.trend?.snapshotDate || snapshotDateOf(snapshot)
+      snapshotDate: payCheck.response?.trend?.snapshotDate || snapshotDateOf(snapshot),
+      freshness: freshnessFacts(payCheck.response?.snapshot || snapshot?.snapshot)
     })
   }, [ready, payCheck, rateCents, safeFor, safeBy, snapshot])
 

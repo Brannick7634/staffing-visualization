@@ -268,6 +268,26 @@ function buildNationalPay({ places, pay, dataMode }) {
   return out
 }
 
+// Where each role has a published local benchmark: { roleKey: { states, cities } }.
+// Existence only (no figures), so the page can say up front whether a local
+// result exists instead of promising one. Same publication rule as lookups.
+function buildLocalAvailability({ places, pay, dataMode }) {
+  const out = {}
+  for (const raw of list(pay)) {
+    const cell = object(raw)
+    if (cell.level !== 'state' && cell.level !== 'city') continue
+    const role = places.role(cell.roleKey)
+    if (!role || !places.state(cell.state)) continue
+    if (cell.level === 'city' && (!places.city(cell.city) || places.city(cell.city).state !== cell.state)) continue
+    if (!evaluatePublication(cell.checks, { mode: dataMode }).publishable) continue
+    const entry = out[role.key] || (out[role.key] = { states: [], cities: [] })
+    if (cell.level === 'state' && !entry.states.includes(cell.state)) entry.states.push(cell.state)
+    if (cell.level === 'city' && !entry.cities.includes(cell.city)) entry.cities.push(cell.city)
+  }
+  for (const e of Object.values(out)) { e.states.sort(); e.cities.sort() }
+  return out
+}
+
 // --------------------------------------------------------- snapshot pieces
 
 function buildSnapshotMeta(raw) {
@@ -634,6 +654,7 @@ export function buildSnapshotResponse({ data, dataMode, viewer, places = REAL_PL
     momentum: buildMomentum({ momentum: d.momentum, rankedHeating, rankedCooling, allow, viewerAccess: v.access }),
     sectors: buildSectors({ places, nationalPay }),
     nationalPay,
+    localAvailability: buildLocalAvailability({ places, pay: d.pay, dataMode: mode }),
     mostPostedFamilies: buildFamilies(d.mostPostedFamilies)
   }
 }

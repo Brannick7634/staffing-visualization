@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ACCESS } from '../../../shared/signal/contract.js'
 import { citiesForState, STATES } from '../../../shared/signal/geography.js'
 import { parseHourlyRate } from '../../../shared/signal/money.js'
+import { localAvailabilityNote } from '../../../shared/signal/availability.js'
 import { EXAMPLE_ROLES, roleByKey, rolesForSector, SECTORS, sectorForRole } from '../../../shared/signal/taxonomy.js'
 import { usePreview } from '../PreviewContext.jsx'
 import { EVENTS, track } from '../lib/track.js'
@@ -77,6 +78,15 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
     </option>
   )
   const cities = selection.state ? citiesForState(selection.state) : []
+  const availabilityNote = localAvailabilityNote({
+    availability: snapshot?.localAvailability,
+    roleKey: selection.roleKey,
+    roleLabel: roleByKey(selection.roleKey)?.label,
+    state: selection.state,
+    city: selection.city,
+    stateName: STATES.find((st) => st.code === selection.state)?.name,
+    cityName: cities.find((c) => c.key === selection.city)?.name
+  })
 
   // Focus requests from elsewhere on the page (example roles, "Compare in your client's market").
   useEffect(() => {
@@ -235,6 +245,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
             {!selection.state && <span id={id('city-hint')} className="ssp-visually-hidden">Choose a state first.</span>}
           </Field>
         </div>
+        {availabilityNote && <p id={id('availability')} className="ssp-calc__hint" role="status">{availabilityNote}</p>}
 
         <Field id={id('rate')} label="Client Pay Rate" error={errors.rate} className="ssp-calc__rate">
           <p id={id('rate-help')} className="ssp-calc__hint">Hourly wage offered to the worker, not the rate you bill your client.</p>

@@ -5,7 +5,7 @@ import { createFixtureAdapter } from '../../dev/signal/fixtureAdapter.js'
 import { SYNTHETIC_PLACES, buildScenarios } from '../../dev/signal/syntheticScenarios.js'
 
 const SNAPSHOT_KEYS = [
-  'cities', 'contractVersion', 'coverageStrip', 'dataMode', 'extraCoverage', 'issueCards',
+  'cities', 'contractVersion', 'coverageStrip', 'dataMode', 'extraCoverage', 'issueCards', 'localAvailability',
   'momentum', 'mostPostedFamilies', 'nationalPay', 'sectors', 'snapshot', 'viewer'
 ]
 const NATIONAL_KEYS = [
