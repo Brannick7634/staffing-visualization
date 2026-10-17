@@ -17,7 +17,24 @@ describe('analytics adapter', () => {
   })
 
   test('drops unsafe values even under allowed keys', () => {
-    assert.deepEqual(sanitizeProps({ roleKey: 'a@b.com', variant: 'free text here', reason: '18.50', sectorKey: 'x'.repeat(65), access: 'ok' }), { access: 'ok' })
+    assert.deepEqual(sanitizeProps({ roleKey: 'a@b.com', variant: 'free text here', reason: '18.50', sectorKey: 'x'.repeat(65), access: 'public' }), { access: 'public' })
+  })
+
+  test('plausible strings inside allowed keys are dropped (names, tokens, slugs)', () => {
+    const bad = ['Andy', 'andy', 'eyJhbGciOiJIUzI1NiJ9.e30.abc', 'a1b2c3d4e5f6a7b8c9d0', 'andy-kohler', 'public ', 'A']
+    for (const key of ['roleKey', 'sectorKey', 'geographyLevel', 'coverage', 'access', 'variant', 'reason']) {
+      for (const v of bad) assert.deepEqual(sanitizeProps({ [key]: v }), {}, `${key}=${v}`)
+    }
+    assert.deepEqual(sanitizeProps({ roleKey: 'warehouse-associate', reason: 'rate_limited', geographyLevel: 'city' }),
+      { roleKey: 'warehouse-associate', reason: 'rate_limited', geographyLevel: 'city' })
+  })
+
+  test('paths collapse to known routes; unknown or token-like paths become /other', () => {
+    assert.equal(safePath('/report/2026-09'), '/report/2026-09')
+    assert.equal(safePath('/b'), '/b')
+    assert.equal(safePath('/report/andy@x.com'), '/other')
+    assert.equal(safePath('/reset-password/eyJhbGciOi'), '/other')
+    assert.equal(safePath('/andy-kohler'), '/other')
   })
 
   test('path never carries query or hash (reset/confirm tokens)', () => {

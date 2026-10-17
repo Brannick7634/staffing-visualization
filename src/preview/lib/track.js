@@ -17,6 +17,8 @@
 // - Success events are sent at most once per page load per dedupe key, so
 //   repeated clicks, retries and re-renders cannot inflate them.
 
+import { ALLOWED_PROPS, allowedValue, routePath } from '../../../shared/signal/analyticsRules.js'
+
 export const EVENTS = Object.freeze({
   PAGE_VIEW: 'page_view',
   PAY_CHECK_STARTED: 'pay_check_started',
@@ -64,19 +66,17 @@ export const ONCE_EVENTS = new Set([
   EVENTS.RETURN_VISIT
 ])
 
-export const ALLOWED_PROPS = ['roleKey', 'sectorKey', 'geographyLevel', 'coverage', 'access', 'variant', 'reason']
+export { ALLOWED_PROPS }
 
-const SAFE_VALUE = /^[A-Za-z0-9_.-]{1,64}$/
 const KNOWN = new Set(Object.values(EVENTS))
 
+// Each allowed key accepts only known enum / taxonomy values
+// (shared/signal/analyticsRules.js), so free text can't ride along.
 export function sanitizeProps(props) {
   const safe = {}
   if (!props || typeof props !== 'object') return safe
   for (const key of ALLOWED_PROPS) {
-    const value = props[key]
-    // Plain machine identifiers only: no '@', spaces, '$' or digits-with-dots
-    // that look like a rate would still be blocked by key allowlist anyway.
-    if (typeof value === 'string' && SAFE_VALUE.test(value) && !/^\d+(\.\d+)?$/.test(value)) safe[key] = value
+    if (allowedValue(key, props[key])) safe[key] = props[key]
   }
   return safe
 }
@@ -84,9 +84,9 @@ export function sanitizeProps(props) {
 export function safePath(href) {
   try {
     const url = new URL(href, 'https://example.invalid')
-    return url.pathname
+    return routePath(url.pathname)
   } catch {
-    return '/'
+    return '/other'
   }
 }
 
@@ -118,15 +118,22 @@ function defaultSink(env) {
   if (typeof window === 'undefined') return null
   return (payload) => {
     const body = JSON.stringify(payload)
-    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }))
-      return
-    }
+    // Stop only when the beacon was actually queued; a false return or a
+    // throw falls through to one keepalive fetch. No retries beyond that.
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' &&
+          navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' })) === true) return
+    } catch {}
     if (typeof fetch === 'function') {
-      fetch(endpoint, { method: 'POST', body, keepalive: true, credentials: 'omit', referrerPolicy: 'no-referrer', headers: { 'content-type': 'application/json' } }).catch(() => {})
+      try {
+        const p = fetch(endpoint, { method: 'POST', body, keepalive: true, credentials: 'omit', referrerPolicy: 'no-referrer', headers: { 'content-type': 'application/json' } })
+        if (p && typeof p.catch === 'function') p.catch(() => {})
+      } catch {}
     }
   }
 }
+
+export const _defaultSinkForTests = defaultSink
 
 // Tests (and only tests) can install a sink; pass null to restore default.
 export function _setSinkForTests(fn) {

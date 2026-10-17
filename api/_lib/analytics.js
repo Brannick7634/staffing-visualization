@@ -9,6 +9,7 @@
 import crypto from 'node:crypto'
 import pg from 'pg'
 import { sendEmail } from './subscribers.js'
+import { ALLOWED_PROPS, allowedValue, routePath } from '../../shared/signal/analyticsRules.js'
 
 // Must match src/preview/lib/track.js (a test enforces this). Legacy
 // overclaiming names (report_printed etc.) are deliberately not accepted.
@@ -21,14 +22,14 @@ export const KNOWN_EVENTS = new Set([
   'report_print_requested', 'report_download_started', 'report_download_failed',
   'report_email_submitted', 'report_email_accepted', 'report_email_failed', 'contact_clicked'
 ])
-export const ALLOWED_PROPS = ['roleKey', 'sectorKey', 'geographyLevel', 'coverage', 'access', 'variant', 'reason']
+export { ALLOWED_PROPS }
 export const MAX_BODY_BYTES = 2048
 export const REPORT_TO = 'andy@thestaffingsignal.com'
 export const RETENTION_MONTHS = 13
 
-const SAFE_VALUE = /^[A-Za-z0-9_.-]{1,64}$/
-const NUMBERISH = /^\d+(\.\d+)?$/
-const SAFE_PATH = /^\/[A-Za-z0-9/_.-]{0,199}$/
+// Per-instance ingestion cap: bounded work per minute even under abuse.
+// Best effort (each serverless instance counts separately).
+export const MAX_EVENTS_PER_MINUTE = 300
 
 // Returns a clean { event, props, path } or null. Strict: any unknown
 // top-level key, unknown prop key, or unsafe value rejects the whole event.
@@ -41,10 +42,10 @@ export function validateEvent(body) {
   const clean = {}
   for (const [k, v] of Object.entries(props)) {
     if (!ALLOWED_PROPS.includes(k)) return null
-    if (typeof v !== 'string' || !SAFE_VALUE.test(v) || NUMBERISH.test(v)) return null
+    if (!allowedValue(k, v)) return null
     clean[k] = v
   }
-  if (typeof path !== 'string' || !SAFE_PATH.test(path)) return null
+  if (typeof path !== 'string' || routePath(path) !== path) return null
   return { event, props: clean, path }
 }
 
@@ -92,19 +93,33 @@ function end(res, status) {
   res.end()
 }
 
-export function makeCollect({ getDb = defaultDb } = {}) {
+export function makeCollect({ getDb = defaultDb, now = () => Date.now(), limit = MAX_EVENTS_PER_MINUTE } = {}) {
+  let windowStart = 0
+  let count = 0
+  let warnedNoDb = false
   return async function collect(req, res) {
     if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return end(res, 405) }
+    const t = now()
+    if (t - windowStart >= 60000) { windowStart = t; count = 0 }
+    if (++count > limit) return end(res, 429)
     const event = validateEvent(parseBody(req))
     if (!event) return end(res, 400)
+    // X-Analytics-Stored tells an operator whether the row was written
+    // (a 204 alone can't prove storage). Contains no visitor data.
     const db = getDb()
-    if (!db) return end(res, 204)
+    if (!db) {
+      if (!warnedNoDb) { warnedNoDb = true; console.warn('analytics_db_not_configured') }
+      res.setHeader('X-Analytics-Stored', '0')
+      return end(res, 204)
+    }
     try {
       await ensureTable(db)
       await db.query('INSERT INTO analytics_events (event, props, path) VALUES ($1, $2, $3)', [event.event, JSON.stringify(event.props), event.path])
+      res.setHeader('X-Analytics-Stored', '1')
     } catch (e) {
       // Error code only: never the body, IP or user agent.
       console.error('analytics_insert_failed', e && e.code ? e.code : 'error')
+      res.setHeader('X-Analytics-Stored', '0')
     }
     return end(res, 204)
   }
@@ -165,7 +180,6 @@ export function buildEmail(report, { start, end: endDate } = {}) {
     ]
   } else {
     const row = (label, k) => `${label}: ${c[k]} (prior week ${pr[k]})`
-    const actions = c.downloadStarted + c.printRequested + c.emailAccepted
     lines = [
       `Last 7 days vs the 7 days before.${c.total ? '' : ' No events at all this week.'}`,
       '',
@@ -179,10 +193,13 @@ export function buildEmail(report, { start, end: endDate } = {}) {
       row('Report print requested', 'printRequested'),
       `Report email: ${c.emailAccepted} accepted, ${c.emailFailed} failed (prior ${pr.emailAccepted} / ${pr.emailFailed})`,
       '',
-      'Funnel this week:',
-      `  Signups / gate shown: ${c.signupsCompleted} / ${c.gateShown} = ${pct(c.signupsCompleted, c.gateShown)}`,
-      `  Coverage available / comparisons started: ${c.coverageAvailable} / ${c.comparisonsStarted} = ${pct(c.coverageAvailable, c.comparisonsStarted)}`,
-      `  Report actions / reports viewed: ${actions} / ${c.reportsViewed} = ${pct(actions, c.reportsViewed)}`,
+      'Action ratios this week (event counts divided by event counts; NOT unique-person conversion rates, because there is no visitor ID):',
+      `  Signups completed per signup gate shown: ${c.signupsCompleted} / ${c.gateShown} = ${pct(c.signupsCompleted, c.gateShown)}`,
+      `  Local coverage available per comparison started: ${c.coverageAvailable} / ${c.comparisonsStarted} = ${pct(c.coverageAvailable, c.comparisonsStarted)}`,
+      `  Downloads started per report viewed: ${c.downloadStarted} / ${c.reportsViewed} = ${pct(c.downloadStarted, c.reportsViewed)}`,
+      `  Prints requested per report viewed: ${c.printRequested} / ${c.reportsViewed} = ${pct(c.printRequested, c.reportsViewed)}`,
+      `  Emails accepted per report viewed: ${c.emailAccepted} / ${c.reportsViewed} = ${pct(c.emailAccepted, c.reportsViewed)}`,
+      '  One visitor can repeat an action, so a ratio can exceed 100%.',
       '',
       'Page views count each page opened in the site; there is no visitor ID, so they are not unique visitors.',
       'Download started and print requested mean the browser was asked, not that a file was saved or printed. Email accepted means our server accepted it, not that it was delivered.'

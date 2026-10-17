@@ -18,7 +18,7 @@ describe('server allowlist', () => {
     assert.deepEqual([...KNOWN_EVENTS].sort(), Object.values(EVENTS).filter((e) => !legacy.has(e)).sort())
   })
   test('accepts a clean event', () => {
-    assert.deepEqual(validateEvent({ event: 'pay_check_started', props: { roleKey: 'cna' }, path: '/pay' }), { event: 'pay_check_started', props: { roleKey: 'cna' }, path: '/pay' })
+    assert.deepEqual(validateEvent({ event: 'pay_check_started', props: { roleKey: 'cna' }, path: '/report' }), { event: 'pay_check_started', props: { roleKey: 'cna' }, path: '/report' })
   })
   test('rejects PII keys', () => {
     for (const k of ['rate', 'email', 'name', 'token', 'recipients', 'note', 'ip', 'userAgent']) {
@@ -27,7 +27,7 @@ describe('server allowlist', () => {
     assert.equal(validateEvent({ event: 'pay_check_started', email: 'a@b.com' }), null)
   })
   test('rejects PII values under allowed keys', () => {
-    for (const v of ['a@b.com', '18.50', '25', 'Andy Kohler', '$18', 'x'.repeat(65), 42, ['cna']]) {
+    for (const v of ['a@b.com', '18.50', '25', 'Andy Kohler', 'Andy', 'andy', 'eyJhbGciOiJIUzI1NiJ9.e30.abc', '$18', 'x'.repeat(65), 42, ['cna']]) {
       assert.equal(validateEvent({ event: 'pay_check_started', props: { roleKey: v } }), null, String(v))
     }
   })
@@ -36,6 +36,8 @@ describe('server allowlist', () => {
     assert.equal(validateEvent({ event: 'nope' }), null)
     assert.equal(validateEvent({ event: 'report_viewed', path: '/r?token=abc' }), null)
     assert.equal(validateEvent({ event: 'report_viewed', path: 'https://x.com/' }), null)
+    assert.equal(validateEvent({ event: 'report_viewed', path: '/andy-kohler' }), null)
+    assert.equal(validateEvent({ event: 'signup_failed', props: { reason: 'Andy' } }), null)
   })
   test('caps body size', () => {
     assert.equal(parseBody({ headers: { 'content-length': '5000' }, body: {} }), null)
@@ -47,11 +49,29 @@ describe('server allowlist', () => {
 describe('collector', () => {
   test('inserts valid event, 204, no cookie', async () => {
     const db = mockDb(); const res = mockRes()
-    await makeCollect({ getDb: () => db })({ method: 'POST', headers: {}, body: { event: 'gate_shown', props: { access: 'free' }, path: '/' } }, res)
+    await makeCollect({ getDb: () => db })({ method: 'POST', headers: {}, body: { event: 'gate_shown', props: { access: 'public' }, path: '/' } }, res)
     assert.equal(res.statusCode, 204)
     assert.equal(res.headers['Set-Cookie'], undefined)
     const ins = db.calls.find((c) => c.sql.startsWith('INSERT'))
-    assert.deepEqual(ins.params, ['gate_shown', '{"access":"free"}', '/'])
+    assert.deepEqual(ins.params, ['gate_shown', '{"access":"public"}', '/'])
+    assert.equal(res.headers['X-Analytics-Stored'], '1')
+  })
+  test('reports not-stored when DB missing or insert fails (204 is not proof of storage)', async () => {
+    const body = { event: 'gate_shown', props: {}, path: '/' }
+    const r1 = mockRes(); await makeCollect({ getDb: () => null })({ method: 'POST', headers: {}, body }, r1)
+    assert.equal(r1.statusCode, 204); assert.equal(r1.headers['X-Analytics-Stored'], '0')
+    const failing = { query: async (sql) => { if (sql.startsWith('INSERT')) throw Object.assign(new Error('x'), { code: '53300' }); return { rows: [] } } }
+    const r2 = mockRes(); await makeCollect({ getDb: () => failing })({ method: 'POST', headers: {}, body }, r2)
+    assert.equal(r2.statusCode, 204); assert.equal(r2.headers['X-Analytics-Stored'], '0')
+  })
+  test('per-instance cap returns 429 without touching the db, resets each minute', async () => {
+    const db = mockDb(); let t = 0
+    const c = makeCollect({ getDb: () => db, now: () => t, limit: 2 })
+    const send = async () => { const r = mockRes(); await c({ method: 'POST', headers: {}, body: { event: 'gate_shown' } }, r); return r.statusCode }
+    assert.deepEqual([await send(), await send(), await send()], [204, 204, 429])
+    assert.equal(db.calls.filter((x) => x.sql.startsWith('INSERT')).length, 2)
+    t = 60000
+    assert.equal(await send(), 204)
   })
   test('rejects bad event without touching db', async () => {
     const db = mockDb(); const res = mockRes()
@@ -89,9 +109,18 @@ describe('weekly report', () => {
     assert.equal(r.prior.coverageRate, null)
     const { text } = buildEmail(r, { start: new Date('2026-10-05'), end: new Date('2026-10-12') })
     assert.match(text, /rate 75%/)
-    assert.match(text, /Signups \/ gate shown: 4 \/ 20 = 20%/)
-    assert.match(text, /Report actions \/ reports viewed: 3 \/ 8 = 38%/)
+    assert.match(text, /NOT unique-person conversion rates/)
+    assert.match(text, /Signups completed per signup gate shown: 4 \/ 20 = 20%/)
+    assert.match(text, /Downloads started per report viewed: 2 \/ 8 = 25%/)
     assert.match(text, /Comparisons started: 40 \(prior week 20\)/)
+    assert.doesNotMatch(text, /Funnel/)
+  })
+  test('one report followed by all three actions is shown per action, never as one 300% rate', () => {
+    const r = computeReport([{ event: 'report_viewed', period: 'current', n: 1 }, { event: 'report_download_started', period: 'current', n: 1 },
+      { event: 'report_print_requested', period: 'current', n: 1 }, { event: 'report_email_accepted', period: 'current', n: 1 }])
+    const { text } = buildEmail(r, {})
+    assert.doesNotMatch(text, /300%/)
+    assert.match(text, /Prints requested per report viewed: 1 \/ 1 = 100%/)
   })
   test('no data says so, no fabricated numbers', () => {
     const { text } = buildEmail(computeReport([]), {})
