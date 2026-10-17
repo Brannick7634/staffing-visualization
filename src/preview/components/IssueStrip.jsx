@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ACCESS, DATA_MODE } from '../../../shared/signal/contract.js'
 import { EVENTS, track } from '../lib/track.js'
@@ -83,7 +84,100 @@ function IssueCard({ card, mode }) {
   )
 }
 
+// "This week's signals": four rotating cards (biggest mover, hot vs. cold,
+// state spotlight, name that rate) from the snapshot's weeklyCards. Every
+// figure and sentence comes from the weekly export; nothing is hardcoded.
+function QuizCard({ card }) {
+  const [picked, setPicked] = useState(null)
+  const done = picked !== null
+  return (
+    <>
+      <div className="ssp-weekly__quiz" role="group" aria-label="Pick a rate">
+        {card.options.map((n) => {
+          const state = !done ? '' : n === card.answer ? ' is-right' : n === picked ? ' is-wrong' : ''
+          return (
+            <button key={n} type="button" className={`ssp-weekly__opt${state}`} onClick={() => setPicked(n)} disabled={done}>
+              ${n}/hr
+            </button>
+          )
+        })}
+      </div>
+      <p className="ssp-weekly__sowhat" aria-live="polite">
+        {done
+          ? <>{picked === card.answer ? 'Right. ' : 'Not quite. '}Typical advertised rate: <strong>{card.answerText}</strong>.</>
+          : 'Pick one to reveal the answer.'}
+      </p>
+    </>
+  )
+}
+
+function WeeklyCard({ card }) {
+  return (
+    <li className={`ssp-card ssp-weekly__card ssp-weekly__card--${card.kind}`}>
+      <span className="ssp-weekly__label">{card.label}</span>
+      <h3 className="ssp-issue__title">{card.title}</h3>
+      {card.kind === 'mover' && (
+        <p className="ssp-weekly__move ssp-num">
+          <span className="ssp-weekly__was">{card.before}</span>
+          <span aria-hidden="true"> → </span>
+          <span className="ssp-weekly__now">{card.after}</span>
+          <span className={card.changePct >= 0 ? 'ssp-weekly__up' : 'ssp-weekly__down'}>
+            {card.changePct >= 0 ? '▲ +' : '▼ '}{card.changePct}%
+          </span>
+        </p>
+      )}
+      {card.kind === 'hotCold' && (
+        <div className="ssp-weekly__pair">
+          <div className="ssp-weekly__tile ssp-weekly__tile--hot">
+            <span>Heating up</span><strong>{card.hot.label}</strong><b className="ssp-num">▲ +{card.hot.pct}%</b>
+          </div>
+          <div className="ssp-weekly__tile ssp-weekly__tile--cold">
+            <span>Cooling off</span><strong>{card.cold.label}</strong><b className="ssp-num">▼ {card.cold.pct}%</b>
+          </div>
+        </div>
+      )}
+      {card.kind === 'spotlight' && (
+        <dl className="ssp-weekly__facts">
+          {card.facts.map((f) => (
+            <div key={f.label}><dt>{f.label}</dt><dd className="ssp-num">{f.value}</dd></div>
+          ))}
+        </dl>
+      )}
+      {card.kind === 'quiz' && <QuizCard card={card} />}
+      {card.soWhat && <p className="ssp-weekly__sowhat">{card.soWhat}</p>}
+      {card.basis && <p className="ssp-issue__basis">{card.basis}</p>}
+    </li>
+  )
+}
+
 export default function IssueStrip({ snapshot }) {
+  const weekly = Array.isArray(snapshot?.weeklyCards) ? snapshot.weeklyCards : []
+  if (weekly.length > 0) {
+    return (
+      <section className="ssp-section ssp-issue" aria-labelledby="ssp-issue-title">
+        <div className="ssp-container">
+          <div className="ssp-sechead">
+            <div className="ssp-sechead__text">
+              <h2 id="ssp-issue-title" className="ssp-h2">This week's signals.</h2>
+              <p className="ssp-lede">
+                What moved in staffing pay and demand{snapshot?.snapshot?.label ? ` · ${snapshot.snapshot.label}` : ''}.
+              </p>
+            </div>
+          </div>
+          <ul className="ssp-weekly__list">
+            {weekly.map((card) => <WeeklyCard key={card.key} card={card} />)}
+          </ul>
+          <p className="ssp-weekly__cta">
+            <a href="#get-report" className="ssp-link">Get your local report <span aria-hidden="true">→</span></a>
+          </p>
+        </div>
+      </section>
+    )
+  }
+  return <ClassicIssueStrip snapshot={snapshot} />
+}
+
+function ClassicIssueStrip({ snapshot }) {
   const { variant, site: siteMount } = usePreview()
   const site = FORCE_SITE || siteMount
   const cards = Array.isArray(snapshot?.issueCards) ? snapshot.issueCards : []

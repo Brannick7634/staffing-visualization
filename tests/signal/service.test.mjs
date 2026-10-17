@@ -6,7 +6,7 @@ import { SYNTHETIC_PLACES, buildScenarios } from '../../dev/signal/syntheticScen
 
 const SNAPSHOT_KEYS = [
   'cities', 'contractVersion', 'coverageStrip', 'dataMode', 'extraCoverage', 'issueCards', 'localAvailability',
-  'momentum', 'mostPostedFamilies', 'nationalPay', 'sectors', 'snapshot', 'viewer'
+  'momentum', 'mostPostedFamilies', 'nationalPay', 'sectors', 'snapshot', 'viewer', 'weeklyCards'
 ]
 const NATIONAL_KEYS = [
   'access', 'coverage', 'currency', 'dataStatus', 'geography', 'p25Cents', 'p75Cents', 'payBasis',

@@ -625,6 +625,81 @@ function buildTrend({ data, role, statePlace, dataMode }) {
   return { roleKey: role.key, snapshotDate: exact ? exact.slice(0, 10) : null, series }
 }
 
+// "This week's signals": four rotating cards computed by the weekly export
+// (weeklyCards). Labels and the plain-English "so what" lines are added here;
+// a card whose role or state is unknown, or a stale snapshot, drops out.
+function dollars(c) {
+  return `$${(c / 100).toFixed(2)}`
+}
+
+export function buildWeeklyCards({ weeklyCards, freshness }) {
+  const w = object(weeklyCards)
+  if (freshness === FRESHNESS.STALE) return []
+  const days = count(w.windowDays) || 45
+  const role = (k) => roleByKey(text(k, 80))?.label || null
+  const state = (c) => stateByCode(text(c, 2))?.name || null
+  const cards = []
+
+  const m = object(w.mover)
+  if (role(m.roleKey) && state(m.state) && count(m.nowCents) && count(m.prevCents)) {
+    const delta = m.nowCents - m.prevCents
+    const up = delta > 0
+    cards.push({
+      key: 'mover', kind: 'mover', label: `Biggest mover · ${state(m.state)}`,
+      title: `${role(m.roleKey)} pay ${up ? 'rose' : 'fell'} ${dollars(Math.abs(delta))}/hr.`,
+      before: `${dollars(m.prevCents)}/hr`, after: `${dollars(m.nowCents)}/hr`,
+      changePct: Math.round((m.nowCents / m.prevCents - 1) * 100),
+      soWhat: up
+        ? `Firms still quoting last quarter's rates for this role in ${state(m.state)} may be priced under the market.`
+        : `Advertised rates are softening here. Check the market before raising bill rates.`,
+      basis: `Typical advertised hourly pay, latest ${days} days vs. the ${days} before.`
+    })
+  }
+
+  const hc = object(w.hotCold)
+  const hot = object(hc.hot)
+  const cold = object(hc.cold)
+  if (role(hot.roleKey) && role(cold.roleKey) && hot.pct > 0 && cold.pct < 0) {
+    cards.push({
+      key: 'hot-cold', kind: 'hotCold', label: 'Hot vs. cold · Nationwide',
+      title: 'Where staffing demand is moving.',
+      hot: { label: role(hot.roleKey), pct: hot.pct }, cold: { label: role(cold.roleKey), pct: cold.pct },
+      soWhat: `If you place ${role(hot.roleKey).toLowerCase()} roles, demand is running ahead of the rest of the market.`,
+      basis: `Share of staffing-firm postings with hourly pay, latest ${days} days vs. the ${days} before.`
+    })
+  }
+
+  const sp = object(w.spotlight)
+  if (state(sp.state) && role(sp.topRoleKey) && count(sp.typicalCents)) {
+    const pct = Number.isFinite(sp.momentumPct) ? sp.momentumPct : null
+    cards.push({
+      key: `spotlight-${sp.state}`, kind: 'spotlight', label: `State spotlight · ${state(sp.state)}`,
+      title: pct === null ? `${state(sp.state)} this week.`
+        : pct >= 0 ? `${state(sp.state)} postings are running ${pct}% ahead of the market.`
+          : `${state(sp.state)} postings are running ${Math.abs(pct)}% behind the market.`,
+      facts: [
+        { label: 'Top job', value: role(sp.topRoleKey) },
+        { label: 'Typical pay, top job', value: `${dollars(sp.typicalCents)}/hr` },
+        ...(pct === null ? [] : [{ label: `Posting momentum, ${days} days`, value: `${pct > 0 ? '+' : ''}${pct}%` }])
+      ],
+      soWhat: 'A different state every week.',
+      basis: 'Momentum is relative to all observed states. Advertised pay, not actual pay.'
+    })
+  }
+
+  const q = object(w.quiz)
+  const opts = list(q.optionsDollars).filter((n) => Number.isInteger(n) && n > 0)
+  if (role(q.roleKey) && state(q.state) && count(q.typicalCents) && opts.length === 4 && opts.includes(q.answerDollars)) {
+    cards.push({
+      key: 'quiz', kind: 'quiz', label: `Name that rate · ${state(q.state)}`,
+      title: `What do staffing firms advertise for a ${role(q.roleKey)} in ${state(q.state)}?`,
+      options: opts, answer: q.answerDollars, answerText: `${dollars(q.typicalCents)}/hr`,
+      basis: `Typical advertised hourly pay from ${count(q.observations) || 'verified'} staffing-firm postings.`
+    })
+  }
+  return cards
+}
+
 // ---------------------------------------------------------------- builders
 
 export function buildSnapshotResponse({ data, dataMode, viewer, places = REAL_PLACES }) {
@@ -650,6 +725,7 @@ export function buildSnapshotResponse({ data, dataMode, viewer, places = REAL_PL
       issueCards: d.issueCards, rankedCities, momentumRows, momentum: d.momentum, nationalPay, allow,
       viewerAccess: v.access, cityVolume: d.cityVolume, freshness: snapshot.freshness
     }),
+    weeklyCards: buildWeeklyCards({ weeklyCards: d.weeklyCards, freshness: snapshot.freshness }),
     cities: buildCities({ cityVolume: d.cityVolume, rankedCities, allow, viewerAccess: v.access }),
     momentum: buildMomentum({ momentum: d.momentum, rankedHeating, rankedCooling, allow, viewerAccess: v.access }),
     sectors: buildSectors({ places, nationalPay }),

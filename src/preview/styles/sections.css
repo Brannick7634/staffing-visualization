@@ -1391,3 +1391,105 @@
 .ssp-report__moves ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .ssp-report__locked { padding: 18px; display: grid; gap: 10px; justify-items: start; }
 .ssp-report__archive ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+
+/* ---------- D2. This week's signals ---------- */
+
+.ssp-weekly__list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 20px;
+}
+
+.ssp-weekly__card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ssp-weekly__label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--link);
+}
+
+.ssp-weekly__card--mover .ssp-weekly__label { color: var(--heating); }
+
+.ssp-weekly__move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--ink);
+}
+
+.ssp-weekly__was { color: var(--muted); text-decoration: line-through; font-size: 17px; }
+.ssp-weekly__now { font-size: 32px; font-weight: 700; }
+.ssp-weekly__up { color: var(--heating); font-weight: 700; }
+.ssp-weekly__down { color: var(--cooling); font-weight: 700; }
+
+.ssp-weekly__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ssp-weekly__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+}
+
+.ssp-weekly__tile span { font-size: 13px; font-weight: 600; }
+.ssp-weekly__tile strong { color: var(--ink); font-size: 15px; line-height: 1.3; }
+.ssp-weekly__tile b { font-size: 24px; }
+.ssp-weekly__tile--hot { background: #FBEDEF; color: var(--heating); }
+.ssp-weekly__tile--cold { background: #EEF4FA; color: var(--cooling); }
+
+.ssp-weekly__facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid #EEF2F6;
+}
+
+.ssp-weekly__facts dt { color: var(--muted); }
+.ssp-weekly__facts dd { color: var(--ink); font-weight: 700; text-align: right; }
+
+.ssp-weekly__quiz {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ssp-weekly__opt {
+  padding: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ssp-weekly__opt:hover:not(:disabled) { border-color: var(--link); }
+.ssp-weekly__opt:disabled { cursor: default; }
+.ssp-weekly__opt.is-right { border: 2px solid #1E7B47; background: #EAF6EF; }
+.ssp-weekly__opt.is-wrong { border: 2px solid var(--heating); background: #FBEDEF; }
+
+.ssp-weekly__sowhat {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.ssp-weekly__cta {
+  margin-top: 18px;
+  text-align: right;
+  font-weight: 700;
+}

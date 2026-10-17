@@ -37,7 +37,7 @@ export default function AccessInvite({ context = null, signedUp = false }) {
   const done = signedUp || access === ACCESS.AUTHORIZED
 
   return (
-    <section className="ssp-section ssp-invite" aria-labelledby="ssp-invite-title">
+    <section id="get-report" className="ssp-section ssp-invite" aria-labelledby="ssp-invite-title">
       <div className="ssp-container">
         <div className="ssp-invite__box">
           <div className="ssp-invite__intro">

@@ -348,6 +348,97 @@ def pay_cells(observations):
     return pay, withheld_pay, role_cov
 
 
+# ------------------------------------------------------------ weekly cards
+WEEKLY_MIN_OBS = 20  # per window, before a weekly card may use a cell
+
+
+def _week_seed(today):
+    y, w, _ = today.isocalendar()
+    return y * 100 + w
+
+
+def _cell(rows):
+    """(typicalCents, obs) for [(value, firm)] if it passes the publication rule, else None."""
+    if len(rows) < WEEKLY_MIN_OBS or not passes(checks([f for _, f in rows])):
+        return None
+    return cents(round(statistics.median([v for v, _ in rows]), 2)), len(rows)
+
+
+def weekly_cards(dated, mom_rows, pay, today):
+    """The four rotating 'This week's signals' cards. dated = (role, stateCode, value, firm, date).
+
+    Every figure passes the same privacy rule as the pay table, plus WEEKLY_MIN_OBS per window."""
+    cut = (today - dt.timedelta(days=WINDOW_DAYS)).isoformat()
+    lo = (today - dt.timedelta(days=2 * WINDOW_DAYS)).isoformat()
+    by_rs = defaultdict(lambda: {"cur": [], "prev": []})
+    by_r = defaultdict(lambda: {"cur": [], "prev": []})
+    for role, sc, v, firm, d in dated:
+        if not d or d < lo or d > today.isoformat():
+            continue
+        w = "cur" if d >= cut else "prev"
+        by_r[role][w].append((v, firm))
+        if sc:
+            by_rs[(role, sc)][w].append((v, firm))
+    out = {"windowDays": WINDOW_DAYS}
+
+    # 1. biggest pay mover: role x state, latest window vs previous
+    movers = []
+    for (role, sc), w in by_rs.items():
+        a, b = _cell(w["cur"]), _cell(w["prev"])
+        if a and b and b[0] and abs(a[0] - b[0]) >= 50 and abs(a[0] / b[0] - 1) <= 0.25:
+            movers.append({"roleKey": role, "state": sc, "nowCents": a[0], "prevCents": b[0],
+                           "nowObs": a[1], "prevObs": b[1]})
+    if movers:
+        out["mover"] = max(movers, key=lambda m: (m["nowCents"] - m["prevCents"], m["roleKey"], m["state"]))
+
+    # 2. hot vs cold jobs: share of postings, latest window vs previous
+    tc = sum(len(w["cur"]) for w in by_r.values())
+    tp = sum(len(w["prev"]) for w in by_r.values())
+    shifts = []
+    for role, w in by_r.items():
+        c, p = w["cur"], w["prev"]
+        if len(p) < WEEKLY_MIN_OBS or len(c) + len(p) < 50 or not tp or not tc:
+            continue
+        if not (passes(checks([f for _, f in c])) and passes(checks([f for _, f in p]))):
+            continue
+        shifts.append({"roleKey": role, "pct": round(((len(c) / len(p)) / (tc / tp) - 1) * 100)})
+    if len(shifts) >= 2:
+        shifts.sort(key=lambda r: (-r["pct"], r["roleKey"]))
+        if shifts[0]["pct"] > 0 and shifts[-1]["pct"] < 0:
+            out["hotCold"] = {"hot": shifts[0], "cold": shifts[-1]}
+
+    # 3. state spotlight: rotates weekly through states with momentum + a top-job pay cell
+    state_pay = {(c["roleKey"], c["state"]): c for c in pay if c["level"] == "state"}
+    spots = []
+    for m in sorted(mom_rows, key=lambda r: r["code"]):
+        roles = Counter()
+        for (role, sc), w in by_rs.items():
+            if sc == m["code"]:
+                roles[role] = len(w["cur"]) + len(w["prev"])
+        top = next((r for r, _ in roles.most_common() if (r, m["code"]) in state_pay), None)
+        if top:
+            spots.append({"state": m["code"], "momentumPct": m["momentumPct"], "topRoleKey": top,
+                          "typicalCents": state_pay[(top, m["code"])]["typicalCents"],
+                          "observations": sum(roles.values())})
+    if spots:
+        out["spotlight"] = spots[_week_seed(today) % len(spots)]
+
+    # 4. name that rate: rotates through solid role x state pay cells
+    pool = sorted((c for c in pay if c["level"] == "state" and c["observations"] >= WEEKLY_MIN_OBS),
+                  key=lambda c: (c["roleKey"], c["state"]))
+    if pool:
+        c = pool[(_week_seed(today) * 7) % len(pool)]
+        ans = int(round(c["typicalCents"] / 100))
+        step = max(2, round(ans * 0.12))
+        k = _week_seed(today) % 4  # where the right answer sits
+        opts = [ans + (i - k) * step for i in range(4)]
+        if min(opts) < 8:
+            opts = [ans + i * step for i in range(4)]
+        out["quiz"] = {"roleKey": c["roleKey"], "state": c["state"], "typicalCents": c["typicalCents"],
+                       "observations": c["observations"], "optionsDollars": opts, "answerDollars": ans}
+    return out
+
+
 def connect(pipeline):
     db = Path(pipeline) / "db"
     j = sqlite3.connect(f"file:{(db / 'jsearch.sqlite').as_posix()}?mode=ro", uri=True, timeout=120)
@@ -373,7 +464,7 @@ def build(pipeline, today):
         return f[2] if f and f[0] == "verified" else None
 
     # ---- pay
-    reasons, eligible, dates = Counter(), [], []
+    reasons, eligible, dates, dated = Counter(), [], [], []
     for o in pop.iter_observations(j, firms):
         if o["reasons"]:
             reasons.update(set(o["reasons"]))
@@ -383,6 +474,7 @@ def build(pipeline, today):
             reasons["role_unmapped"] += 1
             continue
         eligible.append((role, o["state"], o["city"], o["mid"], o["firm_key"]))
+        dated.append((role, state_code(o["state"]), o["mid"], o["firm_key"], (o["posted"] or o["last_seen"] or "")[:10]))
         if o["posted"] or o["last_seen"]:
             dates.append(o["posted"] or o["last_seen"])
     pay_obs = len(eligible)
@@ -495,6 +587,7 @@ def build(pipeline, today):
                                  "note": "Job/city combinations, not fully covered cities"},
         },
         "issueCards": cards,
+        "weeklyCards": weekly_cards(dated, mom_rows, pay, today),
         "cityVolume": {"metric": "New staffing-firm postings observed", "windowDays": WINDOW_DAYS,
                        "scope": "Nationwide · all sectors · all jobs", "jobScope": "all jobs", "rows": city_rows},
         "momentum": {"windowDays": WINDOW_DAYS, "previousWindowDays": WINDOW_DAYS, "isRawGrowth": False,
