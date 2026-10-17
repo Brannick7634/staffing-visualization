@@ -20,6 +20,10 @@ export default function AboutSection() {
     <section id="about" className="ssp-anchor ssp-about" aria-labelledby="ssp-about-title">
       <div className="ssp-about__inner">
         <h2 id="ssp-about-title" className="ssp-about__title">About The Staffing Signal</h2>
+        <div className="ssp-about__person">
+          <img className="ssp-about__photo" src="/andy-kohler.jpg" alt="Andy Kohler" width="96" height="96" loading="lazy" decoding="async" />
+          <p className="ssp-about__name">Andy Kohler</p>
+        </div>
         <p className="ssp-about__text">
           Built by Andy Kohler for staffing leaders who want better client conversations. I work with staffing firms on workers’ comp and risk. The Staffing Signal gives you another way to understand the market behind the staffing decision.
         </p>

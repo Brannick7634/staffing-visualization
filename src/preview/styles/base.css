@@ -3376,6 +3376,9 @@ body.ssp-body {
 .ssp-about { margin: 32px auto; max-width: 1120px; padding: 0 16px; }
 .ssp-about__inner { border-top: 1px solid #D9E2EC; padding-top: 24px; max-width: 46em; }
 .ssp-about__title { font-size: 22px; margin: 0 0 8px; color: #102A43; }
+.ssp-about__person { display: flex; align-items: center; gap: 16px; margin: 8px 0 20px; }
+.ssp-about__photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 1px solid #D9E2EC; flex-shrink: 0; }
+.ssp-about__name { margin: 0; font-size: 18px; font-weight: 600; color: #102A43; }
 .ssp-about__text { font-size: 16px; line-height: 1.6; color: #334E68; margin: 0; }
 .ssp-about__text + .ssp-about__text { margin-top: 28px; }
 .ssp-about__contact { margin-top: 16px; }
