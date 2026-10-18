@@ -11,7 +11,7 @@ Method (CALC_VERSION below; bump it when any of this changes):
   * Population (signal-agg-2.0.0, scripts/signal_population.py): an advertised
     pay observation counts only when the pay was ORIGINALLY posted per hour in
     USD (no annual/weekly/monthly/daily conversions, travel packages, stipend /
-    per-diem titles), the posting's own labels say contract/temporary only, and
+    per-diem titles), the posting is not an internship (labels no longer need to say contract/temporary), and
     the company is POSITIVELY verified as a staffing firm (staffing segment or
     JobsPipe agency/broker majority, with nothing conflicting). Unknown,
     conflicting, mixed-label and missing-evidence records are held out; every
@@ -556,7 +556,7 @@ def build(pipeline, today):
     if nat:
         top = max(nat, key=lambda c: role_cov[c["roleKey"]]["observations"])
         cards.append({"key": f"pay-{top['roleKey']}", "kind": "pay", "title": "Most-advertised pay snapshot.",
-                      "ref": {"roleKey": top["roleKey"]}, "basis": "Verified staffing firms, contract/temporary postings, pay advertised per hour. Advertised pay, not actual pay."})
+                      "ref": {"roleKey": top["roleKey"]}, "basis": "Verified staffing firms, pay advertised per hour. Advertised pay, not actual pay."})
     if city_rows:
         cards.append({"key": "volume-top-city", "kind": "volume", "title": "Highest observed city volume.",
                       "ref": {"cityKey": city_rows[0]["cityKey"]}, "basis": "Observed postings, not verified open orders."})
@@ -572,7 +572,7 @@ def build(pipeline, today):
             "lastSuccessfulRefresh": today.isoformat(),
             "refreshCadence": "weekly",
             "methodologyVersion": CALC_VERSION,
-            "note": "Verified staffing firms, contract/temporary postings, pay originally advertised per hour. Advertised pay, not actual pay.",
+            "note": "Verified staffing firms, pay originally advertised per hour. Advertised pay, not actual pay.",
             "sourceRefreshedAt": built_at,
             "observationWindow": window,
         },
@@ -611,7 +611,7 @@ def build(pipeline, today):
             "firmIdentity": "normalized company name, else domain, else shared_company_id (signal_population.firm_key)",
             "staffingFirms": "positively verified only: staffing segment or JobsPipe agency/broker majority, no conflicting evidence",
             "payValue": "hourly_mid of pay originally advertised per hour (USD); no period conversions, travel packages or stipends",
-            "employment": "posting labels contract/temporary only; full-time/part-time alone, mixed and missing labels held out",
+            "employment": "any employment label from a verified staffing firm; internships held out (2026-10-18)",
             "sourceFields": pop.SOURCE_FIELDS,
             "quantile": "statistics.quantiles(n=4, method='exclusive'); typical = median",
             "newPosting": "COALESCE(posting_date, first_seen_date); reposts and repeat fingerprints dropped",

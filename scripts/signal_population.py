@@ -13,7 +13,7 @@ failing reason is recorded, so exclusion counts overlap):
   1. Pay  - originally advertised per HOUR (pay_observations.posted_as =
      'hourly'); not a travel weekly package; no per-diem/stipend wording in the
      title; inside the pipeline's plausible band; USD evidenced.
-  2. Work - the posting's own employment labels are contract/temporary ONLY.
+  2. Work - any employment label except internship (contract/temp label dropped 2026-10-18).
      Full-time or part-time alone is not evidence either way, mixed labels
      (e.g. "Full-time and Contractor") are ambiguous, missing labels are
      unknown: all held out.
@@ -115,18 +115,13 @@ def labels_of(raw_labels, employment_type):
 
 
 def employment_reason(labels):
-    """None when the labels positively show contract/temporary work, else the hold-out reason."""
-    if not labels:
-        return "employment_type_missing"
-    contract = labels & {"contract", "temporary"}
-    other = labels - {"contract", "temporary"}
-    if contract and not other:
-        return None
-    if contract:
-        return "employment_type_mixed"
+    """None unless the posting is an internship (Andy, 2026-10-18).
+
+    Staffing firms label most contract assignments "full-time", so a contract/temp
+    label is no longer required; hourly pay from a verified staffing firm is the test."""
     if "internship" in labels:
         return "internship"
-    return "no_contract_evidence"
+    return None
 
 
 def firm_status(segment, flags, provider_votes):

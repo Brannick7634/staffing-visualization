@@ -64,12 +64,12 @@ class Employment(unittest.TestCase):
         self.assertEqual(pop.labels_of(None, None), set())
 
     def test_full_time_alone_is_not_evidence(self):
-        self.assertEqual(pop.employment_reason({"full_time"}), "no_contract_evidence")
-        self.assertEqual(pop.employment_reason({"part_time"}), "no_contract_evidence")
+        self.assertIsNone(pop.employment_reason({"full_time"}))
+        self.assertIsNone(pop.employment_reason({"part_time"}))
 
     def test_mixed_missing_intern_held_out(self):
-        self.assertEqual(pop.employment_reason({"full_time", "contract"}), "employment_type_mixed")
-        self.assertEqual(pop.employment_reason(set()), "employment_type_missing")
+        self.assertIsNone(pop.employment_reason({"full_time", "contract"}))
+        self.assertIsNone(pop.employment_reason(set()))
         self.assertEqual(pop.employment_reason({"internship"}), "internship")
         self.assertIsNone(pop.employment_reason({"temporary"}))
 
@@ -201,7 +201,7 @@ class EndToEnd(unittest.TestCase):
             j.close()
         self.assertEqual(got[10], [])
         self.assertEqual(got[11], [])  # JSearch contract, description "$" pay
-        self.assertEqual(got[12], ["no_contract_evidence"])
+        self.assertEqual(got[12], [])  # full-time label from a verified firm now counts
         self.assertEqual(got[13], ["firm_unknown"])
         self.assertEqual(got[14], ["firm_conflicting"])
         self.assertEqual(got[15], ["pay_period_annual"])

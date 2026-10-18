@@ -177,7 +177,7 @@ export default function MethodologyPage() {
             <ul className="ssp-method__list">
               <li>Each posting counts once. When a posting advertises a range, we use the midpoint of that range rather than treating both ends as two postings.</li>
               <li>Only pay the posting itself advertised as an hourly rate in U.S. dollars is used. Annual, monthly, weekly and daily pay is left out rather than converted, and so is pay with no clear period.</li>
-              <li>Only contract or temporary postings are used, and only from firms we have positively verified as staffing firms. Postings that are unclear on either point are held out. Firm names that refer to the same company count as one firm.</li>
+              <li>Only postings from firms we have positively verified as staffing firms are used, whatever the posting calls the job (staffing firms often label contract assignments full-time). Internships and postings from firms we cannot verify are held out. Firm names that refer to the same company count as one firm.</li>
               <li>Meeting the publication rule (at least three firms, none above half the postings) means a figure can be shown, not that it is statistically strong. Small samples carry a limited-sample note, and observation and firm counts are shown with each figure.</li>
               <li>Weekly travel packages are kept separate. They can include stipends, so they are never compared with an hourly base rate.</li>
               <li>We never mix pay currencies, pay periods or different jobs in one benchmark.</li>

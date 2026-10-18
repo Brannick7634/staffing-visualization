@@ -251,7 +251,7 @@ export function buildReport(cur, prev, { now = new Date() } = {}) {
     sources: { month: cur.calcVersion, previous: prev.calcVersion, base: cur.baseCalcVersion },
     thresholds: THRESHOLDS,
     notes: [
-      'Verified staffing firms, contract/temporary postings, pay originally advertised per hour. Advertised pay, not actual pay.',
+      'Verified staffing firms, pay originally advertised per hour. Advertised pay, not actual pay.',
       `Compares ${monthLabel(month)} with ${monthLabel(prev.month)}. A figure appears only when it met the privacy rule (at least 3 firms, no firm over half) in both months.`,
       'Demand changes are shifts in share of all staffing-firm postings, so they are not distorted by how many postings we collected.'
     ],

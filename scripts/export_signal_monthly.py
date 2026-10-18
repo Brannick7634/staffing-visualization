@@ -208,7 +208,7 @@ def build_month(pipeline, month, today):
             "privacyRule": {"minDistinctFirms": base.MIN_FIRMS, "maxFirmShare": base.MAX_SHARE, "shareOperator": "<=",
                             "appliesTo": "every pay cell and every demand count"},
             "population": f"{pop.POPULATION_VERSION} (scripts/signal_population.py): hourly-advertised USD pay, "
-                          "contract/temporary labels only, positively verified staffing firms",
+                          "any employment label except internship, positively verified staffing firms",
             "observationCutoff": "only postings first seen on or before the month's last day",
             "firmStatusAsOf": "company classifications as of the export (not as of the month)",
             "methodBreak": "not comparable with signal-month-1.0.0 months; trends must not span the break",
