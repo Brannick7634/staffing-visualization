@@ -3383,3 +3383,39 @@ body.ssp-body {
 .ssp-about__text + .ssp-about__text { margin-top: 28px; }
 .ssp-about__contact { margin-top: 16px; }
 .ssp-calc__rate .ssp-calc__hint { margin: 0 0 6px; }
+
+/* Calculator on wide screens: capped width, lined up with the hero text, fields fill the row,
+   notes sit left-aligned under the fields they describe. */
+@media (min-width: 1101px) {
+  .ssp-calc--wide {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 960px;
+    align-items: stretch;
+    margin-inline: 0;
+  }
+
+  .ssp-calc--wide .ssp-calc__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .ssp-calc--wide .ssp-calc__grid > .ssp-calc__hint,
+  .ssp-calc--wide .ssp-calc__submit .ssp-calc__hint {
+    text-align: left;
+  }
+
+  .ssp-calc--wide .ssp-calc__rate,
+  .ssp-calc--wide .ssp-calc__submit {
+    grid-column: span 2;
+  }
+
+  .ssp-calc--wide > .ssp-calc__examples {
+    margin: 16px 0 0;
+  }
+
+  .ssp-calc--wide > .ssp-calc__privacy {
+    max-width: none;
+    margin: 12px 0 0;
+  }
+}
