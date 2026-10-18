@@ -3401,7 +3401,8 @@ body.ssp-body {
   }
 
   .ssp-calc--wide .ssp-calc__grid > .ssp-calc__hint,
-  .ssp-calc--wide .ssp-calc__submit .ssp-calc__hint {
+  .ssp-calc--wide .ssp-calc__submit .ssp-calc__hint,
+  .ssp-calc--wide .ssp-calc__rate .ssp-calc__hint {
     text-align: left;
   }
 
