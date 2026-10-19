@@ -105,7 +105,7 @@ class Firms(unittest.TestCase):
         self.assertIn("firm_conflicting", pop.observation_reasons(o, ("verified", "provider", "n:x")))
 
     def test_conflicts_excluded(self):
-        self.assertEqual(pop.firm_status("Healthcare Staffing", None, {"employer": 5, "agency": 1})[0], "conflicting")
+        self.assertEqual(pop.firm_status("Healthcare Staffing", None, {"employer": 5, "agency": 1}), ("verified", "segment over provider"))
         self.assertEqual(pop.firm_status("Light Industrial", ["non-staffing employer (disabled 2026-10-02)"], None)[0], "conflicting")
         self.assertEqual(pop.firm_status("PEO", None, {"agency": 3})[0], "conflicting")
 

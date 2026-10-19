@@ -154,6 +154,11 @@ def firm_status(segment, flags, provider_votes):
             pos.append("provider")
         elif employer and employer >= provider:
             neg.append("provider")
+    # A staffing segment outranks JobsPipe employer votes (Andy 2026-10-19):
+    # JobsPipe often tags an agency's postings with the client as employer.
+    # Non-staffing flags and PEO/EOR/vendor segments still conflict.
+    if "segment" in pos and neg == ["provider"]:
+        return "verified", "segment over provider"
     if pos and neg:
         return "conflicting", "+".join(pos) + " vs " + "+".join(neg)
     if pos:
