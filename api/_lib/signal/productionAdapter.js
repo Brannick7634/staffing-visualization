@@ -38,7 +38,7 @@ export const SNAPSHOT_SCHEMA_VERSION = 1
 // conversions, non-contract postings and unverified firms; they are refused
 // (feed unavailable) rather than served next to 2.0.0 methodology text, so a
 // code rollback or a stale data file can never quietly restore them.
-export const KNOWN_CALC_VERSIONS = Object.freeze(['signal-agg-2.0.0'])
+export const KNOWN_CALC_VERSIONS = Object.freeze(['signal-agg-2.0.0', 'signal-agg-2.1.0'])
 export const MAX_AGE_DAYS = 10
 // The source table rebuilds weekly (Sunday); two missed rebuilds = unusable.
 export const MAX_SOURCE_AGE_DAYS = 15

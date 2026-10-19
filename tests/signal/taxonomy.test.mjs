@@ -90,7 +90,7 @@ describe('taxonomy integrity', () => {
       'Cath Lab Nurse', 'ER Nurse', 'Home Health Nurse', 'ICU Registered Nurse', 'Long-Term Care Nurse', 'Med-Surg Nurse',
       'Nurse Case Manager', 'Oncology Nurse', 'OR Nurse', 'PACU Nurse', 'Telemetry Nurse'
     ])
-    assert.equal(healthcare.length, 42)
+    assert.equal(healthcare.length, 46)
   })
 
   test('healthcare roles are grouped; other sectors are flat', () => {
@@ -115,11 +115,12 @@ describe('taxonomy integrity', () => {
 
   test('sector role lists', () => {
     assert.deepEqual(rolesForSector('light-industrial').map((role) => role.label), [
-      'Assembler / Production Worker', 'CNC Machinist', 'Forklift Operator', 'Janitor / Sanitation Worker',
-      'Machine Operator', 'Packer / Packaging Operator', 'Quality Inspector', 'Warehouse Associate'
+      'Assembler / Production Worker', 'CNC Machinist', 'Electrical Engineer', 'Engineering Technician', 'Forklift Operator',
+      'Janitor / Sanitation Worker', 'Machine Operator', 'Manufacturing / Process Engineer', 'Manufacturing Technician',
+      'Mechanical Engineer', 'Packer / Packaging Operator', 'Quality Engineer', 'Quality Inspector', 'Warehouse Associate'
     ])
     assert.deepEqual(Object.fromEntries(SECTORS.map((sector) => [sector.key, rolesForSector(sector.key).length])), {
-      healthcare: 42, 'light-industrial': 8, construction: 7, 'skilled-trades': 8, transportation: 6, hospitality: 4, it: 10, professional: 14
+      healthcare: 46, 'light-industrial': 14, construction: 8, 'skilled-trades': 9, transportation: 6, hospitality: 4, it: 11, professional: 31
     })
     assert.deepEqual(rolesForSector('unknown'), [])
     assert.deepEqual(rolesForSector(undefined), [])

@@ -57,7 +57,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import signal_population as pop  # noqa: E402
 
-CALC_VERSION = "signal-agg-2.0.0"  # 2.0.0 (2026-10-16): hourly-only / contract-only / verified-firm population, firm-name identity, observation counts. 1.2.0: 1.2.0 (2026-10-06): privacy minimum 5 -> 3 firms. 1.1.0 (2026-10-04): expanded role mapping
+CALC_VERSION = "signal-agg-2.1.0"  # 2.1.0 (2026-10-19): AI title->role fallback (pipeline src/title_role_ai.json), only for roles in taxonomy.js. 2.0.0 (2026-10-16): hourly-only / contract-only / verified-firm population, firm-name identity, observation counts. 1.2.0: 1.2.0 (2026-10-06): privacy minimum 5 -> 3 firms. 1.1.0 (2026-10-04): expanded role mapping
 SCHEMA_VERSION = 1
 FORMAT = "staffing-signal-aggregate-snapshot"
 MIN_FIRMS = 3
@@ -222,7 +222,53 @@ def _first(rules, title):
     return None
 
 
-def role_for(occupation, detail, title):
+TAXONOMY_JS = REPO / "shared" / "signal" / "taxonomy.js"
+AI_ROLES = {}          # clean_title -> role key, filled by load_ai_roles()
+_clean_title = None
+
+
+def AI_ROLE_FILE(pipeline):
+    return os.path.join(str(pipeline), "src", "title_role_ai.json")
+
+
+def site_role_labels():
+    """{role key: label} for the roles the site lists (shared/signal/taxonomy.js)."""
+    src = TAXONOMY_JS.read_text(encoding="utf-8")
+    src = src[src.index("export const ROLES"):]
+    return dict(re.findall(r"\{ key: (?:'([a-z0-9-]+)'|RN), label: '([^']+)'", src)) | {
+        "registered-nurse": "Registered Nurse"}
+
+
+SITE_ROLE_KEYS = set(site_role_labels())
+
+
+def load_ai_roles(pipeline):
+    """Load the AI title->role lookup (tools/ai_title_roles.py). A rule always wins;
+    the lookup is consulted only for titles no rule maps."""
+    global _clean_title
+    sys.path.insert(0, str(Path(pipeline) / "src"))
+    import taxonomy as tx
+    _clean_title = tx.clean_title
+    try:
+        with open(AI_ROLE_FILE(pipeline), encoding="utf-8") as f:
+            AI_ROLES.clear()
+            AI_ROLES.update(json.load(f))
+    except (OSError, ValueError):
+        AI_ROLES.clear()
+    return len(AI_ROLES)
+
+
+def role_for(occupation, detail, title, any_ai_role=False):
+    """Rule-based role, else the AI lookup. The site only takes AI roles it lists
+    (SITE_ROLE_KEYS); any_ai_role=True (internal dashboard) takes every AI role."""
+    key = _rule_role(occupation, detail, title)
+    if key or not AI_ROLES or not title:
+        return key
+    ai = AI_ROLES.get(_clean_title(title))
+    return ai if ai and (any_ai_role or ai in SITE_ROLE_KEYS) else None
+
+
+def _rule_role(occupation, detail, title):
     title = title or ""
     if occupation == RN:
         key = OCC_ROLES.get((RN, detail or "General"))
@@ -449,6 +495,7 @@ def connect(pipeline):
 def build(pipeline, today):
     sys.path.insert(0, str(Path(pipeline) / "src"))
     import taxonomy as tx  # pipeline's own title classifier (read-only use)
+    load_ai_roles(pipeline)
 
     j = connect(pipeline)
     built_at = j.execute("SELECT built_at FROM p.meta").fetchone()[0]

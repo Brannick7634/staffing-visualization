@@ -268,7 +268,7 @@ describe('candidate snapshot file', { skip: existsSync(CANDIDATE_PATH) ? false :
   })
 
   test('is the 2.0.0 population: counts, version and method recorded', () => {
-    assert.equal(raw.calcVersion, 'signal-agg-2.0.0')
+    assert.ok(['signal-agg-2.0.0', 'signal-agg-2.1.0'].includes(raw.calcVersion), raw.calcVersion)
     assert.ok(raw.population.eligibleObservations > 0)
     assert.ok(Object.keys(raw.population.heldOutByReason).includes('pay_period_annual'))
     assert.equal(raw.proposedEvidenceStandard.status, 'proposed_not_active')
