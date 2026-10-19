@@ -287,3 +287,10 @@ describe('candidate snapshot file', { skip: existsSync(CANDIDATE_PATH) ? false :
     assert.ok(!/"(company|employer|job_title|canonical_job_id|shared_company_id)"\s*:/.test(text))
   })
 })
+
+ test('source metadata does not invent UTC for an unzoned rebuild clock', () => {
+  const data = validateSnapshot(sample(), { now: NOW })
+  assert.equal(data.snapshot.sourceRefreshedAt, '2026-10-04T00:45:09')
+  const zoned = validateSnapshot(sample({ sourceBuiltAt: '2026-10-04T00:45:09-04:00' }), { now: NOW })
+  assert.equal(zoned.snapshot.sourceRefreshedAt, '2026-10-04T04:45:09.000Z')
+})
