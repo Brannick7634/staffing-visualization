@@ -34,7 +34,7 @@ describe('daily stats', () => {
     await makeDaily({ env, getDb: () => db, now: () => new Date('2026-10-18T12:00:00Z'), fetchImpl: async (u, o) => { calls.push(JSON.parse(o.body)); return { ok: true } } })(auth, r)
     assert.equal(r.statusCode, 200)
     assert.equal(calls.length, 1)
-    assert.deepEqual(calls[0].performUpsert, { fieldsToMergeOn: ['Date'] })
+    assert.deepEqual(calls[0].performUpsert, { fieldsToMergeOn: ['Day Key'] })
     assert.equal(calls[0].records.length, 8)
   })
   test('Airtable failure returns 500', async () => {

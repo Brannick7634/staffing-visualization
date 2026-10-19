@@ -1,6 +1,7 @@
 // Daily site stats -> Airtable "Site Daily Stats" (one row per Eastern-time day).
 //   GET /api/analytics/daily -> Vercel Cron (routed through api/account.js).
 // Rewrites the last DAYS days each run, so a missed night heals itself.
+// Upserts match on the text 'Day Key': Airtable does not merge on a date field.
 // Writes only aggregate counts: no events, paths or identifiers leave Postgres.
 import { cronAuthorized, defaultDb, ensureTable } from './analytics.js'
 
@@ -34,7 +35,7 @@ export function buildDailyRecords(rows, now, days = DAYS, stamp = now.toISOStrin
   for (const r of rows || []) if (by[r.day]) by[r.day][r.event] = (by[r.day][r.event] || 0) + Number(r.n || 0)
   return keys.map((k) => {
     const ev = by[k]
-    const fields = { Date: k, 'Total Events': Object.values(ev).reduce((s, n) => s + n, 0), Updated: stamp }
+    const fields = { 'Day Key': k, Date: k, 'Total Events': Object.values(ev).reduce((s, n) => s + n, 0), Updated: stamp }
     for (const [col, names] of Object.entries(COLUMNS)) fields[col] = names.reduce((s, e) => s + (ev[e] || 0), 0)
     return { fields }
   })
@@ -63,7 +64,7 @@ export function makeDaily({ getDb = defaultDb, fetchImpl = (...a) => fetch(...a)
         const r = await fetchImpl(url, {
           method: 'PATCH',
           headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Date'] }, records: records.slice(i, i + 10) })
+          body: JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Day Key'] }, records: records.slice(i, i + 10) })
         })
         if (!r.ok) throw new Error(`airtable ${r.status}`)
       }
