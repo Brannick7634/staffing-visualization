@@ -66,7 +66,7 @@ export function parseBody(req) {
 }
 
 let pool = null
-function defaultDb() {
+export function defaultDb() {
   if (!process.env.DATABASE_URL) return null
   if (!pool) pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 })
   return pool
@@ -81,7 +81,7 @@ const CREATE_SQL = `CREATE TABLE IF NOT EXISTS analytics_events (
 );
 CREATE INDEX IF NOT EXISTS analytics_events_ts_idx ON analytics_events (ts)`
 const ready = new WeakSet()
-async function ensureTable(db) {
+export async function ensureTable(db) {
   if (ready.has(db)) return
   await db.query(CREATE_SQL)
   ready.add(db)
