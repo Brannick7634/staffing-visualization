@@ -127,7 +127,12 @@ export function validateSnapshot(raw, { now = Date.now(), maxAgeDays = MAX_AGE_D
       freshness: 'current',
       lastSuccessfulRefresh: new Date(generated).toISOString(),
       methodologyVersion: raw.calcVersion,
-      sourceRefreshedAt: isoOrNull(raw.sourceBuiltAt),
+      // Preserve an unzoned source clock as unzoned metadata. The legacy
+      // age guard above uses UTC for comparison only; it does not establish
+      // the source system's timezone.
+      sourceRefreshedAt: /[zZ]|[+-]\d{2}:?\d{2}$/.test(raw.sourceBuiltAt)
+        ? isoOrNull(raw.sourceBuiltAt)
+        : raw.sourceBuiltAt.replace(' ', 'T'),
       observationWindow: windowOf(d.snapshot.observationWindow)
     }
   }
