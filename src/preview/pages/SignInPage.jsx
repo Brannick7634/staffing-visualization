@@ -84,8 +84,7 @@ export default function SignInPage() {
           <p className="ssp-eyebrow">Sign in</p>
           <h1 className="ssp-page__title">Welcome back.</h1>
           <p className="ssp-lede">
-            Sign in with your work email and password to create, print, download and email Client Pay Market Reports,
-            and to see full city rankings.
+            Sign in with your work email and password to create, print, download and email Client Pay Market Reports.
           </p>
           <ul className="ssp-ticks">
             <li>You stay signed in on this device for 30 days, or until you sign out.</li>

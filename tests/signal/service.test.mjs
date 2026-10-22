@@ -1,4 +1,5 @@
 import { test, describe } from 'node:test'
+import { DEMAND_TRENDS_ENABLED } from '../../shared/signal/contract.js'
 import assert from 'node:assert/strict'
 import { buildSnapshotResponse, buildPayResponse } from '../../api/_lib/signal/service.js'
 import { createFixtureAdapter } from '../../dev/signal/fixtureAdapter.js'
@@ -371,7 +372,7 @@ describe('synthetic States Lab scenarios', () => {
     assert.deepEqual(forbiddenKeys(out.scenarios.map((s) => [s.response, s.snapshot, s.momentum])), [])
   })
 
-  test('scenario outcomes come from the real gate', async () => {
+  test('scenario outcomes come from the real gate', { skip: !DEMAND_TRENDS_ENABLED && 'pay-only mode' }, async () => {
     const { scenarios } = await buildScenarios()
     const by = Object.fromEntries(scenarios.map((s) => [s.key, s]))
     const free = by['city-public-signed-out'].response
@@ -400,5 +401,25 @@ describe('synthetic States Lab scenarios', () => {
     assert.ok(by['verdict-below'].rateCents < band.p25Cents)
     assert.ok(by['verdict-within'].rateCents >= band.p25Cents && by['verdict-within'].rateCents <= band.p75Cents)
     assert.ok(by['verdict-above'].rateCents > band.p75Cents)
+  })
+})
+
+describe('pay-only mode', () => {
+  test('no demand, posting-count or momentum data reaches the page', { skip: DEMAND_TRENDS_ENABLED && 'demand on' }, async () => {
+    const checks = { distinctFirms: 9, maxFirmShare: 0.2, observations: 900 }
+    const data = {
+      cityVolume: { windowDays: 45, rows: [{ cityKey: 'tx-houston', postings: 900, checks }] },
+      momentum: { windowDays: 45, previousWindowDays: 45, rows: [{ code: 'TX', momentumPct: 40, checks }] },
+      mostPostedFamilies: [{ key: 'x', postings: 900 }],
+      issueCards: [{ key: 'm', kind: 'momentum', ref: { code: 'TX' } }, { key: 'v', kind: 'volume', ref: { cityKey: 'tx-houston' } }],
+      weeklyCards: { hotCold: { hot: { roleKey: 'welder', pct: 40 }, cold: { roleKey: 'forklift-operator', pct: -30 } } }
+    }
+    const snap = buildSnapshotResponse({ data, dataMode: 'development', viewer: { access: 'authorized', simulated: true } })
+    const text = JSON.stringify(snap)
+    assert.equal(snap.cities.rows.length, 0)
+    assert.equal(snap.momentum.heating.rows.length, 0)
+    assert.deepEqual(snap.issueCards, [])
+    assert.ok(snap.weeklyCards.every((c) => c.kind !== 'hotCold'))
+    assert.ok(!/momentumPct|"postings"/.test(text))
   })
 })

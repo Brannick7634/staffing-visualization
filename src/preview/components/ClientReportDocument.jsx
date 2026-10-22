@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { reportView } from '../../../shared/signal/clientReportPdf.js'
+import { DEMAND_TRENDS_ENABLED } from '../../../shared/signal/contract.js'
 import '../styles/report.css'
 
 // The on-screen and printable Client Pay Market Report: the same two US Letter
@@ -191,7 +192,7 @@ function PageTwo({ view, idPrefix }) {
       </header>
       <div className="ssp-report-rule ssp-report-rule--thin" />
 
-      <Section id={id('activity')} title="Market activity" className="ssp-report-section--first">
+      {DEMAND_TRENDS_ENABLED && <Section id={id('activity')} title="Market activity" className="ssp-report-section--first">
         {market.scopeLine && <p className="ssp-report-lead">{market.scopeLine}</p>}
         {market.cards.length > 0 ? (
           <ul className="ssp-report-cards">
@@ -207,7 +208,7 @@ function PageTwo({ view, idPrefix }) {
           <p className="ssp-report-body">{market.empty}</p>
         )}
         <p className="ssp-report-small">{market.caution}</p>
-      </Section>
+      </Section>}
 
       <Section id={id('trend')} title="Pay trend">
         <p className="ssp-report-lead">{trend.empty || trend.note}</p>

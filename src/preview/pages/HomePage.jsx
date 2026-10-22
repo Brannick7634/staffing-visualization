@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { DATA_MODE, REQUEST } from '../../../shared/signal/contract.js'
+import { DATA_MODE, DEMAND_TRENDS_ENABLED, REQUEST } from '../../../shared/signal/contract.js'
 import AccessInvite from '../components/AccessInvite.jsx'
 import Calculator from '../components/Calculator.jsx'
 import CoverageStrip from '../components/CoverageStrip.jsx'
@@ -118,7 +118,7 @@ export default function HomePage({ variant = 'a' }) {
   const coverage = snapshot && (
     <div id="coverage" className="ssp-anchor"><CoverageStrip snapshot={snapshot} compact={wide} /></div>
   )
-  const market = snapshot && (
+  const market = DEMAND_TRENDS_ENABLED && snapshot && (
     <div id="market" className="ssp-anchor"><MarketPreview snapshot={snapshot} access={access} onUnlock={onMarketUnlock} /></div>
   )
   const sectors = snapshot && (

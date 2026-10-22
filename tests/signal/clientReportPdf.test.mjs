@@ -1,6 +1,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { inflateSync } from 'node:zlib'
+import { DEMAND_TRENDS_ENABLED } from '../../shared/signal/contract.js'
 import { buildClientReportModel } from '../../shared/signal/clientReport.js'
 import {
   ClientReportPdf,
@@ -178,10 +179,11 @@ describe('ClientReportPdf', () => {
     assert.equal(Buffer.from(buffer).subarray(0, 5).toString('latin1'), '%PDF-')
     assert.equal(pageCount(Buffer.from(buffer)), 2)
     const text = drawnText(Buffer.from(buffer))
-    for (const expected of ['Client Pay Market Report', 'Market Median', 'EXAMPLE REPORT', 'Acme Logistics', 'Page 1 of 2', 'Page 2 of 2', 'Observed postings, not verified open orders.', LIMITED_NOTE, 'directional guide. Full method']) {
+    for (const expected of ['Client Pay Market Report', 'Market Median', 'EXAMPLE REPORT', 'Acme Logistics', 'Page 1 of 2', 'Page 2 of 2', ...(DEMAND_TRENDS_ENABLED ? ['Observed postings, not verified open orders.'] : []), LIMITED_NOTE, 'directional guide. Full method']) {
       assert.ok(text.includes(expected), `missing "${expected}"`)
     }
     assert.ok(!/cities ranked|Market rank/i.test(text), 'no city rank')
+    if (!DEMAND_TRENDS_ENABLED) assert.ok(!/Market activity|posting momentum|Observed postings/i.test(text), 'pay-only: no activity section')
     for (const banned of ['p90', '90th', 'time to fill', 'active postings', 'difficulty']) {
       assert.ok(!text.toLowerCase().includes(banned), `must not show "${banned}"`)
     }
@@ -244,6 +246,6 @@ describe('ClientReportPdf', () => {
     })
     const buffer = Buffer.from(await renderClientReportPdfBuffer(model))
     assert.equal(pageCount(buffer), 2)
-    assert.ok(drawnText(buffer).includes('activity is not available for this location yet'))
+    assert.equal(drawnText(buffer).includes('activity is not available for this location yet'), DEMAND_TRENDS_ENABLED)
   })
 })

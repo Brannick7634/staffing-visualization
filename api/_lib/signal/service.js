@@ -34,7 +34,7 @@
 // `checks` = { status, distinctFirms, maxFirmShare } (see privacy.js).
 //
 // Server-only.
-import { CONTRACT_VERSION, COVERAGE, ACCESS, FRESHNESS, DATA_MODE } from '../../../shared/signal/contract.js'
+import { CONTRACT_VERSION, COVERAGE, ACCESS, FRESHNESS, DATA_MODE, DEMAND_TRENDS_ENABLED } from '../../../shared/signal/contract.js'
 import { SECTORS, ROLES, roleByKey, rolesForSector } from '../../../shared/signal/taxonomy.js'
 import { stateByCode, cityByKey } from '../../../shared/signal/geography.js'
 import { formatCents } from '../../../shared/signal/money.js'
@@ -331,7 +331,7 @@ function buildCoverageStrip(raw) {
     coverageItem('payObservations', c.payObservations, 'advertised-pay observations', null, text(object(c.payObservations).note, 120))
   ]
   const citiesLabel = text(c.citiesLabel, 20)
-  if (citiesLabel) items.push({ key: 'cities', valueLabel: citiesLabel, label: 'cities with demand counts', period: null })
+  if (citiesLabel && DEMAND_TRENDS_ENABLED) items.push({ key: 'cities', valueLabel: citiesLabel, label: 'cities with demand counts', period: null })
   return items.filter(Boolean)
 }
 
@@ -656,7 +656,9 @@ export function buildWeeklyCards({ weeklyCards, freshness }) {
     })
   }
 
-  const hc = object(w.hotCold)
+  // Pay-only mode (Andy, 10/22/2026): posting counts aren't collected uniformly yet, so no
+  // demand or posting-momentum claims. Flip DEMAND_TRENDS_ENABLED once collection is consistent.
+  const hc = DEMAND_TRENDS_ENABLED ? object(w.hotCold) : {}
   const hot = object(hc.hot)
   const cold = object(hc.cold)
   if (role(hot.roleKey) && role(cold.roleKey) && hot.pct > 0 && cold.pct < 0) {
@@ -671,10 +673,10 @@ export function buildWeeklyCards({ weeklyCards, freshness }) {
 
   const sp = object(w.spotlight)
   if (state(sp.state) && role(sp.topRoleKey) && count(sp.typicalCents)) {
-    const pct = Number.isFinite(sp.momentumPct) ? sp.momentumPct : null
+    const pct = DEMAND_TRENDS_ENABLED && Number.isFinite(sp.momentumPct) ? sp.momentumPct : null
     cards.push({
       key: `spotlight-${sp.state}`, kind: 'spotlight', label: `State spotlight · ${state(sp.state)}`,
-      title: pct === null ? `${state(sp.state)} this week.`
+      title: pct === null ? `What staffing firms in ${state(sp.state)} are advertising.`
         : pct >= 0 ? `${state(sp.state)} postings are running ${pct}% ahead of the market.`
           : `${state(sp.state)} postings are running ${Math.abs(pct)}% behind the market.`,
       facts: [
@@ -683,7 +685,7 @@ export function buildWeeklyCards({ weeklyCards, freshness }) {
         ...(pct === null ? [] : [{ label: `Posting momentum, ${days} days`, value: `${pct > 0 ? '+' : ''}${pct}%` }])
       ],
       soWhat: 'A different state every week.',
-      basis: 'Momentum is relative to all observed states. Advertised pay, not actual pay.'
+      basis: pct === null ? 'Advertised pay, not actual pay.' : 'Momentum is relative to all observed states. Advertised pay, not actual pay.'
     })
   }
 
@@ -700,12 +702,25 @@ export function buildWeeklyCards({ weeklyCards, freshness }) {
   return cards
 }
 
+// Pay-only mode: drop posting-volume and momentum inputs before anything is built,
+// so no section can show a demand claim. Pay rows are untouched.
+function payOnly(data) {
+  const d = object(data)
+  if (DEMAND_TRENDS_ENABLED) return d
+  const { cityVolume, momentum, mostPostedFamilies, ...rest } = d
+  return {
+    ...rest,
+    issueCards: list(d.issueCards).filter((c) => object(c).kind === 'pay'),
+    weeklyCards: d.weeklyCards ? { ...object(d.weeklyCards), hotCold: null } : d.weeklyCards
+  }
+}
+
 // ---------------------------------------------------------------- builders
 
 export function buildSnapshotResponse({ data, dataMode, viewer, places = REAL_PLACES }) {
   const mode = resolveDataMode(dataMode)
   const v = viewerOf(viewer)
-  const d = object(data)
+  const d = payOnly(data)
   const nationalPay = buildNationalPay({ places, pay: d.pay, dataMode: mode })
   const rankedCities = publishableCityRows({ cityVolume: d.cityVolume, places, dataMode: mode })
   const momentumRows = publishableMomentumRows({ momentum: d.momentum, places, dataMode: mode })
@@ -740,7 +755,7 @@ export function buildSnapshotResponse({ data, dataMode, viewer, places = REAL_PL
 export function buildPayResponse({ data, dataMode, viewer, request, places = REAL_PLACES }) {
   const mode = resolveDataMode(dataMode)
   const v = viewerOf(viewer)
-  const d = object(data)
+  const d = payOnly(data)
   const req = object(request)
   const role = places.role(req.roleKey)
   if (!role) throw new Error('buildPayResponse: unknown role')

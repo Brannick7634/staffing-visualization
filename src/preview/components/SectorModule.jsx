@@ -15,7 +15,7 @@ import '../styles/sections.css'
 const USES = [
   'Pay conversations with clients',
   'Recruiting context for open orders',
-  'Exploring observed market activity'
+  'Comparing pay across roles and markets'
 ]
 
 function hasFigures(entry) {
@@ -69,7 +69,7 @@ function RolesCard({ sector, onPickRole }) {
         <>
           <p className="ssp-sector__note ssp-muted">
             {healthcare
-              ? 'Not ranked: specialty demand counts were not supplied. Choose one to load it into the client pay form.'
+              ? 'Not ranked. Choose one to load it into the client pay form.'
               : 'Not ranked. Choose one to load it into the client pay form.'}
           </p>
           <ul className="ssp-roles">

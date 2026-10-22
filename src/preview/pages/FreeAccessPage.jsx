@@ -27,8 +27,7 @@ function contextLine(context) {
 
 const BENEFITS = [
   'Create, print, download and email Client Pay Market Reports: two pages, US Letter, ready to hand your client',
-  'Full city rankings and cooling markets',
-  'The Monthly Signal, a five-minute briefing on staffing demand and advertised pay (optional)'
+  'The Monthly Signal, a five-minute briefing on advertised staffing pay (optional)'
 ]
 
 export default function FreeAccessPage() {
@@ -51,8 +50,8 @@ export default function FreeAccessPage() {
           <h1 className="ssp-page__title">Turn pay data into a report your client can keep.</h1>
           <p className="ssp-lede">
             Local pay comparisons are free for everyone. A free account lets you create, print, download and email
-            Client Pay Market Reports, and brings you The Monthly Signal, a five-minute briefing on staffing demand
-            and advertised pay.
+            Client Pay Market Reports, and brings you The Monthly Signal, a five-minute briefing on advertised
+            staffing pay.
           </p>
           <ul className="ssp-ticks">
             {BENEFITS.map((item) => <li key={item}>{item}</li>)}

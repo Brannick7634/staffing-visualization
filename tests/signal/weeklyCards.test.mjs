@@ -1,4 +1,5 @@
 import { describe, test } from 'node:test'
+import { DEMAND_TRENDS_ENABLED } from '../../shared/signal/contract.js'
 import assert from 'node:assert/strict'
 import { buildWeeklyCards } from '../../api/_lib/signal/service.js'
 
@@ -11,7 +12,7 @@ const W = {
 }
 
 describe('weekly cards', () => {
-  test('builds all four with names, not codes', () => {
+  test('builds all four with names, not codes', { skip: !DEMAND_TRENDS_ENABLED && 'pay-only mode' }, () => {
     const cards = buildWeeklyCards({ weeklyCards: W })
     assert.deepEqual(cards.map((c) => c.kind), ['mover', 'hotCold', 'spotlight', 'quiz'])
     assert.equal(cards[0].title, 'Software Engineer pay rose $5.00/hr.')

@@ -54,7 +54,7 @@ export default function TrustStrip({ snapshot }) {
     { key: 'firms', title: 'Staffing firms only', body: 'No direct-employer postings in these benchmarks.' },
     { key: 'aggregate', title: 'Aggregated results', body: 'No individual staffing firms or postings displayed.' },
     { key: 'weekly', title: 'Weekly updates', body: `${cadence}${refreshLine(meta)}.` },
-    { key: 'limits', title: 'Clear limitations', body: 'Advertised pay, not actual pay. Momentum figures are early signals.' }
+    { key: 'limits', title: 'Clear limitations', body: 'Advertised pay, not actual pay. Not every job and place has data.' }
   ]
 
   return (

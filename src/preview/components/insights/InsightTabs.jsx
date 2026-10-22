@@ -1,12 +1,14 @@
 import { useId, useRef, useState } from 'react'
 import { marketActivityItems, nextTabIndex, trendRows } from './format.js'
+import { DEMAND_TRENDS_ENABLED } from '../../../../shared/signal/contract.js'
 
 // Market Activity | Pay Trend: a WAI-ARIA tablist (roving tabindex, arrow
 // keys, Home/End). Both panels show aggregates only: posting and firm counts,
 // state momentum and the monthly market median.
 
+// Pay-only mode hides Market Activity (posting counts, momentum) until collection is uniform.
 const TABS = [
-  { key: 'activity', label: 'Market Activity' },
+  ...(DEMAND_TRENDS_ENABLED ? [{ key: 'activity', label: 'Market Activity' }] : []),
   { key: 'trend', label: 'Pay Trend' }
 ]
 

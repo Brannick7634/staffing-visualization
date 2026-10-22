@@ -160,7 +160,7 @@ export default function IssueStrip({ snapshot }) {
             <div className="ssp-sechead__text">
               <h2 id="ssp-issue-title" className="ssp-h2">This week's signals.</h2>
               <p className="ssp-lede">
-                What moved in staffing pay and demand{snapshot?.snapshot?.label ? ` · ${snapshot.snapshot.label}` : ''}.
+                What moved in advertised staffing pay{snapshot?.snapshot?.label ? ` · ${snapshot.snapshot.label}` : ''}.
               </p>
             </div>
           </div>
@@ -189,7 +189,7 @@ function ClassicIssueStrip({ snapshot }) {
         <div className="ssp-sechead">
           <div className="ssp-sechead__text">
             <h2 id="ssp-issue-title" className="ssp-h2">The issue in 30 seconds.</h2>
-            <p className="ssp-lede">A quick look at observed staffing demand and advertised pay.</p>
+            <p className="ssp-lede">A quick look at advertised staffing pay.</p>
           </div>
           {site ? (
             <span className="ssp-sechead__soon">Full market report coming soon</span>

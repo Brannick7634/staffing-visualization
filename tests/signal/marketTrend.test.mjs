@@ -1,5 +1,6 @@
 // Pay response market + trend blocks (Client Pay Market Report, 2026-10-08).
 import { test, describe } from 'node:test'
+import { DEMAND_TRENDS_ENABLED } from '../../shared/signal/contract.js'
 import assert from 'node:assert/strict'
 import { buildPayResponse, TREND_MAX_MONTHS } from '../../api/_lib/signal/service.js'
 import { createPayHandler } from '../../api/_lib/signal/handlers.js'
@@ -59,7 +60,7 @@ function pay({ d = data(), access = 'public', scope = 'city', mode = 'synthetic'
 }
 
 describe('market block', () => {
-  test('city activity and state momentum for the requested place', () => {
+  test('city activity and state momentum for the requested place', { skip: !DEMAND_TRENDS_ENABLED && 'pay-only mode' }, () => {
     const { market } = pay()
     assert.deepEqual(market, {
       city: {
@@ -70,7 +71,7 @@ describe('market block', () => {
     })
   })
 
-  test('carries no city rank (owner decision)', () => {
+  test('carries no city rank (owner decision)', { skip: !DEMAND_TRENDS_ENABLED && 'pay-only mode' }, () => {
     for (const scope of ['city', 'state']) {
       const { market } = pay({ scope })
       for (const part of [market.city, market.state].filter(Boolean)) {
@@ -89,7 +90,7 @@ describe('market block', () => {
     }
   })
 
-  test('a state request shows only the state; nationwide has no market', () => {
+  test('a state request shows only the state; nationwide has no market', { skip: !DEMAND_TRENDS_ENABLED && 'pay-only mode' }, () => {
     assert.deepEqual(pay({ scope: 'state' }).market.city, null)
     assert.equal(pay({ scope: 'state' }).market.state.code, 'EX')
     assert.equal(pay({ scope: 'nationwide' }).market, null)
@@ -103,7 +104,7 @@ describe('market block', () => {
     assert.equal(pay({ d }).market, null)
   })
 
-  test('no momentum without comparable history or window lengths', () => {
+  test('no momentum without comparable history or window lengths', { skip: !DEMAND_TRENDS_ENABLED && 'pay-only mode' }, () => {
     const noHistory = data({ momentum: { ...data().momentum, coverage: 'insufficient_comparable_history' } })
     assert.equal(pay({ d: noHistory }).market.state, null)
     const noWindow = data({ momentum: { ...data().momentum, windowDays: null } })
@@ -112,7 +113,7 @@ describe('market block', () => {
     assert.equal(pay({ d: noCityWindow }).market.city, null)
   })
 
-  test('development data without supplied counts shows an unknown firm count, not 0', () => {
+  test('development data without supplied counts shows an unknown firm count, not 0', { skip: !DEMAND_TRENDS_ENABLED && 'pay-only mode' }, () => {
     const d = data({ cityVolume: { windowDays: 45, rows: [{ cityKey: 'EX:example-city', postings: 240, checks: { status: 'not_verified' } }] } })
     const r = pay({ d, mode: 'development_example' })
     assert.equal(r.market.city.staffingFirms, null)

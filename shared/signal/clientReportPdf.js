@@ -10,6 +10,7 @@
 // through pdfText() to stay inside the WinAnsi character set they support.
 import { createElement as h } from 'react'
 import { formatCents } from './money.js'
+import { DEMAND_TRENDS_ENABLED } from './contract.js'
 import { bandGeometry, placeLabels } from './payBand.js'
 
 export const PAGE_COUNT = 2
@@ -498,6 +499,8 @@ function pageTwo(kit, view, P, wrap) {
       t(S.site, view.runningHead)),
     v(S.thinRule),
 
+    // Pay-only mode: no posting-activity section (see DEMAND_TRENDS_ENABLED).
+    ...(DEMAND_TRENDS_ENABLED ? [
     t([S.h2, { marginTop: 0 }], 'Market activity'),
     market.scopeLine && t({ fontSize: 8.5, lineHeight: 1.3, color: C.ink2, marginBottom: 4 }, market.scopeLine),
     market.cards.length > 0
@@ -506,9 +509,10 @@ function pageTwo(kit, view, P, wrap) {
         t(S.cardLabel, card.label),
         t(S.cardNote, card.note))))
       : t(S.body, market.empty),
-    t(S.small, market.caution),
+    t(S.small, market.caution)
+    ] : []),
 
-    t(S.h2, 'Pay trend'),
+    t(DEMAND_TRENDS_ENABLED ? S.h2 : [S.h2, { marginTop: 0 }], 'Pay trend'),
     t({ fontSize: 8.5, lineHeight: 1.3, color: C.ink2, marginBottom: 2 }, trend.empty || trend.note),
     trend.series.length > 0 && v(S.trendCols, ...trend.series.map((series, i) => h(P.View, { key: series.key, style: [S.trendCol, i === trend.series.length - 1 ? { marginRight: 0 } : null].filter(Boolean) },
       t(S.seriesLabel, series.label),

@@ -45,8 +45,8 @@ export default function AccessInvite({ context = null, signedUp = false }) {
             <div>
               <h2 id="ssp-invite-title" className="ssp-h2">Turn pay data into a report your client can keep.</h2>
               <p className="ssp-invite__copy">
-                A free account lets you create, print, download and email Client Pay Market Reports, see full city
-                rankings, and receive The Monthly Signal, a five-minute briefing on staffing demand and advertised pay.
+                A free account lets you create, print, download and email Client Pay Market Reports, and receive
+                The Monthly Signal, a five-minute briefing on advertised staffing pay.
               </p>
               <p className="ssp-invite__copy ssp-muted">
                 Local pay comparisons stay free without an account. Not every job and location has data: where a

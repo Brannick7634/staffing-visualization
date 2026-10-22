@@ -122,3 +122,7 @@ export const DATA_MODE = Object.freeze({
  * @property {string} [contractVersion]
  * @property {{ code: string, message?: string, field?: string }} error
  */
+
+// Pay-only mode (Andy, 10/22/2026): posting volume isn't collected uniformly across sources yet,
+// so the site makes no demand, posting-count or momentum claims. Flip to true once it is.
+export const DEMAND_TRENDS_ENABLED = false

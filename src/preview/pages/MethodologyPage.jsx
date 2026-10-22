@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { freshnessFacts, freshnessParts } from '../../../shared/signal/freshness.js'
+import { DEMAND_TRENDS_ENABLED } from '../../../shared/signal/contract.js'
 import { COMPETITIVENESS_LEVELS } from '../../../shared/signal/clientReport.js'
 import { formatCents } from '../../../shared/signal/money.js'
 import { FORCE_SITE, usePreview } from '../PreviewContext.jsx'
@@ -24,7 +25,7 @@ const SECTIONS = [
   { id: 'read', title: 'How to read a result' },
   { id: 'report', title: 'Client Pay Market Report' },
   { id: 'publish', title: 'When we publish a figure' },
-  { id: 'demand', title: 'Demand counts and momentum' },
+  ...(DEMAND_TRENDS_ENABLED ? [{ id: 'demand', title: 'Demand counts and momentum' }] : []),
   { id: 'access', title: 'What a free account adds' },
   { id: 'fresh', title: 'Freshness' }
 ]
@@ -227,7 +228,7 @@ export default function MethodologyPage() {
             </ul>
             <ul className="ssp-method__list">
               <li><strong>Recommended pay ranges:</strong> the competitive range runs from the market median to the market high; the aggressive recruiting range is above the market high. They describe the market; they do not guarantee an order will fill.</li>
-              <li><strong>Market activity:</strong> new staffing-firm postings for all jobs (not only the one you chose) in the city over the last 45 days, the number of staffing firms behind them, and the state's posting momentum. These are observed postings, not verified open orders.</li>
+              {DEMAND_TRENDS_ENABLED && <li><strong>Market activity:</strong> new staffing-firm postings for all jobs (not only the one you chose) in the city over the last 45 days, the number of staffing firms behind them, and the state's posting momentum. These are observed postings, not verified open orders.</li>}
               <li><strong>Pay trend:</strong> the market median from our monthly snapshots, kept since August 2026, for the state and nationwide. A month without a publishable figure shows as not enough data.</li>
               <li><strong>Firm counts:</strong> we show how many staffing firms a figure comes from, as a count only. We never name a firm or show a single posting.</li>
             </ul>
@@ -256,7 +257,7 @@ export default function MethodologyPage() {
             </p>
           </Section>
 
-          <Section id="demand" title="Demand counts and momentum">
+          {DEMAND_TRENDS_ENABLED && <Section id="demand" title="Demand counts and momentum">
             <p>
               Posting counts are new staffing-firm postings we observed in a period. They show observed activity — not
               verified open orders, worker shortages, unique vacancies, placements or profit.
@@ -266,14 +267,13 @@ export default function MethodologyPage() {
               When there is not enough comparable history we show “Not enough comparable history” rather than 0% or
               “steady”. More postings do not mean pay is rising.
             </p>
-          </Section>
+          </Section>}
 
           <Section id="access" title="What a free account adds">
             <p>
               Anyone can compare a pay rate nationwide, by state and by city wherever a figure passes the checks
-              above, see the sample report, and see the top five heating states and the top three cities from the
-              default nationwide ranking. A free account adds creating, printing, downloading and emailing Client Pay
-              Market Reports, full city rankings, cooling markets, preferences and The Monthly Signal (optional). An
+              above, and see the sample report. A free account adds creating, printing, downloading and emailing Client Pay
+              Market Reports, preferences and The Monthly Signal (optional). An
               account does not mean every job and place has data.
             </p>
           </Section>
