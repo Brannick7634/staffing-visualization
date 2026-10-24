@@ -49,6 +49,8 @@ export const EVENTS = Object.freeze({
   REPORT_EMAIL_ACCEPTED: 'report_email_accepted',
   REPORT_EMAIL_FAILED: 'report_email_failed',
   CONTACT_CLICKED: 'contact_clicked',
+  // Arrived from a tagged outreach link (shared/signal/smartLink.js).
+  SMART_LINK_OPENED: 'smart_link_opened',
   // Legacy names kept for compatibility with existing tests. NOT emitted:
   // their wording overclaims (printed / downloaded / emailed).
   REPORT_PRINTED: 'report_printed',
@@ -63,7 +65,8 @@ export const ONCE_EVENTS = new Set([
   EVENTS.SAMPLE_REPORT_VIEWED,
   EVENTS.FIRST_LOCAL_RESULT_VIEWED,
   EVENTS.REPORT_EMAIL_ACCEPTED,
-  EVENTS.RETURN_VISIT
+  EVENTS.RETURN_VISIT,
+  EVENTS.SMART_LINK_OPENED
 ])
 
 export { ALLOWED_PROPS }

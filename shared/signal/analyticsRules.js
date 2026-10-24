@@ -3,9 +3,11 @@
 // known enum or taxonomy key, and paths to known routes, so free text (names,
 // emails, rates, tokens) cannot be stored even inside an allowed key.
 import { ACCESS, COVERAGE } from './contract.js'
+import { CITIES, STATES } from './geography.js'
 import { ROLES, SECTORS } from './taxonomy.js'
 
-export const ALLOWED_PROPS = ['roleKey', 'sectorKey', 'geographyLevel', 'coverage', 'access', 'variant', 'reason']
+export const ALLOWED_PROPS = ['roleKey', 'sectorKey', 'geographyLevel', 'coverage', 'access', 'variant', 'reason',
+  'utmSource', 'utmMedium', 'utmCampaign', 'ref', 'market']
 
 // Error codes the site itself produces (API codes + client copy keys).
 export const REASONS = Object.freeze([
@@ -22,11 +24,24 @@ const VALUES = {
   coverage: new Set(Object.values(COVERAGE)),
   access: new Set(Object.values(ACCESS)),
   variant: new Set(['a', 'b']),
-  reason: new Set(REASONS)
+  reason: new Set(REASONS),
+  // Smart-link landing (shared/signal/smartLink.js): a picker city key or state code.
+  market: new Set([...CITIES.map((c) => c.key), ...STATES.map((st) => st.code)])
+}
+
+// Campaign tags and the sending list's row id are open-ended but limited to
+// short machine values, so no name, email or sentence fits.
+const PATTERNS = {
+  utmSource: /^[a-z0-9][a-z0-9_.-]{0,39}$/,
+  utmMedium: /^[a-z0-9][a-z0-9_.-]{0,39}$/,
+  utmCampaign: /^[a-z0-9][a-z0-9_.-]{0,39}$/,
+  ref: /^[A-Za-z0-9_-]{1,32}$/
 }
 
 export function allowedValue(key, value) {
-  return typeof value === 'string' && Boolean(VALUES[key]?.has(value))
+  if (typeof value !== 'string') return false
+  if (PATTERNS[key]) return PATTERNS[key].test(value)
+  return Boolean(VALUES[key]?.has(value))
 }
 
 // Route words the site serves (PreviewApp.jsx). Anything else -> '/other'.

@@ -20,7 +20,8 @@ export const KNOWN_EVENTS = new Set([
   'preferences_saved', 'market_report_opened', 'monthly_issue_opened', 'return_visit',
   'report_create_clicked', 'report_gate_shown', 'sample_report_viewed', 'report_viewed',
   'report_print_requested', 'report_download_started', 'report_download_failed',
-  'report_email_submitted', 'report_email_accepted', 'report_email_failed', 'contact_clicked'
+  'report_email_submitted', 'report_email_accepted', 'report_email_failed', 'contact_clicked',
+  'smart_link_opened'
 ])
 export { ALLOWED_PROPS }
 export const MAX_BODY_BYTES = 2048
@@ -159,6 +160,7 @@ export function computeReport(rows) {
       printRequested: g('report_print_requested'),
       emailAccepted: g('report_email_accepted'),
       emailFailed: g('report_email_failed'),
+      smartLinkOpens: g('smart_link_opened'),
       total: Object.values(b).reduce((s, n) => s + n, 0)
     }
   }
@@ -166,6 +168,14 @@ export function computeReport(rows) {
 }
 
 export const pct = (num, den) => (den ? `${Math.round((num / den) * 100)}%` : 'n/a')
+
+// rows: [{ source, campaign, market, n }] for smart_link_opened this week.
+function smartLinkLines(rows) {
+  const list = (rows || []).filter((r) => r && Number(r.n) > 0).slice(0, 15)
+  if (!list.length) return []
+  return ['  By source / campaign / market (market "-" = nationwide figure):',
+    ...list.map((r) => `    ${r.source || '-'} / ${r.campaign || '-'} / ${r.market || '-'}: ${Number(r.n)}`)]
+}
 
 export function buildEmail(report, { start, end: endDate } = {}) {
   const c = report.current
@@ -192,6 +202,8 @@ export function buildEmail(report, { start, end: endDate } = {}) {
       row('Report download started', 'downloadStarted'),
       row('Report print requested', 'printRequested'),
       `Report email: ${c.emailAccepted} accepted, ${c.emailFailed} failed (prior ${pr.emailAccepted} / ${pr.emailFailed})`,
+      row('Outreach link opens', 'smartLinkOpens'),
+      ...smartLinkLines(report.smartLinks),
       '',
       'Action ratios this week (event counts divided by event counts; NOT unique-person conversion rates, because there is no visitor ID):',
       `  Signups completed per signup gate shown: ${c.signupsCompleted} / ${c.gateShown} = ${pct(c.signupsCompleted, c.gateShown)}`,
@@ -213,6 +225,8 @@ export function buildEmail(report, { start, end: endDate } = {}) {
 
 const REPORT_SQL = `SELECT event, CASE WHEN ts >= $1 THEN 'current' ELSE 'prior' END AS period, count(*)::int AS n
 FROM analytics_events WHERE ts >= $2 AND ts < $3 GROUP BY 1, 2`
+const SMART_LINK_SQL = `SELECT props->>'utmSource' AS source, props->>'utmCampaign' AS campaign, props->>'market' AS market, count(*)::int AS n
+FROM analytics_events WHERE event = 'smart_link_opened' AND ts >= $1 AND ts < $2 GROUP BY 1, 2, 3 ORDER BY 4 DESC LIMIT 15`
 const PRUNE_SQL = `DELETE FROM analytics_events WHERE ts < now() - interval '${RETENTION_MONTHS} months'`
 
 export function makeWeekly({ getDb = defaultDb, fetchImpl = (...a) => fetch(...a), env = process.env, now = () => new Date() } = {}) {
@@ -231,6 +245,11 @@ export function makeWeekly({ getDb = defaultDb, fetchImpl = (...a) => fetch(...a
       await ensureTable(db)
       const { rows } = await db.query(REPORT_SQL, [start, priorStart, endDate])
       const report = computeReport(rows)
+      try {
+        report.smartLinks = (await db.query(SMART_LINK_SQL, [start, endDate]))?.rows || []
+      } catch {
+        report.smartLinks = []
+      }
       const mail = buildEmail(report, { start, end: endDate })
       await sendEmail({ from: env.SIGNAL_FROM_EMAIL, resendKey: env.RESEND_API_KEY }, fetchImpl, { to: REPORT_TO, ...mail })
       const pruned = await db.query(PRUNE_SQL)

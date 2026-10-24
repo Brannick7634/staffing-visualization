@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ACCESS, COVERAGE, REQUEST } from '../../shared/signal/contract.js'
 import { parseHourlyRate } from '../../shared/signal/money.js'
+import { parseSmartLink, resolveSmartLink } from '../../shared/signal/smartLink.js'
 import { DEFAULT_EXAMPLE, sectorForRole } from '../../shared/signal/taxonomy.js'
 import { fetchPay, fetchSnapshot, setSimAccess, signOut as apiSignOut } from './api.js'
 import { freezeSelection, isReportReturn, reportReturn } from './lib/reportGate.js'
@@ -235,11 +236,37 @@ export function PreviewProvider({ children, site = false }) {
     runPayCheck({ selection: last.selection, rateCents: last.rateCents, isExample: last.isExample })
   }, [runPayCheck])
 
-  // First load: snapshot plus the national example (Forklift Operator, $17.00).
+  // First load: snapshot plus the national example (Forklift Operator, $17.00),
+  // or, for a smart link (?city=raleigh-nc&role=...), that job in the nearest
+  // market the snapshot publishes for it, figures only (no rate entered).
   useEffect(() => {
-    reloadSnapshot()
-    const parsed = parseHourlyRate(DEFAULT_EXAMPLE.rateInput)
-    runPayCheck({ selection: DEFAULT_SELECTION, rateCents: parsed.ok ? parsed.cents : null, isExample: true })
+    const pending = reloadSnapshot()
+    const link = parseSmartLink(typeof window !== 'undefined' ? window.location.search : '')
+    if (!link || !link.roleKey) {
+      const parsed = parseHourlyRate(DEFAULT_EXAMPLE.rateInput)
+      runPayCheck({ selection: DEFAULT_SELECTION, rateCents: parsed.ok ? parsed.cents : null, isExample: true })
+    }
+    if (!link) return
+    pending.then((data) => {
+      const landing = resolveSmartLink(link, data?.localAvailability)
+      track(EVENTS.SMART_LINK_OPENED, {
+        ...link.utm,
+        roleKey: landing ? link.roleKey : undefined,
+        market: landing?.market || undefined,
+        geographyLevel: landing?.level
+      })
+      if (!landing) {
+        if (link.roleKey) {
+          const parsed = parseHourlyRate(DEFAULT_EXAMPLE.rateInput)
+          runPayCheck({ selection: DEFAULT_SELECTION, rateCents: parsed.ok ? parsed.cents : null, isExample: true })
+        }
+        return
+      }
+      setSelectionState(landing.selection)
+      setRateInput('')
+      runPayCheck({ selection: landing.selection, rateCents: null })
+      setFocusRequest((prev) => ({ field: 'rate', n: (prev?.n || 0) + 1 }))
+    })
   }, [reloadSnapshot, runPayCheck])
 
   const access = accessOf(snap.data)
