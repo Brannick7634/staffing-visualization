@@ -489,6 +489,14 @@ def connect(pipeline):
     db = Path(pipeline) / "db"
     j = sqlite3.connect(f"file:{(db / 'jsearch.sqlite').as_posix()}?mode=ro", uri=True, timeout=120)
     j.execute("ATTACH DATABASE ? AS p", (f"file:{(db / 'pay_benchmarks.sqlite').as_posix()}?mode=ro",))
+    # 2026-10-26: non-staffing firms (hospitals, banks...) listed in the pipeline's
+    # excluded_companies don't count as demand. A TEMP view named canonical_jobs
+    # shadows the table for every unqualified query below; same rule as the
+    # pipeline's src/job_exclusions.py.
+    if j.execute("SELECT 1 FROM main.sqlite_master WHERE name='excluded_companies'").fetchone():
+        j.execute("CREATE TEMP VIEW canonical_jobs AS SELECT * FROM main.canonical_jobs "
+                  "WHERE shared_company_id IS NULL OR shared_company_id NOT IN "
+                  "(SELECT shared_company_id FROM main.excluded_companies)")
     return j
 
 
