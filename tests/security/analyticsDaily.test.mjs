@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildDailyRecords, makeDaily, dayKey } from '../../api/_lib/analyticsDaily.js'
+import { buildDailyRecords, makeDaily, dayKey, buildOpenUpdates } from '../../api/_lib/analyticsDaily.js'
 
 const res = () => { const r = { headers: {}, setHeader(k, v) { r.headers[k] = v }, end(b) { r.body = JSON.parse(b) } }; return r }
 const env = { CRON_SECRET: 'x'.repeat(20), AIRTABLE_API_KEY: 'k' }
@@ -42,5 +42,29 @@ describe('daily stats', () => {
     const r = res()
     await makeDaily({ env, getDb: () => db, fetchImpl: async () => ({ ok: false, status: 422 }) })(auth, r)
     assert.equal(r.statusCode, 500)
+  })
+})
+
+describe('Valley link opens', () => {
+  const opens = [{ ref: 'recA', n: 2, first: '2026-10-26T14:00:00Z', last: '2026-10-27T09:00:00Z' }, { ref: 'recB', n: 1, first: '2026-10-26T15:00:00Z', last: '2026-10-26T15:00:00Z' }]
+  test('fills counts, dates and a blank follow-up only', () => {
+    const u = buildOpenUpdates(opens, [
+      { id: 'r1', fields: { 'Link Ref': 'recA' } },
+      { id: 'r2', fields: { 'Link Ref': 'recB', 'Link Opens': 0, 'Insurance Follow-up': 'Contacted' } },
+      { id: 'r3', fields: { 'Link Ref': 'recZ' } }
+    ])
+    assert.equal(u.length, 2)
+    assert.deepEqual(u[0].fields, { 'Link Opens': 2, 'First Link Open': '2026-10-26T14:00:00.000Z', 'Last Link Open': '2026-10-27T09:00:00.000Z', 'Insurance Follow-up': 'To contact' })
+    assert.equal(u[1].fields['Insurance Follow-up'], undefined)
+  })
+  test('skips rows whose count has not changed', () => {
+    assert.equal(buildOpenUpdates(opens, [{ id: 'r1', fields: { 'Link Ref': 'recA', 'Link Opens': 2 } }]).length, 0)
+  })
+  test('a link-opens failure never fails the stats run', async () => {
+    const db = { query: async (sql) => { if (sql.includes('smart_link_opened')) throw new Error('boom'); return { rows: [] } } }
+    const r = { headers: {}, setHeader () {}, end (b) { this.body = b } }
+    await makeDaily({ env, getDb: () => db, fetchImpl: async () => ({ ok: true }) })(auth, r)
+    assert.equal(r.statusCode, 200)
+    assert.equal(JSON.parse(r.body).linkOpens, 'failed')
   })
 })
