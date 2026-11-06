@@ -70,6 +70,15 @@ function city(state, slug, name) {
   return { key: `${state}:${slug}`, name, state }
 }
 
+// A listed AREA is a picker entry that pools several cities into one benchmark
+// (Inland Empire = Riverside + San Bernardino counties). It is keyed and looked
+// up exactly like a city, so pay lookup, sign-up area and the monthly email work
+// on it unchanged. `area` says what it covers. The export decides membership
+// (scripts/signal_regions.py); the keys must match.
+function area(state, slug, name, covers) {
+  return { key: `${state}:${slug}`, name, state, area: covers }
+}
+
 // Static picker list: a few major cities for populous states. Grouped by
 // state; within a state, largest first.
 export const CITIES = freezeAll([
@@ -84,6 +93,7 @@ export const CITIES = freezeAll([
   city('CA', 'san-francisco', 'San Francisco'),
   city('CA', 'fresno', 'Fresno'),
   city('CA', 'sacramento', 'Sacramento'),
+  area('CA', 'inland-empire', 'Inland Empire', 'Riverside + San Bernardino counties'),
   city('CO', 'denver', 'Denver'),
   city('CO', 'colorado-springs', 'Colorado Springs'),
   city('CO', 'aurora', 'Aurora'),
@@ -175,9 +185,20 @@ export function citiesForState(code) {
   return CITIES.filter((item) => item.state === code)
 }
 
-// cityByKey('TX:houston') -> { key, name, state } | null
+// cityByKey('TX:houston') -> { key, name, state } | null. An area entry also
+// carries `area` (what it covers); use isArea() to tell them apart.
 export function cityByKey(key) {
   return CITY_INDEX.get(key) || null
+}
+
+// True for a listed area that pools several cities (see area() above).
+export function isArea(place) {
+  return Boolean(place) && typeof place.area === 'string' && place.area.length > 0
+}
+
+// Picker text for a city or area: 'Houston' | 'Inland Empire (Riverside + San Bernardino counties)'.
+export function pickerLabel(place) {
+  return isArea(place) ? `${place.name} (${place.area})` : place.name
 }
 
 // True for: nationwide (no state, no city); a known state with no city; or a

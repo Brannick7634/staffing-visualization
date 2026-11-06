@@ -62,7 +62,7 @@ export const DATA_MODE = Object.freeze({
  * @property {string} dataStatus    a DATA_MODE value
  *
  * @typedef {Object} PayResult
- * @property {{ level: 'nationwide'|'state'|'city', label: string, requested?: boolean }} geography
+ * @property {{ level: 'nationwide'|'state'|'city', label: string, requested?: boolean, covers?: string }} geography  covers: only for a pooled area (Inland Empire), what it spans
  * @property {string} coverage      a COVERAGE value
  * @property {string} access        an ACCESS value
  * @property {string} [message]     plain-language explanation for non-publishable or locked states

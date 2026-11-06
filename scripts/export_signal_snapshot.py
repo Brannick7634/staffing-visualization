@@ -30,6 +30,10 @@ Method (CALC_VERSION below; bump it when any of this changes):
     comparison window — and posting families): >= 3 distinct firms and no
     firm > 50% of the metric's observations. UNCHANGED from 1.2.0. Passing it
     is publication eligibility, not a claim of statistical strength.
+  * Areas (scripts/signal_regions.py, 2026-11-06): Inland Empire (Riverside + San
+    Bernardino counties, matched on city name) is published as a city-level cell
+    keyed 'CA:inland-empire', pooling its member cities' observations. Same
+    population, same privacy rule; counted under withheld.pay.area when it fails.
   * Dates kept distinct: snapshotDate (export day), generatedAt (export time),
     sourceBuiltAt (pay table refresh), observationWindow (posting dates of the
     observations actually used).
@@ -56,8 +60,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import signal_population as pop  # noqa: E402
+import signal_regions as regions  # noqa: E402
 
-CALC_VERSION = "signal-agg-2.1.0"  # 2.1.0 (2026-10-19): AI title->role fallback (pipeline src/title_role_ai.json), only for roles in taxonomy.js. 2.0.0 (2026-10-16): hourly-only / contract-only / verified-firm population, firm-name identity, observation counts. 1.2.0: 1.2.0 (2026-10-06): privacy minimum 5 -> 3 firms. 1.1.0 (2026-10-04): expanded role mapping
+CALC_VERSION = "signal-agg-2.1.0"  # NOT bumped for area pooling (2026-11-06, scripts/signal_regions.py): no existing cell changes, and the monthly report refuses to compare months across a baseCalcVersion change. 2.1.0 (2026-10-19): AI title->role fallback (pipeline src/title_role_ai.json), only for roles in taxonomy.js. 2.0.0 (2026-10-16): hourly-only / contract-only / verified-firm population, firm-name identity, observation counts. 1.2.0: 1.2.0 (2026-10-06): privacy minimum 5 -> 3 firms. 1.1.0 (2026-10-04): expanded role mapping
 SCHEMA_VERSION = 1
 FORMAT = "staffing-signal-aggregate-snapshot"
 MIN_FIRMS = 3
@@ -368,18 +373,24 @@ def pay_cells(observations):
             groups[(role, "state", sc, None)].append((mid, firm))
             ck = city_key(city, sc)
             if ck:
-                groups[(role, "city", sc, ck)].append((mid, firm))
+                if ck not in regions.REGION_KEYS:  # a region is built only from its members, below
+                    groups[(role, "city", sc, ck)].append((mid, firm))
+                rk = regions.region_for(ck)  # pooled area cell (e.g. Inland Empire), same gate
+                if rk:
+                    groups[(role, "city", sc, rk)].append((mid, firm))
     pay, withheld_pay = [], Counter()
     role_cov = defaultdict(lambda: {"nationwide": "no_data", "stateCells": 0, "cityCells": 0,
                                     "withheldCells": 0, "observations": 0})
     for (role, level, sc, ck), rows in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "")):
         c = checks([f for _, f in rows])
         rc = role_cov[role]
+        is_area = ck in regions.REGION_KEYS  # pooled area cell: reported apart, not as a city
         if level == "nationwide":
             rc["observations"] = len(rows)
         if not passes(c) or len(rows) < MIN_FIRMS:
-            withheld_pay[level] += 1
-            rc["withheldCells"] += 1
+            withheld_pay["area" if is_area else level] += 1
+            if not is_area:
+                rc["withheldCells"] += 1
             if level == "nationwide":
                 rc["nationwide"] = "withheld"
             continue
@@ -389,7 +400,7 @@ def pay_cells(observations):
                     "observations": len(rows), "checks": c})
         if level == "nationwide":
             rc["nationwide"] = "publishable"
-        else:
+        elif not is_area:
             rc[f"{level}Cells"] += 1
     return pay, withheld_pay, role_cov
 
@@ -638,7 +649,7 @@ def build(pipeline, today):
                                 "note": "Contract/temporary postings from verified staffing firms with pay originally advertised per hour"},
             "citiesLabel": f"{len(city_rows) + 0:,}",
             "reliablePayTitles": sum(1 for c in nat),
-            "jobCityPayCombos": {"value": sum(1 for c in pay if c["level"] == "city"), "approximate": False,
+            "jobCityPayCombos": {"value": sum(1 for c in pay if c["level"] == "city" and c["city"] not in regions.REGION_KEYS), "approximate": False,
                                  "note": "Job/city combinations, not fully covered cities"},
         },
         "issueCards": cards,
@@ -671,6 +682,9 @@ def build(pipeline, today):
             "quantile": "statistics.quantiles(n=4, method='exclusive'); typical = median",
             "newPosting": "COALESCE(posting_date, first_seen_date); reposts and repeat fingerprints dropped",
             "cityVolumeWindowDays": WINDOW_DAYS,
+            "areas": {k: {"label": r["label"], "memberCities": len(r["cityKeys"]),
+                          "rule": "member-city observations pooled into one city-level cell; same privacy rule"}
+                      for k, r in regions.REGIONS.items()},
         },
         "population": {"version": pop.POPULATION_VERSION, "eligibleObservations": pay_obs,
                        "heldOutByReason": dict(sorted(reasons.items())),
@@ -713,6 +727,11 @@ def main():
           f"(withheld {snap['withheld']['pay']}), city rows {len(d['cityVolume']['rows'])} "
           f"(withheld {snap['withheld']['cityVolume']}), momentum {len(d['momentum']['rows'])} "
           f"(withheld {snap['withheld']['momentum']}), families {len(d['mostPostedFamilies']['labels'])}")
+    for key in sorted(regions.REGION_KEYS):
+        cells = [c for c in d["pay"] if c["city"] == key]
+        print(f"area {key}: {len(cells)} pay cells published "
+              f"({', '.join(sorted(c['roleKey'] for c in cells)) or 'none'}), "
+              f"{snap['withheld']['pay'].get('area', 0)} withheld")
     if not d["pay"] or not d["cityVolume"]["rows"]:
         print("REFUSED: no publishable pay or city data")
         return 2

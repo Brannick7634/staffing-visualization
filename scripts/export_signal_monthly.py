@@ -138,7 +138,11 @@ def build_month(pipeline, month, today):
             groups[(role, "state", sc, "")].append((mid, cid))
             ck = base.city_key(city, sc)
             if ck:
-                groups[(role, "city", sc, ck)].append((mid, cid))
+                if ck not in base.regions.REGION_KEYS:
+                    groups[(role, "city", sc, ck)].append((mid, cid))
+                rk = base.regions.region_for(ck)  # pooled area cell, same gate (scripts/signal_regions.py)
+                if rk:
+                    groups[(role, "city", sc, rk)].append((mid, cid))
 
     pay, withheld_pay, role_status = [], Counter(), {}
     for (role, level, sc, ck), rows in sorted(groups.items()):

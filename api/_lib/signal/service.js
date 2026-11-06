@@ -73,7 +73,11 @@ export const REAL_PLACES = Object.freeze({
   city(key) {
     const found = cityByKey(key)
     return found
-      ? { key: found.key, name: found.name, state: found.state, label: `${found.name}, ${found.state}`, shortName: found.name }
+      ? {
+          key: found.key, name: found.name, state: found.state, label: `${found.name}, ${found.state}`, shortName: found.name,
+          // Set only for a listed area that pools several cities (Inland Empire).
+          ...(found.area ? { covers: found.area } : {})
+        }
       : null
   }
 })
@@ -166,8 +170,9 @@ function notYetMessage(shortName, dataMode) {
 // withheld from a signed-out viewer. A result with nothing to show carries the
 // viewer's own level, so no interface can turn a missing or suppressed local
 // benchmark into a signup prompt.
-function evaluatePayScope({ cell, level, label, shortName, requested, viewerAccess, dataMode }) {
-  const geography = { level, label, requested }
+function evaluatePayScope({ cell, level, label, shortName, requested, viewerAccess, dataMode, covers = null }) {
+  // `covers` is set only for a pooled area: what the benchmark spans, so no screen calls it a city.
+  const geography = covers ? { level, label, requested, covers } : { level, label, requested }
   const access = payAccess(level, viewerAccess)
   const nothingToUnlock = access === ACCESS.REQUIRES_FREE_ACCOUNT ? ACCESS.PUBLIC : access
   const base = (coverage, message) => ({ body: { geography, coverage, access: nothingToUnlock, message }, publishable: false })
@@ -787,7 +792,7 @@ export function buildPayResponse({ data, dataMode, viewer, request, places = REA
     result = evaluatePayScope({
       cell: findPayCell(d.pay, role.key, 'city', statePlace.code, cityPlace.key),
       level: 'city', label: cityPlace.label, shortName: cityPlace.shortName, requested: true,
-      viewerAccess: v.access, dataMode: mode
+      viewerAccess: v.access, dataMode: mode, covers: cityPlace.covers || null
     }).body
     if (result.coverage !== COVERAGE.PUBLISHABLE) {
       const stateScope = evaluatePayScope({

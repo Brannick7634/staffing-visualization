@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  STATES, CITIES, stateByCode, citiesForState, cityByKey, isValidSelection, geographyLabel
+  STATES, CITIES, stateByCode, citiesForState, cityByKey, isValidSelection, geographyLabel, isArea, pickerLabel
 } from '../../shared/signal/geography.js'
 
 const CITY_KEY = /^[A-Z]{2}:[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -58,7 +58,7 @@ describe('cities', () => {
     for (const city of CITIES) {
       assert.match(city.key, CITY_KEY)
       assert.equal(city.key.split(':')[0], city.state, city.key)
-      assert.deepEqual(Object.keys(city).sort(), ['key', 'name', 'state'])
+      assert.deepEqual(Object.keys(city).sort(), isArea(city) ? ['area', 'key', 'name', 'state'] : ['key', 'name', 'state'])
       assert.ok(city.name.length > 0)
     }
   })
@@ -91,9 +91,9 @@ describe('cities', () => {
     assert.notEqual(cityByKey('SC:columbia'), cityByKey('MD:columbia'))
   })
 
-  test('populous states have 3 to 6 picker cities', () => {
+  test('populous states have 3 to 6 picker cities (listed areas are not counted)', () => {
     for (const code of ['CA', 'TX', 'FL', 'NY', 'PA', 'IL', 'OH', 'GA', 'NC']) {
-      const count = citiesForState(code).length
+      const count = citiesForState(code).filter((place) => !isArea(place)).length
       assert.ok(count >= 3 && count <= 6, `${code}: ${count}`)
     }
   })

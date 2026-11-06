@@ -1,4 +1,4 @@
-import { STATES, citiesForState } from '../../../shared/signal/geography.js'
+import { STATES, citiesForState, isArea } from '../../../shared/signal/geography.js'
 import { CITY_OTHER, CITY_TEXT_MAX, pickerWithState } from '../../../shared/signal/area.js'
 
 // State + city control shared by the sign-up form and Preferences. The city
@@ -66,7 +66,7 @@ export default function AreaFields({
               onChange={(e) => onChange({ ...value, city: e.target.value }, 'city')}
             >
               <option value="">{value.state ? 'Choose your city' : 'Choose a state first'}</option>
-              {cities.map((c) => <option key={c.key} value={c.key}>{`${c.name}, ${c.state}`}</option>)}
+              {cities.map((c) => <option key={c.key} value={c.key}>{isArea(c) ? `${c.name}, ${c.state} (${c.area})` : `${c.name}, ${c.state}`}</option>)}
               {value.state && <option value={CITY_OTHER}>My city isn’t listed</option>}
             </select>
           </span>

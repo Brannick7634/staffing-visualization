@@ -70,7 +70,7 @@ const POPULATION = { city: 'City benchmark', state: 'State benchmark', nationwid
 
 function insufficientText(result, place, roleLabel) {
   const level = result?.geography?.level
-  const where = level === 'city' ? 'this city' : level === 'state' ? 'this state' : place
+  const where = level === 'city' ? (result?.geography?.covers ? 'this area' : 'this city') : level === 'state' ? 'this state' : place
   return `Not enough verified observations for ${roleLabel ? 'this job' : 'this selection'} in ${where}.`
 }
 
@@ -297,7 +297,7 @@ export default function ResultCard({
 
   const message = announce({ requestState, response, isExample, model })
   const showFooter = ready || requestState === REQUEST.LOADING
-  const subject = ready ? (model ? `${model.roleLabel} · ${model.scope.label} · ${POPULATION[model.scope.level] || 'Benchmark'}` : `${roleLabel} · ${geoLabel(result)}`) : null
+  const subject = ready ? (model ? `${model.roleLabel} · ${model.scope.label} · ${result.geography?.covers ? 'Area benchmark' : POPULATION[model.scope.level] || 'Benchmark'}` : `${roleLabel} · ${geoLabel(result)}`) : null
 
   return (
     <section
@@ -309,6 +309,7 @@ export default function ResultCard({
         <div className="ssp-result__heading">
           <h2 id={headingId} className="ssp-result__title">Market Pay Insights</h2>
           {subject && <p className="ssp-result__subject">{subject}</p>}
+          {ready && result.geography?.covers && <p className="ssp-result__subject">{`Pools ${result.geography.covers}.`}</p>}
         </div>
         <div className="ssp-result__chips">
           {ready && isExample && <span className="ssp-chip ssp-chip--example">Example</span>}

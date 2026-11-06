@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ACCESS } from '../../../shared/signal/contract.js'
-import { citiesForState, STATES } from '../../../shared/signal/geography.js'
+import { citiesForState, pickerLabel, STATES } from '../../../shared/signal/geography.js'
 import { parseHourlyRate } from '../../../shared/signal/money.js'
 import { localAvailabilityNote } from '../../../shared/signal/availability.js'
 import { EXAMPLE_ROLES, roleByKey, rolesForSector, SECTORS, sectorForRole } from '../../../shared/signal/taxonomy.js'
@@ -238,7 +238,7 @@ export default function Calculator({ idPrefix = 'ssp', layout = 'card', onChecke
               >
                 <option value="">{selection.state ? 'All cities' : 'Nationwide'}</option>
                 {cities.map((city) => (
-                  <option key={city.key} value={city.key}>{city.name}</option>
+                  <option key={city.key} value={city.key}>{pickerLabel(city)}</option>
                 ))}
               </select>
             </span>
