@@ -79,6 +79,57 @@ function area(state, slug, name, covers) {
   return { key: `${state}:${slug}`, name, state, area: covers }
 }
 
+// Listed AREAS (pooled benchmarks), after all cities so a state's cities come first. Generated from
+// scripts/signal_regions.py (python scripts/signal_regions.py --dump); tests/signal/areas.test.mjs fails
+// if this list and that registry drift.
+const AREAS = [
+  area('CA', 'inland-empire', 'Inland Empire', 'Riverside + San Bernardino counties'),
+  area('DC', 'greater-washington', 'Greater Washington', 'DC, northern Virginia + Maryland suburbs'),
+  area('VA', 'greater-washington', 'Greater Washington', 'DC, northern Virginia + Maryland suburbs'),
+  area('MD', 'greater-washington', 'Greater Washington', 'DC, northern Virginia + Maryland suburbs'),
+  area('CA', 'greater-los-angeles', 'Greater Los Angeles', 'Los Angeles + Orange counties'),
+  area('PA', 'greater-philadelphia', 'Greater Philadelphia', 'Philadelphia, suburbs, South Jersey + New Castle, DE'),
+  area('NJ', 'greater-philadelphia', 'Greater Philadelphia', 'Philadelphia, suburbs, South Jersey + New Castle, DE'),
+  area('DE', 'greater-philadelphia', 'Greater Philadelphia', 'Philadelphia, suburbs, South Jersey + New Castle, DE'),
+  area('CA', 'bay-area', 'San Francisco Bay Area', 'the 9 Bay Area counties'),
+  area('NY', 'greater-new-york', 'Greater New York', 'NYC, Long Island, Westchester + northern New Jersey'),
+  area('NJ', 'greater-new-york', 'Greater New York', 'NYC, Long Island, Westchester + northern New Jersey'),
+  area('MD', 'baltimore-area', 'Baltimore Area', 'Baltimore city + county and nearby counties'),
+  area('IL', 'greater-chicago', 'Greater Chicago', 'Cook, DuPage, Lake, Will + nearby counties'),
+  area('IN', 'greater-chicago', 'Greater Chicago', 'Cook, DuPage, Lake, Will + nearby counties'),
+  area('TX', 'dallas-fort-worth', 'Dallas-Fort Worth', 'Dallas, Tarrant, Collin, Denton + nearby counties'),
+  area('MA', 'greater-boston', 'Greater Boston', 'Boston, Middlesex, Essex, Norfolk, Plymouth + southern NH'),
+  area('NH', 'greater-boston', 'Greater Boston', 'Boston, Middlesex, Essex, Norfolk, Plymouth + southern NH'),
+  area('MN', 'twin-cities', 'Twin Cities', 'Minneapolis, St. Paul + nearby counties'),
+  area('WI', 'twin-cities', 'Twin Cities', 'Minneapolis, St. Paul + nearby counties'),
+  area('NC', 'research-triangle', 'Research Triangle', 'Wake, Durham + nearby counties'),
+  area('VA', 'hampton-roads', 'Hampton Roads', 'Norfolk, Virginia Beach, Newport News + nearby'),
+  area('WA', 'greater-seattle', 'Greater Seattle', 'King, Pierce + Snohomish counties'),
+  area('MI', 'greater-detroit', 'Greater Detroit', 'Wayne, Oakland, Macomb + nearby counties'),
+  area('GA', 'greater-atlanta', 'Greater Atlanta', 'Fulton, DeKalb, Cobb, Gwinnett + nearby counties'),
+  area('FL', 'south-florida', 'South Florida', 'Miami-Dade, Broward + Palm Beach counties'),
+  area('AZ', 'greater-phoenix', 'Greater Phoenix', 'Maricopa + Pinal counties'),
+  area('PA', 'greater-pittsburgh', 'Greater Pittsburgh', 'Allegheny + nearby counties'),
+  area('CO', 'greater-denver', 'Greater Denver', 'Denver, Adams, Arapahoe, Jefferson, Douglas + nearby'),
+  area('OH', 'greater-cleveland', 'Greater Cleveland', 'Cuyahoga, Summit, Lorain + nearby counties'),
+  area('OR', 'greater-portland', 'Greater Portland', 'Portland metro + Clark County, WA'),
+  area('WA', 'greater-portland', 'Greater Portland', 'Portland metro + Clark County, WA'),
+  area('CA', 'central-valley', 'Central Valley', 'Fresno, Kern, San Joaquin, Stanislaus + nearby'),
+  area('TX', 'greater-houston', 'Greater Houston', 'Harris, Fort Bend, Montgomery + nearby counties'),
+  area('OH', 'greater-columbus', 'Greater Columbus', 'Franklin, Delaware, Licking + nearby counties'),
+  area('TN', 'greater-nashville', 'Greater Nashville', 'Davidson, Williamson, Rutherford + nearby counties'),
+  area('FL', 'greater-tampa', 'Greater Tampa Bay', 'Hillsborough, Pinellas, Pasco + Hernando'),
+  area('MO', 'kansas-city-area', 'Kansas City Area', 'Kansas City, MO + KS, with nearby counties'),
+  area('KS', 'kansas-city-area', 'Kansas City Area', 'Kansas City, MO + KS, with nearby counties'),
+  area('MO', 'greater-st-louis', 'Greater St. Louis', 'St. Louis city + county, St. Charles + Illinois side'),
+  area('IL', 'greater-st-louis', 'Greater St. Louis', 'St. Louis city + county, St. Charles + Illinois side'),
+  area('WI', 'greater-milwaukee', 'Greater Milwaukee', 'Milwaukee, Waukesha, Washington + Ozaukee'),
+  area('SC', 'greenville-spartanburg', 'Greenville-Spartanburg', 'Greenville, Spartanburg + nearby counties'),
+  area('TX', 'greater-austin', 'Greater Austin', 'Travis, Williamson, Hays + nearby counties'),
+  area('IN', 'greater-indianapolis', 'Greater Indianapolis', 'Marion + the surrounding counties'),
+  area('VA', 'greater-richmond', 'Greater Richmond', 'Richmond city, Henrico, Chesterfield + nearby')
+]
+
 // Static picker list: a few major cities for populous states. Grouped by
 // state; within a state, largest first.
 export const CITIES = freezeAll([
@@ -93,7 +144,6 @@ export const CITIES = freezeAll([
   city('CA', 'san-francisco', 'San Francisco'),
   city('CA', 'fresno', 'Fresno'),
   city('CA', 'sacramento', 'Sacramento'),
-  area('CA', 'inland-empire', 'Inland Empire', 'Riverside + San Bernardino counties'),
   city('CO', 'denver', 'Denver'),
   city('CO', 'colorado-springs', 'Colorado Springs'),
   city('CO', 'aurora', 'Aurora'),
@@ -165,7 +215,8 @@ export const CITIES = freezeAll([
   city('WA', 'spokane', 'Spokane'),
   city('WA', 'tacoma', 'Tacoma'),
   city('WI', 'milwaukee', 'Milwaukee'),
-  city('WI', 'madison', 'Madison')
+  city('WI', 'madison', 'Madison'),
+  ...AREAS
 ])
 
 const STATE_INDEX = new Map(STATES.map((state) => [state.code, state]))

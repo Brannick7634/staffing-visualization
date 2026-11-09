@@ -101,7 +101,7 @@ describe('cities', () => {
   test('citiesForState', () => {
     assert.equal(citiesForState('TX')[0].key, 'TX:houston')
     assert.ok(citiesForState('TX').every((city) => city.state === 'TX'))
-    assert.deepEqual(citiesForState('DC').map((city) => city.key), ['DC:washington'])
+    assert.deepEqual(citiesForState('DC').filter((city) => !isArea(city)).map((city) => city.key), ['DC:washington'])
     assert.deepEqual(citiesForState('WY'), [])
     assert.deepEqual(citiesForState('XX'), [])
     assert.deepEqual(citiesForState(undefined), [])

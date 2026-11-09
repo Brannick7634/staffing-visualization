@@ -30,10 +30,12 @@ Method (CALC_VERSION below; bump it when any of this changes):
     comparison window — and posting families): >= 3 distinct firms and no
     firm > 50% of the metric's observations. UNCHANGED from 1.2.0. Passing it
     is publication eligibility, not a claim of statistical strength.
-  * Areas (scripts/signal_regions.py, 2026-11-06): Inland Empire (Riverside + San
-    Bernardino counties, matched on city name) is published as a city-level cell
-    keyed 'CA:inland-empire', pooling its member cities' observations. Same
-    population, same privacy rule; counted under withheld.pay.area when it fails.
+  * Areas (scripts/signal_regions.py): Inland Empire (2026-11-06, Riverside + San
+    Bernardino counties, matched on city name) and 33 metros (2026-11-09, matched
+    on county) are published as city-level cells keyed 'CA:inland-empire',
+    'TX:greater-houston', ..., pooling their member cities' observations. An area
+    that crosses a state line has one identical cell per state it is listed under.
+    Same population, same privacy rule; counted under withheld.pay.area when it fails.
   * Dates kept distinct: snapshotDate (export day), generatedAt (export time),
     sourceBuiltAt (pay table refresh), observationWindow (posting dates of the
     observations actually used).
@@ -53,7 +55,6 @@ import sqlite3
 import statistics
 import sys
 import tempfile
-import unicodedata
 from collections import Counter, defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -323,9 +324,7 @@ def state_code(value):
 
 
 def city_key(city, state):
-    c = " ".join(unicodedata.normalize("NFKD", city or "").encode("ascii", "ignore").decode().split())
-    c = re.sub(r"^(greater|city of)\s+", "", c, flags=re.I)
-    c = re.sub(r"\s+(county|metropolitan area|metro area|metro|area)$", "", c, flags=re.I).strip(" ,")
+    c = regions.clean_city(city)  # one cleaning rule, shared with the county lookup
     if not c or c.lower() in ("remote", "united states", "us", "usa", "anywhere"):
         return None
     if state == "DC":
@@ -373,11 +372,11 @@ def pay_cells(observations):
             groups[(role, "state", sc, None)].append((mid, firm))
             ck = city_key(city, sc)
             if ck:
-                if ck not in regions.REGION_KEYS:  # a region is built only from its members, below
+                if ck not in regions.REGION_KEYS:  # an area is built only from its members, below
                     groups[(role, "city", sc, ck)].append((mid, firm))
-                rk = regions.region_for(ck)  # pooled area cell (e.g. Inland Empire), same gate
-                if rk:
-                    groups[(role, "city", sc, rk)].append((mid, firm))
+                for slug in regions.member_areas(sc, city, ck):  # pooled area cells, same gate
+                    for lst, key in regions.listings(slug):  # one cell per state the area is listed under
+                        groups[(role, "city", lst, key)].append((mid, firm))
     pay, withheld_pay = [], Counter()
     role_cov = defaultdict(lambda: {"nationwide": "no_data", "stateCells": 0, "cityCells": 0,
                                     "withheldCells": 0, "observations": 0})
@@ -682,9 +681,10 @@ def build(pipeline, today):
             "quantile": "statistics.quantiles(n=4, method='exclusive'); typical = median",
             "newPosting": "COALESCE(posting_date, first_seen_date); reposts and repeat fingerprints dropped",
             "cityVolumeWindowDays": WINDOW_DAYS,
-            "areas": {k: {"label": r["label"], "memberCities": len(r["cityKeys"]),
-                          "rule": "member-city observations pooled into one city-level cell; same privacy rule"}
-                      for k, r in regions.REGIONS.items()},
+            "areas": {k: {"label": r["label"], "listedIn": r["states"],
+                          "basis": "city list" if r["cities"] else "county list"}
+                      for k, r in regions.AREAS.items()},
+            "areaRule": "member-city observations pooled into one city-level cell per listed state; same privacy rule",
         },
         "population": {"version": pop.POPULATION_VERSION, "eligibleObservations": pay_obs,
                        "heldOutByReason": dict(sorted(reasons.items())),
@@ -727,11 +727,9 @@ def main():
           f"(withheld {snap['withheld']['pay']}), city rows {len(d['cityVolume']['rows'])} "
           f"(withheld {snap['withheld']['cityVolume']}), momentum {len(d['momentum']['rows'])} "
           f"(withheld {snap['withheld']['momentum']}), families {len(d['mostPostedFamilies']['labels'])}")
-    for key in sorted(regions.REGION_KEYS):
-        cells = [c for c in d["pay"] if c["city"] == key]
-        print(f"area {key}: {len(cells)} pay cells published "
-              f"({', '.join(sorted(c['roleKey'] for c in cells)) or 'none'}), "
-              f"{snap['withheld']['pay'].get('area', 0)} withheld")
+    area_cells = [c for c in d["pay"] if c["city"] in regions.REGION_KEYS]
+    print(f"areas: {len(area_cells)} pay cells published across {len({c['city'] for c in area_cells})} of "
+          f"{len(regions.REGION_KEYS)} area listings, {snap['withheld']['pay'].get('area', 0)} withheld")
     if not d["pay"] or not d["cityVolume"]["rows"]:
         print("REFUSED: no publishable pay or city data")
         return 2

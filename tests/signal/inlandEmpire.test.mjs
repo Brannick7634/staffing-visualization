@@ -46,8 +46,8 @@ describe('picker', () => {
     assert.equal(geographyLabel('CA', KEY), 'Inland Empire, CA')
   })
 
-  test('it is the only area; every other pick is a plain city', () => {
-    assert.deepEqual(CITIES.filter(isArea).map((c) => c.key), [KEY])
+  test('it is one of the listed areas; ordinary cities are not areas', () => {
+    assert.ok(CITIES.filter(isArea).some((c) => c.key === KEY))
     assert.equal(isArea(cityByKey('CA:los-angeles')), false)
     assert.equal(isArea(null), false)
   })

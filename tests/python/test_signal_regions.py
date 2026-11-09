@@ -28,10 +28,10 @@ def area_cell(cells, role=ROLE):
 
 
 class Membership(unittest.TestCase):
-    def test_key_matches_the_site_picker(self):
-        geo = (ROOT / "shared" / "signal" / "geography.js").read_text(encoding="utf-8")
-        self.assertIn("area('CA', 'inland-empire', 'Inland Empire'", geo)
+    def test_key_is_stable(self):
+        # The site picker entry is checked against the registry in tests/signal/areas.test.mjs.
         self.assertEqual(KEY, "CA:inland-empire")
+        self.assertIn(KEY, regions.REGION_KEYS)
 
     def test_every_member_slug_agrees_with_the_exports_city_key(self):
         for name in regions.INLAND_EMPIRE_NAMES:
