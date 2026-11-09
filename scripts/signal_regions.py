@@ -190,6 +190,18 @@ _METROS = [
      {"IN": "marion,hamilton,hendricks,johnson,hancock,boone,morgan,shelby,brown,putnam"}),
     ("greater-richmond", "Greater Richmond", ["VA"], "Richmond city, Henrico, Chesterfield + nearby",
      {"VA": "richmond,richmond city,chesterfield,henrico,hanover,goochland,powhatan,new kent,prince george,colonial heights,colonial heights city,hopewell,petersburg,petersburg city,dinwiddie,charles city,amelia"}),
+    # Added 2026-11-09 at the owner's request after the near-miss review (each just under the
+    # "gain >= 8" bar or "pooled >= 10" bar when scored): same definitions, same gate.
+    ("greater-charlotte", "Greater Charlotte", ["NC", "SC"], "Mecklenburg, Union, Cabarrus + York, SC and nearby",
+     {"NC": "mecklenburg,union,cabarrus,gaston,iredell,lincoln,rowan", "SC": "york,lancaster,chester"}),
+    ("piedmont-triad", "Piedmont Triad", ["NC"], "Greensboro, Winston-Salem, High Point + nearby",
+     {"NC": "guilford,forsyth,randolph,davidson,rockingham,alamance,stokes,davie,yadkin"}),
+    ("lehigh-valley", "Lehigh Valley", ["PA", "NJ"], "Allentown, Bethlehem, Easton + Warren, NJ",
+     {"PA": "lehigh,northampton", "NJ": "warren"}),
+    ("greater-cincinnati", "Greater Cincinnati", ["OH", "KY", "IN"], "Hamilton, Butler, Warren + northern Kentucky",
+     {"OH": "hamilton,butler,clermont,warren,brown", "KY": "boone,kenton,campbell,grant,gallatin,bracken,pendleton", "IN": "dearborn,ohio,union"}),
+    ("greater-sacramento", "Greater Sacramento", ["CA"], "Sacramento, Placer, El Dorado + Yolo counties",
+     {"CA": "sacramento,el dorado,placer,yolo"}),
 ]
 
 AREAS = {

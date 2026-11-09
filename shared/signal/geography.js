@@ -127,7 +127,16 @@ const AREAS = [
   area('SC', 'greenville-spartanburg', 'Greenville-Spartanburg', 'Greenville, Spartanburg + nearby counties'),
   area('TX', 'greater-austin', 'Greater Austin', 'Travis, Williamson, Hays + nearby counties'),
   area('IN', 'greater-indianapolis', 'Greater Indianapolis', 'Marion + the surrounding counties'),
-  area('VA', 'greater-richmond', 'Greater Richmond', 'Richmond city, Henrico, Chesterfield + nearby')
+  area('VA', 'greater-richmond', 'Greater Richmond', 'Richmond city, Henrico, Chesterfield + nearby'),
+  area('NC', 'greater-charlotte', 'Greater Charlotte', 'Mecklenburg, Union, Cabarrus + York, SC and nearby'),
+  area('SC', 'greater-charlotte', 'Greater Charlotte', 'Mecklenburg, Union, Cabarrus + York, SC and nearby'),
+  area('NC', 'piedmont-triad', 'Piedmont Triad', 'Greensboro, Winston-Salem, High Point + nearby'),
+  area('PA', 'lehigh-valley', 'Lehigh Valley', 'Allentown, Bethlehem, Easton + Warren, NJ'),
+  area('NJ', 'lehigh-valley', 'Lehigh Valley', 'Allentown, Bethlehem, Easton + Warren, NJ'),
+  area('OH', 'greater-cincinnati', 'Greater Cincinnati', 'Hamilton, Butler, Warren + northern Kentucky'),
+  area('KY', 'greater-cincinnati', 'Greater Cincinnati', 'Hamilton, Butler, Warren + northern Kentucky'),
+  area('IN', 'greater-cincinnati', 'Greater Cincinnati', 'Hamilton, Butler, Warren + northern Kentucky'),
+  area('CA', 'greater-sacramento', 'Greater Sacramento', 'Sacramento, Placer, El Dorado + Yolo counties')
 ]
 
 // Static picker list: a few major cities for populous states. Grouped by

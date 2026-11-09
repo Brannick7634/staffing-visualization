@@ -31,7 +31,7 @@ Method (CALC_VERSION below; bump it when any of this changes):
     firm > 50% of the metric's observations. UNCHANGED from 1.2.0. Passing it
     is publication eligibility, not a claim of statistical strength.
   * Areas (scripts/signal_regions.py): Inland Empire (2026-11-06, Riverside + San
-    Bernardino counties, matched on city name) and 33 metros (2026-11-09, matched
+    Bernardino counties, matched on city name) and 38 metros (2026-11-09, matched
     on county) are published as city-level cells keyed 'CA:inland-empire',
     'TX:greater-houston', ..., pooling their member cities' observations. An area
     that crosses a state line has one identical cell per state it is listed under.
